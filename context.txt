@@ -1,0 +1,632 @@
+# Gyaan Buddy — Flutter → React Migration Context
+
+This document is the complete handoff context for a Flutter-to-React migration of
+the Gyaan Buddy student app. It captures everything decided and discovered in a
+prior planning session. Read top-to-bottom before starting work.
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+Gyaan Buddy is an educational quiz/learning web app for students, currently
+built in Flutter (Dart) and deployed as a Flutter web build. The user wants the
+ENTIRE frontend migrated from Flutter to React because:
+
+  1. The Flutter web build is slow (~3 MB main.dart.js + ~1.5 MB canvaskit
+     cold-start) and feels sluggish.
+  2. The web build is hard-coded to a 430×932 mobile mockup (see
+     lib/main.dart:528 in the Flutter source), so on desktop it renders as a
+     phone-shaped column in the middle of the browser — i.e. "not responsive".
+
+The backend (Django + Django REST Framework + Firebase) is working and is
+EXPLICITLY OUT OF SCOPE. Do not touch backend code, schemas, endpoints, or
+Firebase project configuration.
+
+================================================================================
+2. SOURCE REPOSITORY
+================================================================================
+
+GitHub URL:    https://github.com/theshushant/gyaan_buddy.git
+
+IMPORTANT: the default `main` branch contains ONLY the compiled Flutter web
+build (main.dart.js, flutter_bootstrap.js, canvaskit/). The Dart source code
+lives on dev branches.
+
+Use this branch for the Flutter source reference:
+    aadi/dev-web-app
+
+Setup commands for the new machine:
+    git clone https://github.com/theshushant/gyaan_buddy.git
+    cd gyaan_buddy
+    git fetch --all
+    git checkout aadi/dev-web-app
+
+The new React app will live at:
+    gyaan_buddy/web-react/
+
+The Flutter source at gyaan_buddy/lib/ must remain UNTOUCHED — it is your
+reference whenever you need to know how a screen behaves, what an API returns,
+or what a color/spacing value should be.
+
+================================================================================
+3. CRITICAL CODEBASE FACTS (from the Flutter source on aadi/dev-web-app)
+================================================================================
+
+Scale:
+  - Total Dart files: 147
+  - Total lines of Dart: ~58,500
+  - Screens: 24
+  - BLoCs (state management): 10
+  - Services: 21
+  - Models: 28
+  - Web-aware files (contain kIsWeb): 40
+  - Largest single screen: lib/screens/quiz/quiz_screen.dart (2,707 lines)
+
+Top-level lib/ structure:
+    lib/blocs/                  state management (BLoC pattern)
+    lib/models/                 data models
+    lib/screens/                page-level widgets (24 screens)
+    lib/services/               API clients + Firebase + analytics + sound + ...
+    lib/theme/app_theme.dart    design tokens (404 lines)
+    lib/utils/                  helpers (env, web font config, ...)
+    lib/widgets/                shared components (incl. lib/widgets/web/)
+    lib/main.dart               app entry + route table (1,088 lines)
+
+Assets (4.1 MB total):
+    assets/images/   29 PNGs, 4 JPEGs
+    assets/sounds/   9 OGG + 9 MP3 + 1 WAV
+    assets/icons/
+    assets/fonts/
+
+================================================================================
+4. SCREEN INVENTORY (all 24 screens)
+================================================================================
+
+Source path                                                        LoC    Tier
+----------------------------------------------------------------- ------ -----
+lib/screens/auth/login_screen.dart                                  843    1
+lib/screens/auth/new_login_screen.dart                              ~        1
+lib/screens/splash/image_splash_screen.dart                         ~        2
+lib/screens/confirmation/confirmation_screen.dart                   ~        2
+lib/screens/profile/credits_screen.dart                             ~        2
+lib/screens/notifications/notification_screen.dart                  ~        2
+lib/screens/profile/profile_screen.dart                            1109     2
+lib/screens/onboarding/onboarding_screen.dart                       ~        2
+lib/screens/subject/subject_screen.dart                             723     2
+lib/screens/leaderboard/leaderboard_screen.dart                     727     2
+lib/screens/leaderboard/module_leaderboard_screen.dart              ~        3
+lib/screens/module/module_chapter_screen.dart                      1468     3
+lib/screens/module/module_content_screen.dart                       757     3
+lib/screens/module/chapter_theory_screen.dart                      1059     3
+lib/screens/module/theory_screen.dart                              1008     3
+lib/screens/mission/mission_screen.dart                             952     3
+lib/screens/mission/mission_subject_screen.dart                    1194     3
+lib/screens/mission/mission_detail_screen.dart                     2292     3
+lib/screens/mission/mission_splash_screen.dart                      ~        3
+lib/screens/home/home_screen.dart                                   ~        3
+lib/screens/home/new_home_content_screen.dart                       ~        3
+lib/screens/quiz/quiz_screen.dart                                  2707     4
+lib/screens/test/test_quiz_screen.dart                             1502     4
+lib/screens/test/test_subject_screen.dart                          1488     4
+
+Tier = which migration tier this belongs to (see section 9).
+
+================================================================================
+5. BACKEND CONTRACT (Django / DRF) — DO NOT CHANGE
+================================================================================
+
+Base URL pattern (configured via env vars):
+    BASE_URL_DEV   = https://api-dev.gyaanbuddy.com
+    BASE_URL_STAGE = https://api-stage.gyaanbuddy.com
+    BASE_URL_PROD  = https://api.gyaanbuddy.com
+    API_VERSION    = /v1
+    Full base URL  = {BASE_URL}/v1
+
+Authentication:
+    Header:         Authorization: Bearer <access_token>
+    Token model:    { access_token, refresh_token,
+                      access_token_expires (ISO),
+                      refresh_token_expires (ISO) }
+    Storage in Flutter: SharedPreferences keys
+                        'access_token', 'refresh_token',
+                        'access_token_expires', 'refresh_token_expires'
+    React equivalent: localStorage with same keys (so tokens are portable
+                      between Flutter and React during transition).
+
+Response envelope (UNIFORM across every endpoint):
+    {
+      "success": true | false,
+      "message": "<human-readable string>",
+      "data":    <T or null>
+    }
+
+Public endpoints (NO Authorization header):
+    POST  /auth/login/
+    POST  /auth/register
+    POST  /auth/forgot-password
+    POST  /auth/reset-password
+
+Authenticated endpoints inventory (collected from lib/services/*.dart):
+    GET   /users/me
+    PUT   /users/me           (profile updates)
+    DELETE /users/me
+    GET   /users/{userId}
+    POST  /users/logout
+
+    GET   /subjects/
+    GET   /subjects/{id}
+    GET   /subjects/{id}/modules
+
+    GET   /modules/{moduleId}/module_chapters/
+    GET   /module_chapters/{chapterId}/module_content
+    GET   /module_chapters/{chapterId}/module_questions/
+    GET   /module_chapters/{chapterId}/hots_questions/
+    GET   /module_chapters/{chapterId}/get_next_content/{queryParam}
+    POST  /questions/{questionId}/check/
+
+    GET   /missions/
+    GET   /tests/
+    GET   /leaderboard
+    GET   /notifications
+    GET   /home
+    GET   /profile
+
+    POST  /api/fcm/token
+    DELETE /api/fcm/token/{userId}
+    POST  /api/fcm/topics/subscribe
+    POST  /api/fcm/topics/unsubscribe
+
+URL style: Django/DRF default — trailing slashes on collection routes
+(e.g. /subjects/, /missions/). Preserve trailing slashes exactly as the
+Flutter app does.
+
+CORS: needs to allow http://localhost:5173 (Vite default) for local dev. If
+the dev API doesn't already allow this origin, you'll see browser CORS errors
+on the first real request — flag it to the user; don't touch the backend.
+
+================================================================================
+6. DESIGN TOKENS (port verbatim from lib/theme/app_theme.dart)
+================================================================================
+
+Colors:
+    --color-primary:        #365DEA
+    --color-primary-light:  #5B7AFF
+    --color-primary-dark:   #2A4BD8
+
+    --color-button:         #365DEA
+    --color-button-text:    #FFFFFF
+    --color-button-disabled:#CCCCCC
+
+    --color-text-primary:   #333333
+    --color-text-secondary: #666666
+    --color-text-light:     #999999
+
+    --color-bg:             #FFFFFF
+    --color-surface:        #F8F9FA
+
+    --color-input-border:   #E0E0E0
+    --color-input-fill:     #F5F5F5
+    --color-input-focus:    #365DEA
+
+    --color-error:          #E74C3C
+    --color-success:        #27AE60
+    --color-warning:        #F39C12
+
+Border radius:
+    button input cards:     12px
+
+Typography: Flutter uses Material 3 default text styles with a web-specific
+font wrapper (lib/utils/web_font_config.dart). Inspect that file when porting
+text styles. Default to system sans-serif stack on web (-apple-system,
+"Segoe UI", Roboto, sans-serif) — visual diff will be minor; verify with the
+user before fine-tuning.
+
+================================================================================
+7. ROUTE TABLE (from lib/main.dart:538 — mirror in React Router exactly)
+================================================================================
+
+Flutter Navigator route names → React Router paths:
+
+    '/onboarding'      → /onboarding
+    '/login'           → /login           (default fallback)
+    '/home'            → /home            (accepts ?tab=<int> for initial tab)
+    '/confirmation'    → /confirmation
+    '/leaderboard'     → /leaderboard
+    '/notifications'   → /notifications
+    '/credits'         → /credits
+
+Logged-in entry behavior (lib/main.dart:512):
+    if (kIsWeb) home = LoginOrHomeScreen()   // splash-less on web
+    else        home = ImageSplashScreen()    // splash then route
+
+On web, the bootstrap component decides login vs home based on whether a valid
+access token is stored. Replicate this: on app load, if access token exists
+and is not expired → redirect to /home; else → /login.
+
+The /home screen contains a bottom tab navigator with these tabs (from
+lib/screens/home/new_home_content_screen.dart, NewHomeContentScreen(initialTabIndex)):
+    0: Home
+    1: Subject
+    2: Mission
+    3: Dashboard
+    4: You (profile)
+
+In React, these become nested routes under /home/ with a layout component
+that switches between bottom tabs (mobile) and sidebar (desktop).
+
+================================================================================
+8. DECISIONS LOCKED IN (do not re-litigate without user approval)
+================================================================================
+
+A. Migration target — Faithful + responsive desktop:
+   - At viewport width ≤ 480px: pixel-faithful to current Flutter web. Same
+     430-wide column, same components, same fonts, same colors.
+   - At 768–1023px: same 430-wide column centered, soft side gradient.
+   - At ≥ 1024px: left sidebar (240px) replaces bottom tabs + content area
+     (430–540px) + optional right rail. Inner component visuals UNCHANGED at
+     every width. Only the outer shell adapts.
+
+B. Tech stack (locked):
+   - React 18 + Vite + TypeScript
+   - Routing:        react-router-dom v6
+   - Server state:   @tanstack/react-query v5
+   - UI/auth state:  zustand v4
+   - Styling:        Tailwind CSS + CSS variables for tokens
+   - HTTP:           axios with interceptor (mirrors Dio _AuthInterceptor)
+   - Forms:          react-hook-form + zod
+   - Animations:     framer-motion (page transitions, splash, confetti)
+   - Firebase:       firebase v10 JS SDK (auth, firestore, storage, messaging)
+   - Analytics:      posthog-js  AND  firebase analytics (web)
+   - Dates:          date-fns (replaces intl)
+   - Toasts:         react-hot-toast
+   - Testing:        vitest + playwright
+
+C. Repo layout:
+   - /web-react/ subfolder inside the existing Flutter repo on branch
+     aadi/dev-web-app.
+   - Flutter /lib/ kept fully intact as live reference.
+
+D. Drops on web (with rationale):
+   - no_screenshot         → BROWSERS CANNOT BLOCK SCREENSHOTS. User
+                              decision: drop on web. Mobile apps still have
+                              it. Document limitation in /web-react/README.md.
+   - vibration             → polyfill with navigator.vibrate?.() (no-op on
+                              desktop). One-line wrapper.
+   - flutter_local_notifications → use Firebase Messaging Web Push. The repo
+                              already has firebase-messaging-sw.js — reuse.
+   - audioplayers          → native HTMLAudioElement.
+   - cached_network_image  → <img loading="lazy"> + Vite asset hashing.
+   - bytebrew              → drop on web (no clean equivalent).
+   - gameanalytics         → drop on web (no clean equivalent).
+   - permission_handler    → use browser-native permission prompts where
+                              needed (notifications, etc.).
+   - device_info_plus      → use navigator.userAgent on web if needed.
+
+E. Operational mode:
+   - LOCAL DEVELOPMENT ONLY. No deploy, no CI, no GitHub Actions, no Firebase
+     Hosting target, no preview URLs, no DNS changes. Everything runs on
+     localhost. The user will explicitly approve deployment AFTER they have
+     tested locally and signed off.
+   - Cut all "extras" — focus only on core migration work.
+
+F. Backend untouched:
+   - No Django code changes.
+   - No Firebase project config changes.
+   - No new endpoints. If a feature seems to need a new endpoint, STOP and ask.
+
+================================================================================
+9. PHASED EXECUTION PLAN (easy first, build momentum, buffer for hard screens)
+================================================================================
+
+TIER 1 — Foundation (no UI yet) ~5 days
+  1. Vite + React + TS scaffold in /web-react/. Install dependencies.
+  2. Tailwind config + tokens.css mirroring lib/theme/app_theme.dart.
+  3. Route table mirroring lib/main.dart:538.
+  4. Responsive AppShell (mobile column + desktop sidebar).
+  5. API client: axios instance + auth interceptor + token storage.
+  6. Auth flow: login screen → store tokens → redirect to /home.
+  7. README.md in /web-react/ with run instructions + screen tracker.
+
+TIER 2 — Quick wins (mostly read-only) ~5–7 days
+   - image_splash_screen
+   - confirmation_screen
+   - credits_screen
+   - notification_screen
+   - profile_screen (view-only first)
+   - onboarding_screen
+   - subject_screen (list view)
+   - leaderboard_screen
+Goal: 8 screens done, reusable component library built (Card, List, Avatar,
+RankBadge, etc.), team confidence high.
+
+TIER 3 — Medium complexity ~7–10 days
+   - module_chapter_screen
+   - module_content_screen
+   - chapter_theory_screen
+   - theory_screen
+   - mission_screen
+   - mission_subject_screen
+   - mission_detail_screen
+   - mission_splash_screen
+   - module_leaderboard_screen
+   - home_screen
+   - new_home_content_screen (composition screen — XP card, daily reward,
+     leaderboard widget, subject filter)
+Goal: ~80% of surface area covered.
+
+TIER 4 — Heavy lifting (most complex) ~7–10 days
+   - quiz_screen          (2,707 LoC — break into QuizContainer,
+                            QuestionRenderer, Timer, AnswerSubmit, ResultScreen)
+   - test_quiz_screen     (1,502 LoC — variant of quiz)
+   - test_subject_screen  (1,488 LoC — test selection + flow entry)
+
+TIER 5 — Cross-cutting & polish ~3–5 days
+   - FCM web push wiring (service worker already in repo at
+     firebase-messaging-sw.js)
+   - PostHog analytics + route observer
+   - Firebase Analytics events
+   - Daily rewards popup
+   - Tutorial overlay
+   - Confetti / shock / rotating-circle animations (framer-motion or Lottie)
+   - Sound service (HTMLAudioElement wrapper)
+   - Profile edit, password change flows
+
+TIER 6 — Parity audit & cutover ~2 days (only after user approval)
+   - Side-by-side QA against the Flutter web build, screen by screen, at
+     mobile and desktop widths.
+   - Lighthouse pass; fix LCP/CLS.
+   - User approves → discuss deployment plan (NOT before).
+
+Total: ~30–37 working days for one engineer. Two engineers in parallel after
+Tier 1 → ~3 weeks. Calendar: budget 5–6 weeks with reviews/iteration.
+
+================================================================================
+10. TARGET FOLDER STRUCTURE FOR /web-react/
+================================================================================
+
+/web-react/
+  package.json
+  vite.config.ts
+  tsconfig.json
+  tailwind.config.ts
+  postcss.config.js
+  index.html
+  .env.example
+  README.md                  # run instructions, screen tracker
+  src/
+    main.tsx                 # entry point
+    App.tsx                  # providers
+    app/
+      routes.tsx             # mirrors lib/main.dart:538
+      providers.tsx          # QueryClient, AuthProvider, ThemeProvider
+    shell/
+      AppShell.tsx           # responsive chrome
+      BottomTabs.tsx         # mobile <768px
+      SideNav.tsx            # desktop ≥1024px
+      AppBar.tsx
+    features/                # one folder per Flutter screen-group
+      auth/
+        LoginPage.tsx
+        useLogin.ts
+      home/
+      subject/
+      module/
+      mission/
+      quiz/
+      test/
+      leaderboard/
+      profile/
+      notifications/
+      onboarding/
+      credits/
+      confirmation/
+      splash/
+    components/              # shared primitives
+      Button.tsx
+      Card.tsx
+      Modal.tsx
+      Avatar.tsx
+      RankBadge.tsx
+      ...
+    api/
+      client.ts              # axios instance + interceptor + envelope unwrap
+      auth.ts                # /auth/* endpoints + mutations
+      users.ts
+      subjects.ts
+      modules.ts
+      missions.ts
+      quizzes.ts
+      tests.ts
+      leaderboard.ts
+      notifications.ts
+      fcm.ts
+    state/                   # zustand stores
+      auth.ts                # current user + token state
+      ui.ts                  # theme, modals, snackbars
+    types/                   # TS types mirroring lib/models/
+      user.ts
+      subject.ts
+      module.ts
+      mission.ts
+      quiz.ts
+      ...
+    lib/                     # utilities
+      storage.ts             # localStorage wrapper (mirrors token_storage_service)
+      dates.ts
+      format.ts
+      vibration.ts           # navigator.vibrate?.() wrapper
+      sound.ts               # HTMLAudioElement wrapper
+    styles/
+      tokens.css             # CSS variables (section 6)
+      globals.css            # tailwind directives + base
+
+================================================================================
+11. DEPENDENCY LIST FOR /web-react/package.json
+================================================================================
+
+dependencies:
+    react                   ^18.3.0
+    react-dom               ^18.3.0
+    react-router-dom        ^6.26.0
+    @tanstack/react-query   ^5.51.0
+    zustand                 ^4.5.0
+    axios                   ^1.7.0
+    zod                     ^3.23.0
+    react-hook-form         ^7.52.0
+    @hookform/resolvers     ^3.9.0
+    framer-motion           ^11.3.0
+    firebase                ^10.13.0
+    posthog-js              ^1.155.0
+    date-fns                ^3.6.0
+    clsx                    ^2.1.0
+    class-variance-authority ^0.7.0
+    react-hot-toast         ^2.4.0
+
+devDependencies:
+    typescript              ^5.5.0
+    vite                    ^5.4.0
+    @vitejs/plugin-react    ^4.3.0
+    @types/react            ^18.3.0
+    @types/react-dom        ^18.3.0
+    tailwindcss             ^3.4.0
+    postcss                 ^8.4.0
+    autoprefixer            ^10.4.0
+    eslint                  ^9.x
+    prettier                ^3.3.0
+    vitest                  ^2.0.0
+    @testing-library/react  ^16.0.0
+    @playwright/test        ^1.46.0
+
+================================================================================
+12. ENV VARS (/web-react/.env.example)
+================================================================================
+
+# Map verbatim from Flutter .env.example
+VITE_BUILD_MODE=dev
+VITE_BASE_URL_DEV=https://api-dev.gyaanbuddy.com
+VITE_BASE_URL_STAGE=https://api-stage.gyaanbuddy.com
+VITE_BASE_URL_PROD=https://api.gyaanbuddy.com
+VITE_API_VERSION=/v1
+VITE_CONNECT_TIMEOUT=30000   # ms (Flutter was in seconds; convert)
+VITE_RECEIVE_TIMEOUT=30000
+VITE_SEND_TIMEOUT=30000
+
+# Firebase (read from existing Firebase project — values in
+# gyaan_buddy/lib/firebase_options.dart and /web/index.html)
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
+VITE_FIREBASE_MEASUREMENT_ID=
+VITE_FIREBASE_VAPID_KEY=
+
+# PostHog
+VITE_POSTHOG_KEY=
+VITE_POSTHOG_HOST=https://app.posthog.com
+
+Access in code via: import.meta.env.VITE_BASE_URL_DEV (etc.)
+
+================================================================================
+13. AXIOS CLIENT REQUIREMENTS (mirrors lib/services/api_service.dart)
+================================================================================
+
+  - baseURL = `${VITE_BASE_URL_<mode>}${VITE_API_VERSION}` based on build mode
+  - timeouts from env (30s default)
+  - Request interceptor:
+      • Read access token from localStorage
+      • Skip Authorization header for public endpoints (exact list, section 5)
+      • Otherwise add `Authorization: Bearer ${accessToken}`
+  - Response interceptor:
+      • Unwrap envelope: throw if data.success === false (or return data.data)
+      • On 401: attempt refresh-token flow once; on failure clear tokens and
+        redirect to /login (use a global logout handler — mirrors
+        lib/services/global_logout_service.dart)
+  - Logging: gate verbose console logs behind import.meta.env.DEV
+
+================================================================================
+14. PHASE 0 — WHAT THE FIRST SESSION SHOULD PRODUCE
+================================================================================
+
+Concrete deliverables (in order):
+
+  1. Create /web-react/ via `npm create vite@latest web-react -- --template
+     react-ts` (run from gyaan_buddy/).
+  2. Install all deps from section 11.
+  3. Configure Tailwind. Create src/styles/tokens.css with the CSS variables
+     from section 6. Wire into tailwind.config.ts theme.extend.colors.
+  4. Set up src/app/routes.tsx with the 7 routes from section 7. Use empty
+     placeholder components for each route.
+  5. Build src/shell/AppShell.tsx with three layout behaviors:
+        <768px:  centered 430-wide column + BottomTabs placeholder
+        768–1023: same column centered with side gradient
+        ≥1024:   SideNav (240px) + content area + optional right rail
+  6. Run `npm run dev`. Verify at http://localhost:5173:
+        - Loads without errors
+        - Resizes correctly at the three breakpoints
+        - Routes navigate (even though pages are empty)
+  7. Write /web-react/README.md with:
+        - How to run locally
+        - Folder structure (section 10)
+        - Screen tracker (table from section 4 with Done/In Progress/Pending)
+        - Note that this is a local-only build (no deploy yet)
+
+NO authentication, NO API calls, NO real screens in Phase 0. Just the foundation.
+
+After Phase 0 builds and runs cleanly on localhost, report back to the user
+with a brief summary and ask for approval to proceed to Tier 1 step 5 (API
+client + auth flow → first real screen: login).
+
+================================================================================
+15. USER PREFERENCES & WORKING STYLE
+================================================================================
+
+  - Local-only iteration. Nothing ships externally until the user has tested
+    on their machine and explicitly approves.
+  - Cut all "extras." No GitHub Actions, no preview URLs, no premature
+    abstractions, no speculative features.
+  - Stepwise execution. Easy screens first to build confidence and a
+    reusable component library, then medium, then the heavy quiz/test screens
+    with buffer.
+  - Honest scope. Push back if the user asks for something impossible (e.g.,
+    "block screenshots on web" — cannot be done) or if a "quick" task is
+    actually large.
+  - Reference the Flutter source liberally. /lib/ is the source of truth for
+    behavior, data shapes, and design intent. Reading the Dart is often
+    faster than asking.
+  - Match the Django contract exactly. Do not change response shapes,
+    endpoint URLs, or auth header style.
+
+================================================================================
+16. THINGS TO FLAG TO USER BEFORE STARTING (if not already resolved)
+================================================================================
+
+  - CORS: dev/stage backend may need to add http://localhost:5173 to allowed
+    origins. If you see CORS errors on the first real API call, surface this
+    and don't try to "fix" it from the frontend.
+  - Firebase web config values: needed for src/lib/firebase.ts. Either user
+    provides, or pull from lib/firebase_options.dart (web platform block) in
+    the Flutter source.
+  - PostHog key + Firebase VAPID key: needed for Tier 5. Not blocking for
+    Phase 0–4.
+  - Screen-security (no_screenshot): already decided — drop on web. Document
+    in README.
+
+================================================================================
+17. THINGS THAT WILL TEMPT YOU TO OVER-ENGINEER. DON'T.
+================================================================================
+
+  - SSR / Next.js: skipped intentionally. Auth-gated SPA. Don't add it.
+  - Redux / Redux Toolkit: skipped. Zustand + TanStack Query is enough.
+  - CSS-in-JS (styled-components, emotion): skipped. Tailwind only.
+  - i18n: not in scope unless user explicitly requests.
+  - PWA / offline mode: not in scope.
+  - Component library (MUI, Chakra, Mantine): skipped. Tailwind + a few Radix
+    primitives if a specific need arises (modal, dropdown, tooltip).
+  - Storybook: skipped unless user asks.
+  - Monorepo tooling (turborepo, nx): not needed for a single app.
+
+================================================================================
+END OF CONTEXT
+================================================================================

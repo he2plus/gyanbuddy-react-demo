@@ -1,0 +1,161 @@
+You are picking up a Flutter → React migration project. All planning, decisions,
+findings, and the phased execution plan are already documented in the attached
+file: context.txt.
+
+YOUR FIRST ACTION: read context.txt in full, top to bottom. It is comprehensive
+and self-contained. Do not skim. Do not assume. The plan, tech stack, design
+constraints, backend contract, route table, design tokens, screen inventory,
+folder structure, dependency list, and Phase 0 deliverables are all spelled out.
+
+==================================================================
+PROJECT SUMMARY (the very short version)
+==================================================================
+
+  - Existing app: Gyaan Buddy (educational quiz app for students), built in
+    Flutter, deployed as a slow Flutter web build that is hard-locked to a
+    430×932 mobile viewport on desktop.
+  - Goal: migrate the ENTIRE frontend from Flutter to React, no design changes
+    to inner components, but add real responsiveness for desktop.
+  - Backend: Django + DRF + Firebase. UNTOUCHED. Out of scope. Do not modify.
+  - Source repo: https://github.com/theshushant/gyaan_buddy.git
+  - Branch with Dart source: aadi/dev-web-app
+  - New React app location: gyaan_buddy/web-react/ (subfolder in the existing
+    repo; Flutter /lib/ stays intact as reference)
+
+==================================================================
+OPERATIONAL CONSTRAINTS (NON-NEGOTIABLE)
+==================================================================
+
+  1. LOCAL DEVELOPMENT ONLY. No deploy, no CI, no GitHub Actions, no Firebase
+     Hosting target, no preview URLs, no DNS. Everything runs on
+     http://localhost:5173. The user will explicitly approve any deployment
+     AFTER they have tested on their machine.
+
+  2. NO BACKEND CHANGES. No Django edits. No Firebase project edits. No new
+     endpoints. If a feature seems to require a new endpoint, STOP and ask.
+
+  3. NO OVER-ENGINEERING. Cut every "extra." No SSR, no Redux, no
+     component-library framework, no i18n, no PWA, no Storybook, no monorepo
+     tooling. The stack is fixed and documented in context.txt §8.B.
+
+  4. STEPWISE EXECUTION. Easy screens first to build a reusable component
+     library and confidence, then medium-complexity screens, then the heavy
+     quiz/test screens with buffer. The full tiering is in context.txt §9.
+
+  5. REFERENCE THE FLUTTER SOURCE. The Dart code at gyaan_buddy/lib/ is the
+     source of truth for screen behavior, data shapes, and design intent.
+     Read it freely. Don't ask the user questions you can answer by reading.
+
+==================================================================
+SETUP (run before doing anything else)
+==================================================================
+
+If the repo is not already cloned on this machine:
+
+    cd ~/Documents     # or wherever you want it
+    git clone https://github.com/theshushant/gyaan_buddy.git
+    cd gyaan_buddy
+    git fetch --all
+    git checkout aadi/dev-web-app
+
+Verify Node and npm are installed (Node 20+ recommended):
+
+    node --version
+    npm --version
+
+If Node is missing, install via Homebrew or nvm before continuing.
+
+Place context.txt somewhere accessible (e.g. gyaan_buddy/MIGRATION_CONTEXT.txt)
+so you can re-read it as needed during the work.
+
+==================================================================
+START HERE: PHASE 0
+==================================================================
+
+Execute Phase 0 exactly as described in context.txt §14. Deliverables:
+
+  1. Scaffold /web-react/ inside gyaan_buddy/ using:
+        cd gyaan_buddy
+        npm create vite@latest web-react -- --template react-ts
+        cd web-react
+        npm install
+
+  2. Install all production and dev dependencies listed in context.txt §11.
+
+  3. Configure Tailwind (`npx tailwindcss init -p`), create src/styles/tokens.css
+     with the CSS variables from context.txt §6, and wire them into
+     tailwind.config.ts theme.extend.colors.
+
+  4. Create src/app/routes.tsx with React Router v6 covering the 7 routes from
+     context.txt §7. Use empty placeholder components for each route — no real
+     screens yet.
+
+  5. Build src/shell/AppShell.tsx with three responsive layout behaviors at
+     these breakpoints:
+        <768px:    centered 430-wide column + BottomTabs placeholder
+        768–1023:  same 430-wide column centered with soft side gradient
+        ≥1024:     SideNav (240px) + content area + optional right rail
+
+  6. Create /web-react/.env.example matching context.txt §12 (do NOT commit
+     a real .env file with secrets).
+
+  7. Write /web-react/README.md with:
+        - How to run locally (`npm run dev`)
+        - The folder structure (context.txt §10)
+        - A screen tracker (table from context.txt §4 with Done/In
+          Progress/Pending columns) — leave everything Pending
+        - A note that this is a local-only build with no deploy yet
+        - A note that screenshot-blocking (no_screenshot) is intentionally
+          dropped on web
+
+  8. Run `npm run dev` and visually verify at http://localhost:5173:
+        - Loads with zero console errors
+        - Resizes correctly at the three breakpoints
+        - All 7 routes navigate (empty pages are fine)
+
+DO NOT in Phase 0:
+  - Implement authentication
+  - Make any API calls
+  - Build any real screen
+  - Touch the Flutter source
+
+When Phase 0 builds and runs cleanly on localhost, STOP. Report back to the
+user with:
+  - A one-paragraph summary of what was built
+  - The exact `npm run dev` command and URL to view it
+  - A request for approval to proceed to Tier 1 step 5 (API client + auth
+    flow, building toward the first real screen: login)
+
+==================================================================
+HOW TO COMMUNICATE WITH THE USER
+==================================================================
+
+  - Terse and direct. The user does not want narration of internal thinking.
+  - State results and decisions; don't ask permission for things already
+    decided in context.txt.
+  - When you DO need to ask, ask specific, narrow questions with a default
+    recommendation. The user appreciates pushback when a request is
+    impossible (e.g. screenshot blocking on web) or larger than implied.
+  - Use the Flutter source as evidence. "lib/screens/quiz/quiz_screen.dart:412
+    shows the timer is per-question, not per-quiz" beats "I think the timer
+    is per-question."
+  - Match the Django contract exactly — do not invent endpoint shapes.
+
+==================================================================
+RED FLAGS — STOP AND ASK
+==================================================================
+
+  - A feature seems to require backend changes.
+  - A package in the dep list (context.txt §11) won't install or has a
+    breaking change.
+  - You need Firebase web config values you don't have. (Check
+    gyaan_buddy/lib/firebase_options.dart web platform block first.)
+  - CORS errors prevent local API calls. Surface to user — backend-side fix.
+  - A screen's behavior in the Flutter source contradicts a decision in
+    context.txt.
+
+==================================================================
+BEGIN
+==================================================================
+
+Read context.txt now. Then start Phase 0.

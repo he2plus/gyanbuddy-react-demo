@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "130750342442",
+    "project_id": "gyaanbuddy-600f2",
+    "storage_bucket": "gyaanbuddy-600f2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:130750342442:android:651639d1bf19737212ea53",
+        "android_client_info": {
+          "package_name": "com.example.gyaanbuddy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDu-n5gUYvuEmXnIodKaR4LV2Ojn_R58x0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:130750342442:android:8a5180776440833312ea53",
+        "android_client_info": {
+          "package_name": "com.example.quizy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDu-n5gUYvuEmXnIodKaR4LV2Ojn_R58x0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:130750342442:android:096b120e151198a112ea53",
+        "android_client_info": {
+          "package_name": "com.prime.educare.gyan.buddy.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDu-n5gUYvuEmXnIodKaR4LV2Ojn_R58x0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

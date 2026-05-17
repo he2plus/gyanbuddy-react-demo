@@ -1,0 +1,136 @@
+# Uncomment this line to define a global platform for your project
+platform :ios, '16.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  
+  # Exclude problematic BoringSSL-GRPC pod completely
+  # pod 'BoringSSL-GRPC', :inhibit_warnings => true
+  
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  # Fix abseil header search paths for gRPC
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      # Force all pods to use iOS 16.0 deployment target
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+      config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "x86_64"
+      
+      # Fix abseil header search paths
+      if target.name.include?('gRPC') || target.name.include?('abseil')
+        config.build_settings['HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+        config.build_settings['HEADER_SEARCH_PATHS'] << '${PODS_ROOT}/abseil/absl'
+        config.build_settings['HEADER_SEARCH_PATHS'] << '${PODS_ROOT}/abseil'
+        config.build_settings['USER_HEADER_SEARCH_PATHS'] ||= ['$(inherited)']
+        config.build_settings['USER_HEADER_SEARCH_PATHS'] << '${PODS_ROOT}/abseil'
+      end
+      
+      # Comprehensive fix for unsupported -G flag issue
+      config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
+      config.build_settings['GCC_DEBUGGING_SYMBOLS'] = 'default'
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+      
+      # Remove problematic -G flag from all compiler flags (universal fix)
+      ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_SWIFT_FLAGS', 'OTHER_LDFLAGS'].each do |flag_key|
+        current_flags = config.build_settings[flag_key]
+        if current_flags.is_a?(String)
+          # Remove -G flag from string format
+          config.build_settings[flag_key] = current_flags.gsub(/\s*-G\b/, '').strip
+        elsif current_flags.is_a?(Array)
+          # Remove -G flag from array format
+          config.build_settings[flag_key] = current_flags.reject { |flag| flag.to_s.strip == '-G' }
+        end
+      end
+      
+      # Specific fixes for BoringSSL-GRPC and gRPC pods
+      if target.name.include?('BoringSSL-GRPC') || target.name.include?('gRPC') || target.name.include?('abseil')
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = ['$(inherited)', 'COCOAPODS=1']
+        config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+        
+        # Force specific compiler settings for simulator
+        config.build_settings['VALID_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        config.build_settings['ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+        
+        # Completely override compiler flags for these problematic pods
+        config.build_settings['OTHER_CFLAGS'] = ['$(inherited)', '-DCOCOAPODS=1', '-Wno-error']
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ['$(inherited)', '-DCOCOAPODS=1', '-Wno-error']
+        config.build_settings['OTHER_LDFLAGS'] = ['$(inherited)']
+        
+        # Disable optimization for debug builds to avoid -G flag
+        if config.name == 'Debug'
+          config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '0'
+          config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+        end
+        
+        # Force specific settings for BoringSSL-GRPC
+        if target.name == 'BoringSSL-GRPC'
+          config.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+          config.build_settings['CLANG_WARN_STRICT_PROTOTYPES'] = 'NO'
+          config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+          config.build_settings['GCC_WARN_64_TO_32_BIT_CONVERSION'] = 'NO'
+          
+          # Completely remove -G flag from all possible sources
+          config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
+          config.build_settings['GCC_DEBUGGING_SYMBOLS'] = 'default'
+          config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+          
+          # Override all compiler flags to prevent -G from being added
+          config.build_settings['OTHER_CFLAGS'] = ['-DCOCOAPODS=1', '-Wno-error', '-O0']
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ['-DCOCOAPODS=1', '-Wno-error', '-O0']
+          config.build_settings['OTHER_LDFLAGS'] = []
+        end
+      end
+      
+      # Additional fixes for Firebase pods
+      if target.name.include?('Firebase') || target.name.include?('Google')
+        config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'NO'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+      end
+      
+      # General fixes for all pods
+      config.build_settings['ONLY_ACTIVE_ARCH'] = 'YES'
+      config.build_settings['VALID_ARCHS'] = 'arm64'
+      
+      # Additional simulator-specific fixes
+      config.build_settings['SUPPORTED_PLATFORMS'] = 'iphoneos iphonesimulator'
+      config.build_settings['SUPPORTS_MACCATALYST'] = 'NO'
+    end
+  end
+end
+
