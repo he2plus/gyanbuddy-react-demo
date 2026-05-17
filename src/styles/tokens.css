@@ -1,0 +1,48 @@
+/*
+ * Design tokens — ported verbatim from lib/theme/app_theme.dart (§6 of context.txt)
+ * Single source of truth. Tailwind v4 reads these via @theme in globals.css.
+ */
+
+:root {
+  /* Brand */
+  --color-primary:         #365DEA;
+  --color-primary-light:   #5B7AFF;
+  --color-primary-dark:    #2A4BD8;
+
+  /* Buttons */
+  --color-button:          #365DEA;
+  --color-button-text:     #FFFFFF;
+  --color-button-disabled: #CCCCCC;
+
+  /* Text */
+  --color-text-primary:    #333333;
+  --color-text-secondary:  #666666;
+  --color-text-light:      #999999;
+
+  /* Surfaces */
+  --color-bg:              #FFFFFF;
+  --color-surface:         #F8F9FA;
+
+  /* Inputs */
+  --color-input-border:    #E0E0E0;
+  --color-input-fill:      #F5F5F5;
+  --color-input-focus:     #365DEA;
+
+  /* Status */
+  --color-error:           #E74C3C;
+  --color-success:         #27AE60;
+  --color-warning:         #F39C12;
+
+  /* Geometry */
+  --radius-base:           12px;
+
+  /* Layout — locked decisions from §8.A */
+  --shell-mobile-width:    430px;
+  --shell-sidenav-width:   240px;
+  --shell-content-max:     540px;
+
+  /* Typography */
+  --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+               Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
+               "Segoe UI Emoji";
+}

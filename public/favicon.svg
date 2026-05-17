@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <rect width="32" height="32" rx="7" fill="#00167A"/>
+  <path d="M16 7 L20 14 H23.5 L17.75 16.5 L20 23 L16 19.5 L12 23 L14.25 16.5 L8.5 14 H12 Z" fill="#00D4FF"/>
+  <text x="16" y="29" font-family="system-ui,-apple-system,sans-serif" font-size="6" font-weight="800" fill="#ffffff" text-anchor="middle">GB</text>
+</svg>

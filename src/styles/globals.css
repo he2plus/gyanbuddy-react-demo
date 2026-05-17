@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * Expose design tokens as Tailwind v4 theme values so utilities like
+ *   bg-primary, text-error, rounded-base
+ * resolve from the single source of truth in tokens.css.
+ */
+@theme {
+  --color-primary:         var(--color-primary);
+  --color-primary-light:   var(--color-primary-light);
+  --color-primary-dark:    var(--color-primary-dark);
+
+  --color-button:          var(--color-button);
+  --color-button-text:     var(--color-button-text);
+  --color-button-disabled: var(--color-button-disabled);
+
+  --color-text-primary:    var(--color-text-primary);
+  --color-text-secondary:  var(--color-text-secondary);
+  --color-text-light:      var(--color-text-light);
+
+  --color-bg:              var(--color-bg);
+  --color-surface:         var(--color-surface);
+
+  --color-input-border:    var(--color-input-border);
+  --color-input-fill:      var(--color-input-fill);
+  --color-input-focus:     var(--color-input-focus);
+
+  --color-error:           var(--color-error);
+  --color-success:         var(--color-success);
+  --color-warning:         var(--color-warning);
+
+  --radius-base:           12px;
+
+  --font-sans:             var(--font-sans);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle desktop scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d8e0;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b8bdc7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
