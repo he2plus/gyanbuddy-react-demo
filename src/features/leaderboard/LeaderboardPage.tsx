@@ -13,6 +13,7 @@ import { Button } from '../../components/Button'
 import { PageContainer } from '../../components/PageContainer'
 import { useLeaderboard } from './useLeaderboard'
 import { useAuthStore } from '../../state/auth'
+import { Podium } from './Podium'
 import type { LeaderboardPeriod } from '../../api/leaderboard'
 import type { User } from '../../types/user'
 
@@ -67,18 +68,40 @@ export function LeaderboardPage() {
         )}
         {!isLoading && !isError && users.length === 0 && <EmptyState />}
         {!isLoading && !isError && users.length > 0 && (
-          <ul className="space-y-2.5 pt-2">
-            <AnimatePresence initial={false}>
-              {users.map((u, i) => (
-                <LeaderboardRow
-                  key={u.id || i}
-                  user={u}
-                  rank={(page - 1) * limit + i + 1}
-                  isMe={!!me && me.id === u.id}
+          <>
+            {/* Podium for the top 3 — only on the first page. */}
+            {page === 1 && users.length >= 1 && (
+              <div className="mb-5">
+                <Podium
+                  entries={users.slice(0, 3).map((u) => ({
+                    id: u.id,
+                    fullName: u.fullName,
+                    username: u.username,
+                    firstName: u.firstName,
+                    totalExp: u.totalExp,
+                    profilePicture: u.profilePicture,
+                  }))}
+                  meId={me?.id}
                 />
-              ))}
-            </AnimatePresence>
-          </ul>
+              </div>
+            )}
+
+            <ul className="space-y-2.5 pt-2">
+              <AnimatePresence initial={false}>
+                {users.slice(page === 1 ? 3 : 0).map((u, i) => {
+                  const absoluteIndex = page === 1 ? i + 3 : (page - 1) * limit + i
+                  return (
+                    <LeaderboardRow
+                      key={u.id || i}
+                      user={u}
+                      rank={absoluteIndex + 1}
+                      isMe={!!me && me.id === u.id}
+                    />
+                  )
+                })}
+              </AnimatePresence>
+            </ul>
+          </>
         )}
 
         {!isLoading && !isError && users.length >= limit && (

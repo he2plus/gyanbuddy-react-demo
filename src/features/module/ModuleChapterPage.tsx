@@ -142,8 +142,8 @@ export function ModuleChapterPage() {
       </section>
 
       {/* Path area — full width */}
-      <main className="flex-1 px-3 pb-32 pt-6 sm:px-5">
-        <div className="mx-auto w-full max-w-[1100px]">
+      <main className="flex-1 px-3 pb-32 pt-6 sm:px-5 lg:px-8">
+        <div className="mx-auto w-full max-w-[1440px]">
           {isLoading ? (
             <LoadingState />
           ) : isError ? (
@@ -173,7 +173,7 @@ export function ModuleChapterPage() {
       {/* Sticky CTA */}
       {currentChapter && !isLoading && !isError && (
         <div className="sticky bottom-0 z-20 border-t border-[#EEE] bg-white/95 px-5 py-3 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-[1100px] items-center justify-between gap-3">
+          <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-widest text-[#888]">
                 Next up
@@ -308,7 +308,7 @@ function ZigZagPath({
         ))}
       </svg>
 
-      <ol className="relative grid grid-cols-3 gap-y-10 sm:gap-y-12">
+      <ol className="relative grid grid-cols-3 gap-y-14 sm:gap-y-16 lg:gap-y-20">
         {chapters.map((chapter, i) => {
           const col = COLUMN_FOR_INDEX(i)
           const isLast = i === chapters.length - 1

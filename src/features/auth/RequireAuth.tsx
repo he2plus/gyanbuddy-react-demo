@@ -3,12 +3,16 @@
  *
  * - status === 'bootstrapping' → render a minimal splash so the page doesn't
  *   flash to /login during the initial /users/me call.
- * - status === 'unauthenticated' → redirect to /login, preserving intended path.
+ * - status === 'unauthenticated' AND onboarding not yet completed → /onboarding
+ *   so first-time visitors see the welcome carousel instead of a raw login form.
+ *   Onboarding's "Get started" flips the flag and sends them to /login.
+ * - status === 'unauthenticated' AND onboarding completed → /login.
  * - status === 'authenticated' → render children.
  */
 import { type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../state/auth'
+import { onboardingStore } from '../../lib/onboarding'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const status = useAuthStore((s) => s.status)
@@ -19,7 +23,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (status === 'unauthenticated') {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+    const target = onboardingStore.isComplete() ? '/login' : '/onboarding'
+    return <Navigate to={target} replace state={{ from: location.pathname }} />
   }
 
   return <>{children}</>

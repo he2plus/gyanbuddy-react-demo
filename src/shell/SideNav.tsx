@@ -39,23 +39,38 @@ export function SideNav() {
       aria-label="Primary"
       className="sticky top-0 flex h-screen flex-col border-r border-[#E0E0E0] bg-white"
     >
-      {/* Brand + collapse toggle */}
+      {/* Brand block + collapse toggle. G-logo square on the left matches the
+          treatment in the page top bars; the wordmark only renders when expanded. */}
       <div
-        className={`flex items-center border-b border-[#F0F0F0] ${
-          collapsed ? 'h-14 justify-center px-2' : 'h-14 justify-between px-4'
+        className={`flex items-center gap-3 border-b border-[#F0F0F0] ${
+          collapsed ? 'h-16 justify-center px-2' : 'h-16 justify-between px-4'
         }`}
       >
-        {!collapsed && (
-          <div className="text-base font-extrabold tracking-tight text-[#00167A]">
-            Gyaan<span className="text-[#365DEA]">Buddy</span>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-base font-extrabold text-white shadow-sm"
+            style={{ background: '#00167A' }}
+            aria-hidden="true"
+          >
+            G
           </div>
-        )}
+          {!collapsed && (
+            <div className="min-w-0 leading-tight">
+              <div className="truncate text-[15px] font-extrabold tracking-tight text-[#00167A]">
+                Gyaan<span className="text-[#365DEA]">Buddy</span>
+              </div>
+              <div className="truncate text-[10px] font-medium uppercase tracking-widest text-[#999]">
+                A smarter way to learn
+              </div>
+            </div>
+          )}
+        </div>
         <button
           type="button"
           onClick={toggle}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           title={collapsed ? 'Expand' : 'Collapse'}
-          className="grid h-8 w-8 place-items-center rounded-md text-[#666] hover:bg-[#F5F5F5] hover:text-[#333]"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-[#666] hover:bg-[#F5F5F5] hover:text-[#333]"
         >
           {collapsed ? (
             <ChevronsRight className="h-4 w-4" />
@@ -66,7 +81,7 @@ export function SideNav() {
       </div>
 
       {/* Items */}
-      <div className="flex flex-col gap-0.5 overflow-y-auto p-2">
+      <div className="flex flex-col gap-1 overflow-y-auto p-3">
         {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={label}
@@ -74,11 +89,11 @@ export function SideNav() {
             end={end}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-md text-sm font-medium transition-colors ${
-                collapsed ? 'h-10 justify-center' : 'h-10 px-3'
+              `flex items-center gap-3 rounded-lg text-sm font-medium transition-colors ${
+                collapsed ? 'h-11 justify-center' : 'h-11 px-3'
               } ${
                 isActive
-                  ? 'bg-[#365DEA] text-white'
+                  ? 'bg-[#365DEA] text-white shadow-sm'
                   : 'text-[#555] hover:bg-[#F5F5F5] hover:text-[#222]'
               }`
             }

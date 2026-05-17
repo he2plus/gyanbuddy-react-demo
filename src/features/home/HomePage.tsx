@@ -43,6 +43,7 @@ import {
 import { PageContainer } from '../../components/PageContainer'
 import { useAuthStore } from '../../state/auth'
 import { useLeaderboard } from '../leaderboard/useLeaderboard'
+import { Podium, type PodiumEntry } from '../leaderboard/Podium'
 import { useSubjects } from '../subject/useSubjects'
 import { useSubjectModules, useModuleChapters } from '../module/useModuleChapters'
 import type { Subject } from '../../types/subject'
@@ -196,7 +197,7 @@ export function HomePage() {
         <div className="space-y-5 lg:col-span-5 2xl:col-span-4 lg:space-y-6">
           <TrophyBanner me={me} />
           <LeaderboardWidget
-            entries={(lbQ.data?.users ?? []).slice(0, 5)}
+            entries={(lbQ.data?.users ?? []).slice(0, 7)}
             scope={lbQ.data?.className ?? lbQ.data?.gradeName ?? 'Class'}
             meId={me.id}
             loading={lbQ.isLoading}
@@ -322,13 +323,27 @@ function LeaderboardWidget({
   loading: boolean
   onSeeAll: () => void
 }) {
+  const top3: PodiumEntry[] = entries.slice(0, 3).map((u) => ({
+    id: u.id,
+    fullName: u.fullName,
+    username: u.username,
+    firstName: u.firstName,
+    totalExp: u.totalExp,
+  }))
+  const rest = entries.slice(3)
+
   return (
     <div
-      className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6"
+      className="overflow-hidden rounded-2xl border bg-white shadow-sm"
       style={{ borderColor: BRAND_BORDER }}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-[#333]">Leaderboard</h3>
+      <div className="flex items-center justify-between px-5 pt-5 sm:px-6 sm:pt-6">
+        <div>
+          <h3 className="text-lg font-bold text-[#333]">Leaderboard</h3>
+          <div className="mt-0.5 text-[11px] font-semibold uppercase tracking-widest text-[#999]">
+            {scope}
+          </div>
+        </div>
         <button
           type="button"
           onClick={onSeeAll}
@@ -339,73 +354,76 @@ function LeaderboardWidget({
         </button>
       </div>
 
-      <div className="mt-3 flex justify-center">
-        <span
-          className="inline-flex min-w-[200px] items-center justify-center rounded-full px-6 py-1.5 text-sm font-semibold text-white shadow-sm"
-          style={{ background: BRAND_PRIMARY }}
-        >
-          {scope}
-        </span>
-      </div>
-
       {loading ? (
-        <ul className="mt-4 space-y-2">
+        <div className="grid grid-cols-3 gap-3 px-5 py-6 sm:px-6">
           {Array.from({ length: 3 }).map((_, i) => (
-            <li key={i} className="h-14 animate-pulse rounded-xl" style={{ background: BRAND_SURFACE }} />
+            <div
+              key={i}
+              className="h-32 animate-pulse rounded-xl"
+              style={{ background: BRAND_SURFACE }}
+            />
           ))}
-        </ul>
+        </div>
       ) : entries.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-[#999]">
+        <p className="px-6 py-10 text-center text-sm text-[#999]">
           No leaderboard data yet.
         </p>
       ) : (
-        <ul className="mt-4 space-y-2.5">
-          {entries.map((u, i) => {
-            const rank = i + 1
-            const isMe = u.id === meId
-            return (
-              <motion.li
-                key={u.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.3, ease: 'easeOut' }}
-                className="flex items-center justify-between rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-0.5 hover:shadow-md"
-                style={{
-                  borderColor: isMe ? BRAND_PRIMARY : BRAND_BORDER,
-                  background: isMe ? '#F1F4FE' : 'white',
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="w-5 text-center text-sm font-bold text-[#666]">
-                    {rank}.
-                  </span>
-                  <span
-                    className="grid h-9 w-9 place-items-center rounded-full text-sm font-bold text-white"
-                    style={{ background: RANK_AVATAR_COLOR[rank] ?? BRAND_PRIMARY }}
+        <>
+          <div className="px-3 pt-4 sm:px-5">
+            <Podium entries={top3} meId={meId} />
+          </div>
+
+          {rest.length > 0 && (
+            <ul className="space-y-2 px-5 pb-5 pt-2 sm:px-6 sm:pb-6">
+              {rest.map((u, i) => {
+                const rank = i + 4
+                const isMe = u.id === meId
+                return (
+                  <motion.li
+                    key={u.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04, duration: 0.25, ease: 'easeOut' }}
+                    className="flex items-center justify-between rounded-xl border px-3 py-2.5"
+                    style={{
+                      borderColor: isMe ? BRAND_PRIMARY : BRAND_BORDER,
+                      background: isMe ? '#F1F4FE' : 'white',
+                    }}
                   >
-                    {(u.firstName?.[0] ?? u.username?.[0] ?? 'U').toUpperCase()}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[#333]">
-                      {u.fullName || u.username}
-                    </span>
-                    {isMe && (
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
-                        style={{ background: BRAND_PRIMARY }}
-                      >
-                        You
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 text-center text-sm font-bold text-[#666] tabular-nums">
+                        {rank}
                       </span>
-                    )}
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-[#666]">
-                  {u.totalExp.toLocaleString()} XP
-                </span>
-              </motion.li>
-            )
-          })}
-        </ul>
+                      <span
+                        className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white"
+                        style={{ background: RANK_AVATAR_COLOR[rank] ?? BRAND_PRIMARY }}
+                      >
+                        {(u.firstName?.[0] ?? u.username?.[0] ?? 'U').toUpperCase()}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[#333]">
+                          {u.fullName || u.username}
+                        </span>
+                        {isMe && (
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white"
+                            style={{ background: BRAND_PRIMARY }}
+                          >
+                            You
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-[#666] tabular-nums">
+                      {u.totalExp.toLocaleString()} XP
+                    </span>
+                  </motion.li>
+                )
+              })}
+            </ul>
+          )}
+        </>
       )}
     </div>
   )
