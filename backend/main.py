@@ -27,7 +27,14 @@ from data import (
 )
 
 
-app = FastAPI(title="GyanBuddy Stub Backend", version="0.1.0")
+# redirect_slashes=False so a `/path/` request never 307-redirects to `/path`.
+# Axios drops the Authorization header across that redirect, which makes the
+# follow-up land on the wrong route and 401 → force-logout in the React app.
+app = FastAPI(
+    title="GyanBuddy Stub Backend",
+    version="0.1.0",
+    redirect_slashes=False,
+)
 
 # CORS: Vite dev server typically on 5173, falls back to 5174 when occupied.
 app.add_middleware(
@@ -204,6 +211,36 @@ def delete_me(_: str = Depends(require_bearer)):
     return envelope(None, "Account deleted.")
 
 
+@app.post("/api/users/logout")
+def logout(_: str = Depends(require_bearer)):
+    return envelope(None, "Logged out.")
+
+
+@app.put("/api/users/change-password")
+async def change_password(request: Request, _: str = Depends(require_bearer)):
+    body = await request.json()
+    if body.get("new_password") != body.get("new_password_confirmation"):
+        raise HTTPException(
+            status_code=400,
+            detail={"success": False, "message": "New passwords do not match.", "data": None},
+        )
+    return envelope(None, "Password changed successfully.")
+
+
+# IMPORTANT: /api/users/leaderboard/ must be declared BEFORE the
+# parameterised /api/users/{user_id} route, or FastAPI will match
+# user_id="leaderboard" first and return 404. Response uses snake_case
+# class_name/grade_name to match leaderboard.ts pickScopeName().
+@app.get("/api/users/leaderboard/")
+def users_leaderboard(_: str = Depends(require_bearer)):
+    ordered = sorted(LEADERBOARD_USERS, key=lambda u: -u["total_exp"])
+    return envelope({
+        "users": ordered,
+        "class_name": "Class 10-A",
+        "grade_name": "Grade 10",
+    })
+
+
 @app.get("/api/users/{user_id}")
 def get_user(user_id: str, _: str = Depends(require_bearer)):
     if user_id == DEMO_USER["id"]:
@@ -215,11 +252,6 @@ def get_user(user_id: str, _: str = Depends(require_bearer)):
             detail={"success": False, "message": "User not found.", "data": None},
         )
     return envelope(found)
-
-
-@app.post("/api/users/logout")
-def logout(_: str = Depends(require_bearer)):
-    return envelope(None, "Logged out.")
 
 
 # --- subjects / modules / chapters ------------------------------------------
@@ -320,21 +352,72 @@ def missions(_: str = Depends(require_bearer)):
     ])
 
 
+_STUB_TESTS = [
+    {"id": "test-1", "name": "Chemistry Unit Test 1", "subject": "chem",
+     "question_count": 10, "duration_minutes": 30, "status": "available"},
+    {"id": "test-2", "name": "Physics Mid-term",      "subject": "phys",
+     "question_count": 15, "duration_minutes": 45, "status": "available"},
+]
+
+
 @app.get("/api/tests/")
 def tests(_: str = Depends(require_bearer)):
+    return envelope(_STUB_TESTS)
+
+
+@app.get("/api/tests/my-tests/")
+def my_tests(_: str = Depends(require_bearer)):
+    return envelope(_STUB_TESTS)
+
+
+@app.get("/api/tests/{test_id}/")
+def get_test(test_id: str, _: str = Depends(require_bearer)):
+    found = next((t for t in _STUB_TESTS if t["id"] == test_id), None)
+    if not found:
+        raise HTTPException(
+            status_code=404,
+            detail={"success": False, "message": "Test not found.", "data": None},
+        )
+    return envelope(found)
+
+
+@app.post("/api/tests/{test_id}/start/")
+def start_test(test_id: str, _: str = Depends(require_bearer)):
+    return envelope({"id": test_id, "status": "in_progress",
+                     "started_at": _iso(_now())}, "Test started.")
+
+
+@app.post("/api/tests/{test_id}/complete/")
+def complete_test(test_id: str, _: str = Depends(require_bearer)):
+    return envelope({"id": test_id, "status": "completed",
+                     "completed_at": _iso(_now()), "score": 78}, "Test completed.")
+
+
+@app.get("/api/tests/{test_id}/questions/")
+def test_questions(test_id: str, _: str = Depends(require_bearer)):
     return envelope([
-        {"id": "test-1", "name": "Chemistry Unit Test 1", "subject": "chem",
-         "question_count": 10, "duration_minutes": 30, "status": "available"},
+        {
+            "id": f"{test_id}-q1",
+            "question_text": "Sample test question.",
+            "options": [
+                {"id": "o1", "text": "Option A", "is_correct": True},
+                {"id": "o2", "text": "Option B", "is_correct": False},
+            ],
+            "explanation": "Stub.",
+            "exp_reward": 10,
+        }
     ])
 
 
+# Backward-compat: /api/leaderboard (no users/ prefix). The React app calls
+# /api/users/leaderboard/ — kept here in case any other client expects this URL.
 @app.get("/api/leaderboard")
 def leaderboard(_: str = Depends(require_bearer)):
     ordered = sorted(LEADERBOARD_USERS, key=lambda u: -u["total_exp"])
     return envelope({
         "users": ordered,
-        "className": "Class 10-A",
-        "gradeName": "Grade 10",
+        "class_name": "Class 10-A",
+        "grade_name": "Grade 10",
     })
 
 
