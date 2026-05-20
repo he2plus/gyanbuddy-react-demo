@@ -1,80 +1,102 @@
 /**
- * QuizFlow — shared quiz UI used by both chapter quizzes and mission quizzes.
+ * QuizFlow — shared quiz player for chapter quizzes, mission quizzes and
+ * test quizzes. Implements docx #16 in full:
+ *   - 2 XP on first-attempt correct, 1 XP on second-attempt correct, 0 after.
+ *     (Backend already computes this from the `tries` field; see
+ *     subjects/views.py check_answer — we just send `tries` and read the
+ *     `exp_awarded` value back.)
+ *   - On a WRONG first attempt the hint card auto-opens.
+ *   - On a WRONG second attempt a "Why?" button reveals the explanation.
+ *   - A correct-answer animation (green check + ring pulse + XP bump float)
+ *     plays before the user advances.
+ *   - Three question types supported:
+ *       mcq_single    — radio
+ *       mcq_multiple  — checkbox
+ *       rearrange     — drag-with-arrows reorder list (no library, keyboard-
+ *                       accessible). Backend storage is in place; backend
+ *                       scoring for rearrange is still TBD so we accept the
+ *                       backend's answer when present and grade client-side
+ *                       against the option order otherwise.
  *
- * Supports:
- *   - mcq_single   (radio)
- *   - mcq_multiple (checkboxes)
- *   - short_answer (text input)
- *
- * Doesn't yet support: `rearrange` (drag/drop — Tier 5 polish).
- *
- * Submission goes through `checkAnswer()` which:
- *   - In mock mode: validates client-side via option.isCorrect
- *   - With real backend: POSTs /questions/{id}/check/
- *
- * On finish: shows a results card with XP earned + restart / exit buttons.
+ * Visual language matches the rest of the Figma rebuild: white card with
+ * radius 34, Open Sans body, navy primary, cyan accent.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, X, Lightbulb, ArrowRight, RotateCcw, AlertTriangle } from 'lucide-react'
+import {
+  Check, X, Lightbulb, ArrowRight, RotateCcw, AlertTriangle,
+  ChevronUp, ChevronDown, HelpCircle, Sparkles,
+} from 'lucide-react'
 
-import { Button } from '../../components/Button'
 import { checkAnswer } from '../../api/quiz'
 import type { Question, QuestionOption } from '../../types/question'
+
+const NAVY = '#00167A'
+const CYAN = '#1ABCFE'
+const TXT_DARK = '#121212'
+const TXT_MID = '#545454'
+const TXT_MUTED = '#989CA5'
 
 type FeedbackState =
   | { kind: 'idle' }
   | { kind: 'checking' }
-  | { kind: 'correct'; xp: number; explanation?: string }
-  | { kind: 'incorrect'; explanation?: string; attempts: number }
+  | { kind: 'correct'; xp: number }
+  | { kind: 'incorrect'; attempts: number }
 
 type Props = {
   questions: Question[]
-  accent?: string
   onExit: () => void
 }
 
-export function QuizFlow({ questions, accent = '#365DEA', onExit }: Props) {
+export function QuizFlow({ questions, onExit }: Props) {
   const [index, setIndex] = useState(0)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [shortAnswer, setShortAnswer] = useState('')
+  const [rearrangeOrder, setRearrangeOrder] = useState<string[]>([])
   const [feedback, setFeedback] = useState<FeedbackState>({ kind: 'idle' })
   const [showHint, setShowHint] = useState(false)
+  const [revealedExplanation, setRevealedExplanation] = useState(false)
   const [attempts, setAttempts] = useState(0)
   const [totalXp, setTotalXp] = useState(0)
   const [finished, setFinished] = useState(false)
 
   const question = questions[index]
   const total = questions.length
+  const progress = total ? ((index + 1) / total) * 100 : 0
 
   // Reset per-question state when the index changes.
   useEffect(() => {
     setSelectedIds([])
     setShortAnswer('')
+    setRearrangeOrder(question?.options.map((o) => o.id) ?? [])
     setFeedback({ kind: 'idle' })
     setShowHint(false)
+    setRevealedExplanation(false)
     setAttempts(0)
-  }, [index])
+  }, [index, question?.id])
 
-  const hasSelection = useMemo(() => {
+  const hasAnswered = useMemo(() => {
     if (!question) return false
     if (question.type === 'short_answer') return shortAnswer.trim().length > 0
+    if (question.type === 'rearrange') return rearrangeOrder.length > 0
     return selectedIds.length > 0
-  }, [question, selectedIds, shortAnswer])
+  }, [question, selectedIds, shortAnswer, rearrangeOrder])
 
   if (!question && !finished) {
     return (
-      <div className="grid place-items-center py-20 text-[var(--color-text-secondary)]">
+      <div
+        className="grid place-items-center font-body"
+        style={{ padding: '80px 0', color: TXT_MID }}
+      >
         No questions in this quiz.
       </div>
     )
   }
 
   if (finished) {
-    const maxPossible = questions.reduce((sum, q) => sum + q.expPoints, 0)
+    const maxPossible = questions.length * 2  // best case = 2 XP per Q
     return (
       <ResultsCard
-        accent={accent}
         xpEarned={totalXp}
         xpMax={maxPossible}
         onExit={onExit}
@@ -87,8 +109,12 @@ export function QuizFlow({ questions, accent = '#365DEA', onExit }: Props) {
     )
   }
 
+  // ---- option interaction ----
+  const isLocked =
+    feedback.kind === 'correct' || feedback.kind === 'checking'
+
   const toggleOption = (id: string) => {
-    if (feedback.kind === 'correct' || feedback.kind === 'checking') return
+    if (isLocked) return
     if (question.type === 'mcq_single') {
       setSelectedIds([id])
     } else {
@@ -98,44 +124,53 @@ export function QuizFlow({ questions, accent = '#365DEA', onExit }: Props) {
     }
   }
 
+  const moveRearrange = (id: string, dir: -1 | 1) => {
+    if (isLocked) return
+    setRearrangeOrder((arr) => {
+      const i = arr.indexOf(id)
+      if (i < 0) return arr
+      const j = i + dir
+      if (j < 0 || j >= arr.length) return arr
+      const next = [...arr]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      return next
+    })
+  }
+
+  // ---- submit ----
   const submit = async () => {
-    if (!hasSelection) return
+    if (!hasAnswered) return
+    const tries = attempts + 1
     setFeedback({ kind: 'checking' })
+    const optionPayload =
+      question.type === 'rearrange'
+        ? rearrangeOrder
+        : selectedIds
+
     const result = await checkAnswer(
       question,
-      selectedIds,
+      optionPayload,
       shortAnswer || undefined,
+      tries,
     )
+
     if (result.isCorrect) {
-      // Award scaled XP: full on first try, half on second, none after.
-      const award =
-        attempts === 0
-          ? question.expPoints
-          : attempts === 1
-            ? Math.round(question.expPoints / 2)
-            : 0
-      setTotalXp((x) => x + award)
-      setFeedback({
-        kind: 'correct',
-        xp: award,
-        explanation: result.explanation,
-      })
+      setTotalXp((x) => x + result.expAwarded)
+      setFeedback({ kind: 'correct', xp: result.expAwarded })
     } else {
-      setAttempts((a) => a + 1)
-      setFeedback({
-        kind: 'incorrect',
-        explanation: result.explanation,
-        attempts: attempts + 1,
-      })
+      const nextAttempts = attempts + 1
+      setAttempts(nextAttempts)
+      setFeedback({ kind: 'incorrect', attempts: nextAttempts })
+      // Auto-open the hint on the first wrong attempt (docx #16).
+      if (nextAttempts === 1 && question.hint) {
+        setShowHint(true)
+      }
     }
   }
 
   const goNext = () => {
-    if (index + 1 >= total) {
-      setFinished(true)
-    } else {
-      setIndex((i) => i + 1)
-    }
+    if (index + 1 >= total) setFinished(true)
+    else setIndex((i) => i + 1)
   }
 
   const isIdle = feedback.kind === 'idle'
@@ -143,23 +178,33 @@ export function QuizFlow({ questions, accent = '#365DEA', onExit }: Props) {
   const isCorrect = feedback.kind === 'correct'
   const isIncorrect = feedback.kind === 'incorrect'
 
+  // Show the Why-button after 2 failed attempts (docx #16).
+  const showWhyButton =
+    isIncorrect && attempts >= 2 && !!question.explanation && !revealedExplanation
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col" style={{ gap: 24 }}>
       {/* Progress + counter */}
       <div>
-        <div className="flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
-          <span className="font-semibold">
+        <div className="flex items-center justify-between font-body">
+          <span style={{ fontSize: 16, fontWeight: 700, color: NAVY, lineHeight: '22px' }}>
             Question {index + 1} of {total}
           </span>
-          <span>{Math.round(((index + 1) / total) * 100)}%</span>
+          <span
+            style={{ fontSize: 16, fontWeight: 600, color: TXT_MID, lineHeight: '22px' }}
+          >
+            {Math.round(progress)}%
+          </span>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--color-input-fill)]">
+        <div
+          className="mt-2 overflow-hidden"
+          style={{ height: 8, borderRadius: 14, background: '#F1F1F1' }}
+        >
           <motion.div
-            className="h-full rounded-full"
-            style={{ background: accent }}
             initial={{ width: 0 }}
-            animate={{ width: `${((index + 1) / total) * 100}%` }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            style={{ height: '100%', borderRadius: 14, background: CYAN }}
           />
         </div>
       </div>
@@ -168,138 +213,313 @@ export function QuizFlow({ questions, accent = '#365DEA', onExit }: Props) {
       <AnimatePresence mode="wait">
         <motion.div
           key={question.id}
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="rounded-2xl border border-[var(--color-input-border)] bg-white p-6 shadow-sm sm:p-8"
+          exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          className="bg-white relative overflow-hidden"
+          style={{
+            borderRadius: 34, padding: '34px 34px 24px',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+            border: '1px solid #E7E7E7',
+          }}
         >
           {/* Tags */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
             <span
-              className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white"
-              style={{ background: accent }}
+              className="grid place-items-center"
+              style={{
+                background: NAVY, color: '#fff', borderRadius: 999,
+                padding: '4px 12px',
+                fontFamily: 'var(--font-body)',
+                fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
             >
-              {question.type === 'mcq_multiple'
-                ? 'Select all that apply'
-                : question.type === 'short_answer'
-                  ? 'Short answer'
-                  : question.type === 'rearrange'
-                    ? 'Rearrange'
-                    : 'Multiple choice'}
+              {labelFor(question.type)}
             </span>
-            <span className="rounded-full bg-[var(--color-input-fill)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-secondary)]">
-              {question.expPoints} XP
+            <span
+              className="grid place-items-center"
+              style={{
+                background: '#F1F1F1', color: TXT_MID, borderRadius: 999,
+                padding: '4px 12px',
+                fontFamily: 'var(--font-body)',
+                fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Up to 2 XP
             </span>
             {question.isHots && (
-              <span className="rounded-full bg-fuchsia-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-fuchsia-700">
+              <span
+                className="grid place-items-center"
+                style={{
+                  background: '#F5D0FE', color: '#86198F', borderRadius: 999,
+                  padding: '4px 12px',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 HOTS
               </span>
             )}
           </div>
 
-          {/* Question text + optional image */}
-          <h2 className="mt-4 text-xl font-bold text-[var(--color-text-primary)] sm:text-2xl">
+          {/* Question text */}
+          <h2
+            className="font-body"
+            style={{
+              marginTop: 16, fontSize: 26, fontWeight: 700, color: TXT_DARK,
+              lineHeight: '36px',
+            }}
+          >
             {question.text}
           </h2>
+
+          {/* Optional question image */}
           {question.image && (
             <img
               src={question.image}
               alt=""
-              className="mt-4 max-h-72 w-full rounded-xl object-contain"
+              className="block w-full"
+              style={{
+                marginTop: 16, maxHeight: 360, objectFit: 'contain',
+                borderRadius: 16, background: '#F8FAFC',
+              }}
             />
           )}
 
-          {/* Options */}
-          {question.type === 'short_answer' ? (
-            <input
-              type="text"
-              value={shortAnswer}
-              onChange={(e) => setShortAnswer(e.target.value)}
-              disabled={isCorrect || isChecking}
-              placeholder="Type your answer…"
-              className="mt-6 h-12 w-full rounded-xl border border-[var(--color-input-border)] bg-[var(--color-input-fill)] px-4 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-input-focus)] focus:bg-white"
-            />
-          ) : question.type === 'rearrange' ? (
-            <div className="mt-6 rounded-xl border border-dashed border-[var(--color-input-border)] bg-[var(--color-input-fill)] p-4 text-sm text-[var(--color-text-secondary)]">
-              Drag-to-rearrange UI lands in Tier 5 polish. For now, treat this
-              question as informational.
-            </div>
-          ) : (
-            <ul className="mt-6 space-y-3">
-              {question.options.map((o) => (
-                <OptionRow
-                  key={o.id}
-                  option={o}
-                  selected={selectedIds.includes(o.id)}
-                  disabled={isCorrect || isChecking}
-                  multiSelect={question.type === 'mcq_multiple'}
-                  accent={accent}
-                  feedback={
-                    isCorrect && o.isCorrect
-                      ? 'correct'
-                      : isIncorrect && selectedIds.includes(o.id)
-                        ? 'incorrect'
-                        : 'none'
-                  }
-                  onToggle={() => toggleOption(o.id)}
-                />
-              ))}
-            </ul>
-          )}
+          {/* Answer area */}
+          <div style={{ marginTop: 24 }}>
+            {question.type === 'short_answer' && (
+              <input
+                type="text"
+                value={shortAnswer}
+                onChange={(e) => setShortAnswer(e.target.value)}
+                disabled={isLocked}
+                placeholder="Type your answer…"
+                className="w-full font-body"
+                style={{
+                  height: 56, borderRadius: 16, padding: '0 18px',
+                  border: `1px solid #E7E7E7`, background: '#F8FAFC',
+                  fontSize: 18, color: TXT_DARK,
+                  outline: 'none',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = CYAN
+                  e.currentTarget.style.background = '#fff'
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E7E7E7'
+                  e.currentTarget.style.background = '#F8FAFC'
+                }}
+              />
+            )}
 
-          {/* Hint */}
-          {question.hint && (
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={() => setShowHint((s) => !s)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-primary)] hover:underline"
+            {question.type === 'rearrange' && (
+              <RearrangeList
+                order={rearrangeOrder}
+                options={question.options}
+                disabled={isLocked}
+                onMove={moveRearrange}
+              />
+            )}
+
+            {(question.type === 'mcq_single' || question.type === 'mcq_multiple') && (
+              <ul className="flex flex-col" style={{ gap: 12 }}>
+                {question.options.map((o) => (
+                  <OptionRow
+                    key={o.id}
+                    option={o}
+                    selected={selectedIds.includes(o.id)}
+                    disabled={isLocked}
+                    multiSelect={question.type === 'mcq_multiple'}
+                    feedback={
+                      isCorrect && o.isCorrect
+                        ? 'correct'
+                        : isIncorrect && selectedIds.includes(o.id)
+                          ? 'incorrect'
+                          : 'none'
+                    }
+                    onToggle={() => toggleOption(o.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Hint card — auto-opens on first wrong attempt */}
+          <AnimatePresence>
+            {showHint && question.hint && (
+              <motion.div
+                key="hint"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                className="flex items-start"
+                style={{
+                  marginTop: 20, gap: 12, padding: 16, borderRadius: 16,
+                  background: '#FFF4D6', border: '1px solid #FFE48B',
+                }}
               >
-                <Lightbulb className="h-4 w-4" />
-                {showHint ? 'Hide hint' : 'Show hint'}
-              </button>
-              {showHint && (
-                <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                  {question.hint}
-                </p>
-              )}
-            </div>
-          )}
+                <Lightbulb
+                  className="w-5 h-5 shrink-0"
+                  style={{ color: '#B45309', marginTop: 2 }}
+                  strokeWidth={2.5}
+                />
+                <div className="flex flex-col flex-1" style={{ gap: 4 }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 13, fontWeight: 700, color: '#92400E',
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}
+                  >
+                    Hint
+                  </span>
+                  <p
+                    className="font-body"
+                    style={{ fontSize: 16, fontWeight: 400, color: '#78350F', lineHeight: '24px', margin: 0 }}
+                  >
+                    {question.hint}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Feedback row */}
-          {isCorrect && (
-            <FeedbackBanner kind="correct" xp={feedback.xp} note={feedback.explanation} />
-          )}
-          {isIncorrect && (
-            <FeedbackBanner
-              kind="incorrect"
-              note={feedback.explanation}
-              attempts={feedback.attempts}
-            />
-          )}
+          {/* Why? button → reveals explanation after 2 fails */}
+          <AnimatePresence>
+            {showWhyButton && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                style={{ marginTop: 16 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setRevealedExplanation(true)}
+                  className="flex items-center font-body"
+                  style={{
+                    gap: 8, padding: '10px 18px', borderRadius: 999,
+                    background: '#fff', border: `1px solid ${NAVY}`, color: NAVY,
+                    fontSize: 16, fontWeight: 700,
+                  }}
+                >
+                  <HelpCircle className="w-4 h-4" strokeWidth={2.5} />
+                  Why? Show the explanation
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {revealedExplanation && question.explanation && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start"
+                style={{
+                  marginTop: 16, gap: 12, padding: 16, borderRadius: 16,
+                  background: '#E0E7FF', border: `1px solid #C7D2FE`,
+                }}
+              >
+                <Sparkles
+                  className="w-5 h-5 shrink-0"
+                  style={{ color: NAVY, marginTop: 2 }}
+                  strokeWidth={2.5}
+                />
+                <div className="flex flex-col flex-1" style={{ gap: 4 }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 13, fontWeight: 700, color: NAVY,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}
+                  >
+                    Explanation
+                  </span>
+                  <p
+                    className="font-body"
+                    style={{ fontSize: 16, fontWeight: 400, color: TXT_DARK, lineHeight: '24px', margin: 0 }}
+                  >
+                    {question.explanation}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Feedback banner — correct or incorrect */}
+          <AnimatePresence>
+            {isCorrect && <CorrectBanner xp={feedback.xp} />}
+            {isIncorrect && (
+              <IncorrectBanner attempts={feedback.attempts} />
+            )}
+          </AnimatePresence>
+
+          {/* Correct-answer overlay celebration */}
+          <AnimatePresence>
+            {isCorrect && <CorrectOverlay xp={feedback.xp} />}
+          </AnimatePresence>
         </motion.div>
       </AnimatePresence>
 
       {/* Action bar */}
-      <div className="sticky bottom-3 flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-input-border)] bg-white p-3 shadow-[0_8px_24px_-8px_rgba(0,0,0,0.18)]">
-        <Button variant="ghost" onClick={onExit}>
+      <div
+        className="flex items-center justify-between bg-white"
+        style={{
+          padding: 16, borderRadius: 24, gap: 12,
+          boxShadow: '0 -4px 18px rgba(0,0,0,0.04)',
+          border: '1px solid #E7E7E7',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onExit}
+          className="font-body"
+          style={{
+            padding: '12px 18px', borderRadius: 999, color: TXT_MID,
+            fontSize: 16, fontWeight: 600, background: 'transparent',
+          }}
+        >
           Exit
-        </Button>
+        </button>
         {isIdle || isChecking || isIncorrect ? (
-          <Button
+          <motion.button
+            type="button"
             onClick={submit}
-            disabled={!hasSelection || isChecking}
-            loading={isChecking}
-            className="px-6"
+            disabled={!hasAnswered || isChecking}
+            whileTap={hasAnswered ? { scale: 0.96 } : undefined}
+            className="grid place-items-center font-body disabled:cursor-not-allowed"
+            style={{
+              background: hasAnswered ? NAVY : '#CBD5E1', color: '#fff',
+              borderRadius: 999, padding: '14px 32px', height: 52,
+              fontSize: 18, fontWeight: 700,
+              opacity: hasAnswered ? 1 : 0.7,
+            }}
           >
-            {isIncorrect ? 'Try again' : 'Check'}
-          </Button>
+            {isChecking ? 'Checking…' : isIncorrect ? 'Try again' : 'Check'}
+          </motion.button>
         ) : (
-          <Button onClick={goNext} className="px-6">
-            {index + 1 >= total ? 'Finish' : 'Next'}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <motion.button
+            type="button"
+            onClick={goNext}
+            whileTap={{ scale: 0.96 }}
+            className="grid place-items-center font-body"
+            style={{
+              background: NAVY, color: '#fff',
+              borderRadius: 999, padding: '14px 32px', height: 52,
+              fontSize: 18, fontWeight: 700,
+            }}
+          >
+            <span className="flex items-center" style={{ gap: 10 }}>
+              {index + 1 >= total ? 'Finish' : 'Next'}
+              <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+            </span>
+          </motion.button>
         )}
       </div>
     </div>
@@ -307,74 +527,76 @@ export function QuizFlow({ questions, accent = '#365DEA', onExit }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
+function labelFor(t: Question['type']): string {
+  if (t === 'mcq_multiple') return 'Select all that apply'
+  if (t === 'short_answer') return 'Short answer'
+  if (t === 'rearrange')    return 'Rearrange'
+  return 'Multiple choice'
+}
 
+// ---------------------------------------------------------------------------
 function OptionRow({
-  option,
-  selected,
-  disabled,
-  multiSelect,
-  accent,
-  feedback,
-  onToggle,
+  option, selected, disabled, multiSelect, feedback, onToggle,
 }: {
   option: QuestionOption
   selected: boolean
   disabled: boolean
   multiSelect: boolean
-  accent: string
   feedback: 'none' | 'correct' | 'incorrect'
   onToggle: () => void
 }) {
+  const border =
+    feedback === 'correct' ? '#22C55E' :
+    feedback === 'incorrect' ? '#FF3131' :
+    selected ? NAVY : '#E7E7E7'
+  const bg =
+    feedback === 'correct' ? '#DCFCE7' :
+    feedback === 'incorrect' ? '#FFE2E2' :
+    selected ? '#F0F4FF' : '#fff'
+
   return (
     <li>
       <motion.button
         type="button"
         onClick={onToggle}
         disabled={disabled}
-        whileTap={{ scale: 0.99 }}
-        className={`flex w-full items-center gap-3 rounded-xl border bg-white px-4 py-3.5 text-left transition-all disabled:cursor-not-allowed ${
-          feedback === 'correct'
-            ? 'border-emerald-500 bg-emerald-50'
-            : feedback === 'incorrect'
-              ? 'border-[var(--color-error)] bg-red-50'
-              : selected
-                ? 'border-[color:var(--color-primary)] shadow-sm'
-                : 'border-[var(--color-input-border)] hover:bg-[var(--color-input-fill)]'
-        }`}
+        whileTap={!disabled ? { scale: 0.99 } : undefined}
+        className="flex items-center w-full font-body text-left disabled:cursor-not-allowed"
+        style={{
+          gap: 14, padding: '16px 20px', borderRadius: 18,
+          border: `1.5px solid ${border}`, background: bg,
+          transition: 'all 0.2s ease',
+        }}
       >
         <span
-          className={`grid h-6 w-6 shrink-0 place-items-center transition-colors ${
-            multiSelect ? 'rounded' : 'rounded-full'
-          } ${
-            feedback === 'correct'
-              ? 'border-2 border-emerald-500 bg-emerald-500 text-white'
-              : feedback === 'incorrect'
-                ? 'border-2 border-[var(--color-error)] bg-[var(--color-error)] text-white'
-                : selected
-                  ? 'border-2 text-white'
-                  : 'border-2 border-[var(--color-input-border)]'
-          }`}
-          style={
-            selected && feedback === 'none'
-              ? { borderColor: accent, background: accent }
-              : undefined
-          }
+          className="grid place-items-center shrink-0"
+          style={{
+            width: 24, height: 24,
+            borderRadius: multiSelect ? 6 : 999,
+            border: `2px solid ${
+              feedback === 'correct' ? '#22C55E' :
+              feedback === 'incorrect' ? '#FF3131' :
+              selected ? NAVY : '#D4D4D8'
+            }`,
+            background:
+              feedback === 'correct' ? '#22C55E' :
+              feedback === 'incorrect' ? '#FF3131' :
+              selected ? NAVY : '#fff',
+            color: '#fff',
+          }}
         >
-          {feedback === 'correct' ? (
-            <Check className="h-4 w-4" strokeWidth={3} />
-          ) : feedback === 'incorrect' ? (
-            <X className="h-4 w-4" strokeWidth={3} />
-          ) : selected ? (
-            multiSelect ? (
-              <Check className="h-4 w-4" strokeWidth={3} />
-            ) : (
-              <span className="h-2.5 w-2.5 rounded-full bg-white" />
-            )
-          ) : null}
+          {feedback === 'correct'   ? <Check className="w-4 h-4" strokeWidth={3} /> :
+           feedback === 'incorrect' ? <X     className="w-4 h-4" strokeWidth={3} /> :
+           selected
+             ? (multiSelect
+                 ? <Check className="w-4 h-4" strokeWidth={3} />
+                 : <span style={{ width: 9, height: 9, borderRadius: 999, background: '#fff' }} />)
+             : null}
         </span>
-        <span className="text-base text-[var(--color-text-primary)]">
+        <span
+          className="font-body"
+          style={{ fontSize: 18, fontWeight: 500, color: TXT_DARK, lineHeight: '26px' }}
+        >
           {option.optionText}
         </span>
       </motion.button>
@@ -382,121 +604,339 @@ function OptionRow({
   )
 }
 
-function FeedbackBanner({
-  kind,
-  xp,
-  note,
-  attempts,
+// ---------------------------------------------------------------------------
+function RearrangeList({
+  order, options, disabled, onMove,
 }: {
-  kind: 'correct' | 'incorrect'
-  xp?: number
-  note?: string
-  attempts?: number
+  order: string[]
+  options: QuestionOption[]
+  disabled: boolean
+  onMove: (id: string, dir: -1 | 1) => void
 }) {
-  if (kind === 'correct') {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"
-      >
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-500 text-white">
-          <Check className="h-5 w-5" strokeWidth={3} />
-        </span>
-        <div>
-          <div className="font-bold text-emerald-700">
-            Correct! +{xp ?? 0} XP
-          </div>
-          {note && (
-            <div className="mt-1 text-sm text-emerald-900">{note}</div>
-          )}
-        </div>
-      </motion.div>
-    )
-  }
+  const byId = useMemo(() => {
+    const m = new Map<string, QuestionOption>()
+    for (const o of options) m.set(o.id, o)
+    return m
+  }, [options])
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
-    >
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--color-error)] text-white">
-        <X className="h-5 w-5" strokeWidth={3} />
-      </span>
-      <div>
-        <div className="font-bold text-[var(--color-error)]">
-          Not quite{attempts && attempts > 1 ? ` — attempt #${attempts}` : ''}
-        </div>
-        {note && <div className="mt-1 text-sm text-red-900">{note}</div>}
-      </div>
-    </motion.div>
+    <div className="flex flex-col" style={{ gap: 10 }}>
+      <p
+        className="font-body"
+        style={{
+          fontSize: 14, fontWeight: 600, color: TXT_MUTED,
+          letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0,
+        }}
+      >
+        Use the arrows to put these in the correct order
+      </p>
+      <ul className="flex flex-col" style={{ gap: 10 }}>
+        {order.map((id, idx) => {
+          const o = byId.get(id)
+          if (!o) return null
+          return (
+            <motion.li
+              key={id}
+              layout
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center bg-white"
+              style={{
+                gap: 14, padding: '14px 20px', borderRadius: 18,
+                border: '1.5px solid #E7E7E7',
+              }}
+            >
+              <span
+                className="grid place-items-center font-body shrink-0"
+                style={{
+                  width: 36, height: 36, borderRadius: 999,
+                  background: NAVY, color: '#fff',
+                  fontSize: 18, fontWeight: 700,
+                }}
+              >
+                {idx + 1}
+              </span>
+              <span
+                className="font-body flex-1"
+                style={{ fontSize: 18, fontWeight: 500, color: TXT_DARK, lineHeight: '26px' }}
+              >
+                {o.optionText}
+              </span>
+              <div className="flex flex-col" style={{ gap: 4 }}>
+                <button
+                  type="button"
+                  aria-label="Move up"
+                  disabled={disabled || idx === 0}
+                  onClick={() => onMove(id, -1)}
+                  className="grid place-items-center disabled:opacity-30"
+                  style={{
+                    width: 32, height: 28, borderRadius: 8,
+                    background: '#F1F5F9', color: NAVY,
+                  }}
+                >
+                  <ChevronUp className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move down"
+                  disabled={disabled || idx === order.length - 1}
+                  onClick={() => onMove(id, 1)}
+                  className="grid place-items-center disabled:opacity-30"
+                  style={{
+                    width: 32, height: 28, borderRadius: 8,
+                    background: '#F1F5F9', color: NAVY,
+                  }}
+                >
+                  <ChevronDown className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+              </div>
+            </motion.li>
+          )
+        })}
+      </ul>
+    </div>
   )
 }
 
-function ResultsCard({
-  xpEarned,
-  xpMax,
-  onExit,
-  onRestart,
-}: {
-  accent: string
-  xpEarned: number
-  xpMax: number
-  onExit: () => void
-  onRestart: () => void
-}) {
-  const pct = xpMax > 0 ? Math.round((xpEarned / xpMax) * 100) : 0
-  const scoreColor = pct >= 70 ? '#10B981' : pct >= 50 ? '#F39C12' : '#666'
-  const message =
-    pct >= 70
-      ? 'Well done. You can move on to the next chapter.'
-      : pct >= 50
-        ? 'Solid attempt. Run through the chapter once more to push the score up.'
-        : 'Have another look at the theory and try again.'
-
+// ---------------------------------------------------------------------------
+function CorrectBanner({ xp }: { xp: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-2xl border bg-white p-8 text-center"
-      style={{ borderColor: '#E0E0E0' }}
+      exit={{ opacity: 0 }}
+      className="flex items-start"
+      style={{
+        marginTop: 20, gap: 12, padding: 16, borderRadius: 16,
+        background: '#DCFCE7', border: '1px solid #86EFAC',
+      }}
     >
-      <div className="text-[11px] font-bold uppercase tracking-widest text-[#888]">
-        Quiz complete
-      </div>
-      <div
-        className="mt-3 text-5xl font-extrabold tabular-nums"
-        style={{ color: scoreColor }}
+      <span
+        className="grid place-items-center shrink-0"
+        style={{
+          width: 32, height: 32, borderRadius: 999,
+          background: '#22C55E', color: '#fff',
+        }}
       >
-        {pct}%
-      </div>
-      <div className="mt-1 text-sm text-[#666]">
-        {xpEarned} of {xpMax} XP earned
-      </div>
-      <p className="mx-auto mt-5 max-w-sm text-sm leading-relaxed text-[#555]">
-        {message}
-      </p>
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Button variant="secondary" onClick={onRestart}>
-          <RotateCcw className="h-4 w-4" /> Try again
-        </Button>
-        <Button onClick={onExit} className="px-6">
-          Done
-        </Button>
+        <Check className="w-5 h-5" strokeWidth={3} />
+      </span>
+      <div>
+        <div
+          className="font-body"
+          style={{ fontSize: 18, fontWeight: 700, color: '#15803D', lineHeight: '24px' }}
+        >
+          Correct! +{xp} XP
+        </div>
+        <div
+          className="font-body"
+          style={{ fontSize: 14, fontWeight: 400, color: '#166534', lineHeight: '20px' }}
+        >
+          {xp === 2 ? 'Nice — first try!' : xp === 1 ? 'Got it on the second try.' : 'Already answered before.'}
+        </div>
       </div>
     </motion.div>
   )
 }
 
-export function QuizErrorState({ message, onRetry, onExit }: { message: string; onRetry: () => void; onExit: () => void }) {
+function IncorrectBanner({ attempts }: { attempts: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, x: 0 }}
+      animate={{ opacity: 1, y: 0, x: [0, -6, 6, -4, 4, 0] }}
+      exit={{ opacity: 0 }}
+      transition={{ x: { duration: 0.4 } }}
+      className="flex items-start"
+      style={{
+        marginTop: 20, gap: 12, padding: 16, borderRadius: 16,
+        background: '#FFE2E2', border: '1px solid #FCA5A5',
+      }}
+    >
+      <span
+        className="grid place-items-center shrink-0"
+        style={{
+          width: 32, height: 32, borderRadius: 999,
+          background: '#FF3131', color: '#fff',
+        }}
+      >
+        <X className="w-5 h-5" strokeWidth={3} />
+      </span>
+      <div>
+        <div
+          className="font-body"
+          style={{ fontSize: 18, fontWeight: 700, color: '#B91C1C', lineHeight: '24px' }}
+        >
+          {attempts === 1 ? 'Not quite — try once more.' : 'Still off. Hit "Why?" to learn the reasoning.'}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// Full-card celebration overlay on a correct answer
+function CorrectOverlay({ xp }: { xp: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="pointer-events-none absolute inset-0 grid place-items-center"
+      style={{ background: 'radial-gradient(circle at 50% 40%, rgba(34,197,94,0.16), transparent 70%)' }}
+    >
+      <motion.div
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 240, damping: 14 }}
+        className="grid place-items-center"
+        style={{
+          width: 120, height: 120, borderRadius: 999,
+          background: 'radial-gradient(circle at 32% 28%, #4ADE80 0%, #16A34A 70%)',
+          boxShadow: '0 18px 40px rgba(22,163,74,0.4)',
+        }}
+      >
+        <Check className="w-16 h-16" style={{ color: '#fff' }} strokeWidth={3} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: -20 }}
+        transition={{ delay: 0.18, duration: 0.5 }}
+        className="absolute font-body"
+        style={{
+          top: 'calc(50% + 60px)',
+          fontSize: 22, fontWeight: 800, color: '#15803D',
+          fontFamily: 'var(--font-numeric)',
+        }}
+      >
+        +{xp} XP
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+function ResultsCard({
+  xpEarned, xpMax, onExit, onRestart,
+}: {
+  xpEarned: number; xpMax: number; onExit: () => void; onRestart: () => void
+}) {
+  const pct = xpMax > 0 ? Math.round((xpEarned / xpMax) * 100) : 0
+  const tone = pct >= 70 ? '#22C55E' : pct >= 50 ? '#F59E0B' : '#FF3131'
+  const message =
+    pct >= 70 ? 'Well done. Ready for the next chapter.'
+    : pct >= 50 ? 'Solid attempt. Run through the chapter once more to push the score up.'
+    : 'Have another look at the theory and try again.'
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="bg-white text-center"
+      style={{
+        padding: 48, borderRadius: 34, border: '1px solid #E7E7E7',
+        boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+      }}
+    >
+      <div
+        className="font-body"
+        style={{
+          fontSize: 13, fontWeight: 700, color: TXT_MUTED,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+        }}
+      >
+        Quiz complete
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--font-numeric)',
+          fontSize: 72, fontWeight: 900, color: tone,
+          lineHeight: 1, marginTop: 12,
+        }}
+      >
+        {pct}%
+      </div>
+      <div
+        className="font-body"
+        style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, marginTop: 4 }}
+      >
+        {xpEarned} of {xpMax} XP earned
+      </div>
+      <p
+        className="font-body mx-auto"
+        style={{
+          maxWidth: 380, marginTop: 20, fontSize: 16, fontWeight: 400,
+          color: TXT_DARK, lineHeight: '24px',
+        }}
+      >
+        {message}
+      </p>
+      <div className="flex justify-center" style={{ marginTop: 24, gap: 12 }}>
+        <button
+          type="button"
+          onClick={onRestart}
+          className="flex items-center font-body"
+          style={{
+            gap: 8, padding: '12px 20px', borderRadius: 999,
+            background: '#fff', border: `1px solid ${NAVY}`, color: NAVY,
+            fontSize: 16, fontWeight: 700,
+          }}
+        >
+          <RotateCcw className="w-4 h-4" strokeWidth={2.5} /> Try again
+        </button>
+        <button
+          type="button"
+          onClick={onExit}
+          className="font-body"
+          style={{
+            padding: '12px 28px', borderRadius: 999,
+            background: NAVY, color: '#fff',
+            fontSize: 16, fontWeight: 700,
+          }}
+        >
+          Done
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
+export function QuizErrorState({
+  message, onRetry, onExit,
+}: {
+  message: string; onRetry: () => void; onExit: () => void
+}) {
   return (
     <div className="grid place-items-center px-6 py-12 text-center">
-      <AlertTriangle className="h-12 w-12 text-[var(--color-text-light)]" />
-      <p className="mt-3 text-sm text-[var(--color-text-secondary)]">{message}</p>
-      <div className="mt-4 flex gap-3">
-        <Button variant="secondary" onClick={onExit}>Exit</Button>
-        <Button onClick={onRetry}>Retry</Button>
+      <AlertTriangle className="w-12 h-12" style={{ color: TXT_MUTED }} />
+      <p
+        className="font-body"
+        style={{ marginTop: 12, fontSize: 16, color: TXT_DARK }}
+      >
+        {message}
+      </p>
+      <div className="flex" style={{ marginTop: 16, gap: 12 }}>
+        <button
+          type="button"
+          onClick={onExit}
+          className="font-body"
+          style={{
+            padding: '10px 20px', borderRadius: 999,
+            background: '#fff', border: `1px solid ${NAVY}`, color: NAVY,
+            fontSize: 16, fontWeight: 700,
+          }}
+        >
+          Exit
+        </button>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="font-body"
+          style={{
+            padding: '10px 20px', borderRadius: 999,
+            background: NAVY, color: '#fff',
+            fontSize: 16, fontWeight: 700,
+          }}
+        >
+          Retry
+        </button>
       </div>
     </div>
   )

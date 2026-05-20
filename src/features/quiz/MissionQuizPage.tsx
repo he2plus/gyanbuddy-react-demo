@@ -14,7 +14,6 @@ export function MissionQuizPage() {
   const { missionId = '' } = useParams<{ missionId: string }>()
   const missionsQ = useMissions()
   const mission = missionsQ.data?.find((m) => m.id === missionId)
-  const accent = mission?.subject.color ?? '#365DEA'
 
   const back = () => navigate(`/missions/${missionId}`)
 
@@ -42,7 +41,6 @@ export function MissionQuizPage() {
         ) : (
           <QuizFlow
             questions={mission.questions}
-            accent={accent}
             onExit={back}
           />
         )}

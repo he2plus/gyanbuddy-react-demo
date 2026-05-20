@@ -1,114 +1,197 @@
 /**
- * CreditsPage — mirrors lib/screens/profile/credits_screen.dart.
- *
- * Static content. Team list copied verbatim from Dart source so the brand
- * roster stays in sync until/unless the team explicitly changes it.
+ * CreditsPage — restyled. Static attribution screen.
  */
-import {
-  Briefcase,
-  GraduationCap,
-  Palette,
-  Brain,
-  Code2,
-  type LucideIcon,
-} from 'lucide-react'
-import { ScreenHeader } from '../../components/ScreenHeader'
-import { Card } from '../../components/Card'
-import { PageContainer } from '../../components/PageContainer'
+import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { Heart, ExternalLink, Mail, ArrowLeft } from 'lucide-react'
 
-type TeamMember = { name: string; role: string; icon: LucideIcon }
+import { TopBar } from '../../shell/TopBar'
 
-const TEAM: TeamMember[] = [
-  { name: 'Rehan Sareen', role: 'Founder, CEO', icon: Briefcase },
-  { name: 'Parul Nagpal', role: 'Academic Advisor', icon: GraduationCap },
-  { name: 'Sanskriti Vaidya', role: 'Brand Identity Designer', icon: Palette },
-  { name: 'Bhavya Bharadwaj', role: 'AI Specialist', icon: Brain },
-  { name: 'Mridul Saxena', role: 'Developer', icon: Code2 },
-  { name: 'Aayush Sharma', role: 'Developer', icon: Code2 },
-  { name: 'Rahul Srivastava', role: 'Developer', icon: Code2 },
+const NAVY = '#00167A'
+const CYAN = '#1ABCFE'
+const TXT_DARK = '#121212'
+const TXT_MID = '#545454'
+const TXT_MUTED = '#989CA5'
+const SURFACE_BG = '#FAFAFA'
+
+const TEAM = [
+  { name: 'Prakhar Tripathi', role: 'Engineering & integration', email: 'dptmywork@gmail.com' },
+  { name: 'GyanBuddy Design', role: 'UI / UX', email: null },
+  { name: 'The teachers',     role: 'Subject content and curriculum guidance', email: null },
 ]
 
 export function CreditsPage() {
-  const year = new Date().getFullYear()
+  const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-white">
-      <ScreenHeader title="Credits" />
+    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+      <TopBar pageTitle="Credits" testCount={1} />
 
-      <PageContainer variant="narrow" className="flex flex-col items-center pt-8 pb-10">
-        {/* Real Flutter asset: gyaan_buddy/assets/images/final_logo.png */}
-        <div
-          className="grid h-28 w-28 place-items-center overflow-hidden rounded-full bg-emerald-50 shadow-[0_5px_15px_rgba(16,185,129,0.2)]"
-          aria-label="Gyaan Buddy logo"
+      <main
+        className="mx-auto flex flex-col"
+        style={{ maxWidth: 720, padding: '60px 24px 60px', gap: 32 }}
+      >
+        {/* Hero */}
+        <motion.section
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+          className="bg-white text-center"
+          style={{
+            padding: 40, borderRadius: 34,
+            border: '1px solid #E7E7E7',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+          }}
         >
-          <img
-            src="/images/final_logo.png"
-            alt="Gyaan Buddy"
-            className="h-full w-full object-cover"
-          />
-        </div>
-
-        <h2 className="mt-6 text-3xl font-bold text-emerald-600">GyanBuddy</h2>
-        <p className="mt-2 italic text-[var(--color-text-secondary)]">
-          A Smarter way to learn
-        </p>
-
-        <div className="mt-10 flex w-full flex-col gap-5">
-          <Card title="About GyanBuddy" accent="green">
-            <p className="px-5 py-4 text-center text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              GyanBuddy is a learning platform designed to make education
-              engaging and fun. Built with passion and dedication to help
-              students learn effectively through interactive quizzes,
-              missions, and gamified learning experiences.
-            </p>
-          </Card>
-
-          <Card title="Special Thanks" accent="green">
-            <p className="px-5 py-4 text-center text-sm leading-relaxed text-[var(--color-text-secondary)]">
-              Thank you to all the users, educators, and supporters who
-              believe in making quality education accessible to everyone.
-              Your feedback and encouragement drive us to keep improving
-              GyanBuddy.
-            </p>
-          </Card>
-
-          <Card title="Our Team" accent="green">
-            <ul className="grid grid-cols-1 gap-x-2 sm:grid-cols-2">
-              {TEAM.map(({ name, role, icon: Icon }) => (
-                <li
-                  key={name}
-                  className="flex items-center gap-4 border-b border-[var(--color-input-border)] px-5 py-4 last:border-b-0 sm:[&:nth-last-child(2):nth-child(odd)]:border-b-0"
-                >
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-700">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-[var(--color-text-primary)]">
-                      {name}
-                    </div>
-                    <div className="text-sm text-[var(--color-text-secondary)]">
-                      {role}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </div>
-
-        <p className="mt-10 text-xs text-[var(--color-text-light)]">
-          © {year} GyanBuddy
-        </p>
-        <p className="mt-1 text-xs text-[var(--color-text-light)]">
-          Built by{' '}
-          <a
-            href="mailto:dptmywork@gmail.com"
-            className="font-semibold text-[#365DEA] hover:underline"
+          <div
+            className="mx-auto grid place-items-center"
+            style={{
+              width: 80, height: 80, borderRadius: 22,
+              background: `linear-gradient(135deg, ${CYAN} 0%, ${NAVY} 100%)`,
+              color: '#fff', marginBottom: 18,
+              boxShadow: `0 12px 24px ${NAVY}33`,
+            }}
           >
-            Prakhar Tripathi
+            <span
+              className="font-display"
+              style={{ fontSize: 38, fontWeight: 800, lineHeight: 1 }}
+            >
+              G
+            </span>
+          </div>
+          <h1
+            className="font-body"
+            style={{ fontSize: 32, fontWeight: 700, color: TXT_DARK, lineHeight: '42px', margin: 0 }}
+          >
+            GyanBuddy
+          </h1>
+          <p
+            className="font-body"
+            style={{ marginTop: 6, fontSize: 16, fontWeight: 500, color: TXT_MID, lineHeight: '24px' }}
+          >
+            A smarter way to learn.
+          </p>
+          <div
+            className="inline-flex items-center font-body"
+            style={{
+              marginTop: 18, gap: 6, padding: '6px 14px', borderRadius: 999,
+              background: '#FFE2E2', color: '#B91C1C',
+              fontSize: 13, fontWeight: 700,
+            }}
+          >
+            <Heart className="w-4 h-4" strokeWidth={2.5} fill="#B91C1C" />
+            Built with care
+          </div>
+        </motion.section>
+
+        {/* Team */}
+        <section
+          className="bg-white overflow-hidden"
+          style={{
+            borderRadius: 34, border: '1px solid #E7E7E7',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+          }}
+        >
+          <div
+            className="font-body"
+            style={{
+              padding: '20px 28px', fontSize: 13, fontWeight: 700,
+              color: TXT_MUTED, letterSpacing: '0.06em', textTransform: 'uppercase',
+              borderBottom: '1px solid #F1F1F1',
+            }}
+          >
+            Made by
+          </div>
+          {TEAM.map((m, i) => (
+            <div
+              key={m.name}
+              className="flex items-center"
+              style={{
+                padding: '20px 28px', gap: 18,
+                borderBottom: i < TEAM.length - 1 ? '1px solid #F1F1F1' : 'none',
+              }}
+            >
+              <div
+                className="grid place-items-center shrink-0"
+                style={{
+                  width: 48, height: 48, borderRadius: 14,
+                  background: NAVY, color: '#fff',
+                }}
+              >
+                <span
+                  className="font-body"
+                  style={{ fontSize: 20, fontWeight: 700 }}
+                >
+                  {m.name[0]}
+                </span>
+              </div>
+              <div className="flex-1 flex flex-col" style={{ gap: 2 }}>
+                <span
+                  className="font-body"
+                  style={{ fontSize: 16, fontWeight: 700, color: TXT_DARK, lineHeight: '22px' }}
+                >
+                  {m.name}
+                </span>
+                <span
+                  className="font-body"
+                  style={{ fontSize: 14, fontWeight: 400, color: TXT_MID, lineHeight: '20px' }}
+                >
+                  {m.role}
+                </span>
+              </div>
+              {m.email && (
+                <a
+                  href={`mailto:${m.email}`}
+                  className="grid place-items-center"
+                  style={{
+                    width: 44, height: 44, borderRadius: 14,
+                    background: '#F0F4FF', color: NAVY,
+                  }}
+                >
+                  <Mail className="w-5 h-5" strokeWidth={2.2} />
+                </a>
+              )}
+            </div>
+          ))}
+        </section>
+
+        {/* Footer */}
+        <div className="text-center flex flex-col" style={{ gap: 8 }}>
+          <a
+            href="https://github.com/he2plus/gyanbuddy-react-demo"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center font-body self-center"
+            style={{
+              gap: 8, padding: '10px 18px', borderRadius: 999,
+              background: '#fff', border: '1px solid #E7E7E7', color: TXT_DARK,
+              fontSize: 14, fontWeight: 700, textDecoration: 'none',
+            }}
+          >
+            <ExternalLink className="w-4 h-4" strokeWidth={2.2} />
+            Source on GitHub
           </a>
-        </p>
-      </PageContainer>
+          <p
+            className="font-body"
+            style={{ fontSize: 12, fontWeight: 500, color: TXT_MUTED, margin: 0 }}
+          >
+            © GyanBuddy · v0.1.0
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/home')}
+          className="self-center font-body"
+          style={{
+            color: NAVY, fontWeight: 700, fontSize: 16,
+            background: 'transparent', display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          <ArrowLeft className="w-4 h-4" strokeWidth={2.5} />
+          Back to home
+        </button>
+      </main>
     </div>
   )
 }

@@ -1,32 +1,34 @@
 /**
- * ChapterTheoryPage — mirrors lib/screens/module/chapter_theory_screen.dart.
+ * ChapterTheoryPage — "Learn mode" per docx #15.
  *
- * Shown when the user taps a chapter (or the Start CTA) on the journey page.
- * Renders the chapter's theory content as a readable article, plus a CTA to
- * start the quiz.
+ * Shows the chapter's theory content (image + text — image optional) before
+ * the user starts the quiz. Visual language matches the rest of the Figma
+ * rebuild: TopBar, navy primary, cyan accent, Open Sans typography.
  *
- * The Flutter version triggers `GET /module_chapters/{id}/module_questions/`
- * on Continue and navigates to QuizScreen with the resulting list. Quiz is
- * Tier 4 — for now the CTA shows a toast and routes to a placeholder.
- *
- * Theory text comes directly from `chapter.theory` returned by
- * `GET /modules/{moduleId}/module_chapters/`. No extra API call needed for
- * the preview body.
+ * Theory text supports a tiny markdown subset (**bold** and paragraph breaks)
+ * since some backend content is lightly formatted.
  */
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { ArrowRight, AlertTriangle, BookOpen } from 'lucide-react'
+import {
+  ArrowLeft, ArrowRight, AlertTriangle, BookOpen, Play,
+} from 'lucide-react'
 
-import { ScreenHeader } from '../../components/ScreenHeader'
-import { PageContainer } from '../../components/PageContainer'
-import { Button } from '../../components/Button'
+import { TopBar } from '../../shell/TopBar'
 import { getSubjectById } from '../../api/subjects'
 import { useModuleChapters } from './useModuleChapters'
 import type { Subject } from '../../types/subject'
 
 type Params = { subjectId: string; moduleId: string; chapterId: string }
+
+const NAVY = '#00167A'
+const CYAN = '#1ABCFE'
+const TXT_DARK = '#121212'
+const TXT_MID = '#545454'
+const TXT_MUTED = '#989CA5'
+const SURFACE_BG = '#FAFAFA'
 
 export function ChapterTheoryPage() {
   const params = useParams<Params>()
@@ -41,7 +43,6 @@ export function ChapterTheoryPage() {
     enabled: !!subjectId,
     staleTime: 5 * 60_000,
   })
-
   const chaptersQ = useModuleChapters(moduleId)
 
   const chapter = useMemo(
@@ -49,166 +50,271 @@ export function ChapterTheoryPage() {
     [chaptersQ.data, chapterId],
   )
 
-  const subjectColor = subjectQ.data?.color ?? '#365DEA'
-
-  const onStartQuiz = () => {
-    navigate(
-      `/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}/quiz`,
-    )
-  }
+  const onStartQuiz = () =>
+    navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}/quiz`)
 
   return (
-    <div className="min-h-screen bg-white">
-      <div>
-        <ScreenHeader
-          title={chapter?.name ?? 'Chapter'}
-          onBack={() =>
-            navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters`)
-          }
-        />
+    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+      <TopBar pageTitle={chapter?.name ?? 'Chapter'} testCount={1} />
 
-        <PageContainer variant="medium" className="pb-12 pt-2">
-          {chaptersQ.isLoading || subjectQ.isLoading ? (
-            <LoadingState />
-          ) : chaptersQ.isError ? (
-            <ErrorState
-              message={
-                chaptersQ.error instanceof Error
-                  ? chaptersQ.error.message
-                  : 'Failed to load chapter'
-              }
-              onRetry={() => chaptersQ.refetch()}
-            />
-          ) : !chapter ? (
-            <NotFoundState />
-          ) : (
-            <article className="flex flex-col gap-6">
-              {/* Hero card */}
-              <motion.section
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="relative overflow-hidden rounded-2xl border border-[var(--color-input-border)] bg-white p-6 shadow-sm sm:p-8"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  {/* Hero illustration — lamp.png on a flat tinted surface */}
-                  <div
-                    className="grid h-20 w-20 shrink-0 place-items-center rounded-xl"
-                    style={{ background: `${subjectColor}14` }}
+      <main className="mx-auto" style={{ maxWidth: 1920, padding: '40px 120px 60px' }}>
+        {/* Back button */}
+        <button
+          type="button"
+          onClick={() => navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters`)}
+          className="flex items-center font-body"
+          style={{
+            gap: 10, padding: '10px 18px', borderRadius: 999,
+            background: '#fff', border: '1px solid #E7E7E7', color: TXT_MID,
+            fontSize: 16, fontWeight: 600,
+            marginBottom: 24,
+          }}
+        >
+          <ArrowLeft className="w-4 h-4" strokeWidth={2.5} />
+          Back to Journey
+        </button>
+
+        {chaptersQ.isLoading || subjectQ.isLoading ? (
+          <LoadingState />
+        ) : chaptersQ.isError ? (
+          <ErrorState
+            message={chaptersQ.error instanceof Error ? chaptersQ.error.message : 'Failed to load chapter'}
+            onRetry={() => chaptersQ.refetch()}
+          />
+        ) : !chapter ? (
+          <NotFoundState />
+        ) : (
+          <article
+            className="mx-auto flex flex-col"
+            style={{ maxWidth: 1000, gap: 24 }}
+          >
+            {/* Hero card */}
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-white relative overflow-hidden"
+              style={{
+                padding: 34, borderRadius: 34,
+                border: '1px solid #E7E7E7',
+                boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div className="flex flex-col" style={{ gap: 20 }}>
+                <div className="flex items-center" style={{ gap: 12 }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 14, fontWeight: 700, color: CYAN,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}
                   >
-                    <img
-                      src="/images/lamp.png"
-                      alt=""
-                      className="h-14 w-auto select-none"
-                      draggable={false}
-                    />
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--color-text-light)]">
-                      <span>Chapter {chapter.order}</span>
-                      {chapter.isImportant && (
-                        <span className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">
-                          Important
-                        </span>
-                      )}
-                    </div>
-                    <h1 className="mt-1 text-2xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-3xl">
-                      {chapter.name}
-                    </h1>
-                    {chapter.description && (
-                      <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-                        {chapter.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-5 flex flex-wrap gap-4 text-sm text-[var(--color-text-secondary)]">
-                  <span className="inline-flex items-center gap-1.5">
-                    <BookOpen className="h-4 w-4" />
-                    {chapter.questionCount}{' '}
-                    {chapter.questionCount === 1 ? 'item' : 'items'} of content
+                    Topic {chapter.order}
                   </span>
-                  {chapter.hasHots && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-100 px-2.5 py-0.5 text-xs font-semibold text-fuchsia-700">
-                      Includes HOTS questions
+                  {chapter.isImportant && (
+                    <span
+                      className="grid place-items-center"
+                      style={{
+                        background: '#FFE48B', color: '#92400E', borderRadius: 999,
+                        padding: '4px 12px',
+                        fontFamily: 'var(--font-body)',
+                        fontSize: 12, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                      }}
+                    >
+                      Important
                     </span>
                   )}
                 </div>
-              </motion.section>
+                <h1
+                  className="font-body"
+                  style={{
+                    fontSize: 36, fontWeight: 700, color: TXT_DARK,
+                    lineHeight: '48px', letterSpacing: '-0.3px', margin: 0,
+                  }}
+                >
+                  {chapter.name}
+                </h1>
+                {chapter.description && (
+                  <p
+                    className="font-body"
+                    style={{ fontSize: 18, fontWeight: 400, color: TXT_MID, lineHeight: '28px', margin: 0 }}
+                  >
+                    {chapter.description}
+                  </p>
+                )}
+                <div className="flex items-center" style={{ gap: 24 }}>
+                  <span className="flex items-center font-body" style={{ gap: 8, color: TXT_MID }}>
+                    <BookOpen className="w-4 h-4" strokeWidth={2.2} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>
+                      {chapter.questionCount} {chapter.questionCount === 1 ? 'item' : 'items'} of content
+                    </span>
+                  </span>
+                  {chapter.hasHots && (
+                    <span
+                      className="grid place-items-center"
+                      style={{
+                        background: '#F5D0FE', color: '#86198F', borderRadius: 999,
+                        padding: '4px 12px',
+                        fontFamily: 'var(--font-body)',
+                        fontSize: 12, fontWeight: 700,
+                        letterSpacing: '0.06em', textTransform: 'uppercase',
+                      }}
+                    >
+                      Includes HOTS
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.section>
 
-              {/* Theory body */}
+            {/* Optional illustration zone — CSS gradient placeholder, can be
+                swapped for a real raster image when chapter.logo or similar
+                is populated. */}
+            {chapter.logo ? (
               <motion.section
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
-                className="rounded-2xl border border-[var(--color-input-border)] bg-white p-6 shadow-sm sm:p-8"
-              >
-                <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
-                  What you'll learn
-                </h2>
-                <TheoryBody text={chapter.theory ?? ''} />
-              </motion.section>
-
-              {/* CTA */}
-              <motion.section
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
-                className="sticky bottom-4 rounded-2xl border-2 p-5 shadow-[0_8px_28px_-8px_rgba(0,0,0,0.18)] sm:p-6"
+                transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+                className="grid place-items-center overflow-hidden bg-white"
                 style={{
-                  borderColor: `${subjectColor}55`,
-                  background: 'white',
+                  padding: 24, borderRadius: 34, border: '1px solid #E7E7E7',
+                  minHeight: 280,
+                  background: 'radial-gradient(circle at 50% 40%, rgba(26,188,254,0.12), transparent 70%), #fff',
                 }}
               >
-                <div className="flex flex-col items-center justify-between gap-3 sm:flex-row sm:gap-4">
-                  <div className="text-center sm:text-left">
-                    <div className="text-sm text-[var(--color-text-secondary)]">
-                      Ready to test what you've learned?
-                    </div>
-                    <div className="text-base font-bold text-[var(--color-text-primary)] sm:text-lg">
-                      Start the quiz for{' '}
-                      <span style={{ color: subjectColor }}>{chapter.name}</span>
-                    </div>
-                  </div>
-                  <Button onClick={onStartQuiz} className="px-6 sm:shrink-0">
-                    Start Quiz
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                <img
+                  src={chapter.logo}
+                  alt=""
+                  className="max-h-72 w-auto"
+                  style={{ objectFit: 'contain' }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
               </motion.section>
-            </article>
-          )}
-        </PageContainer>
-      </div>
+            ) : (
+              <motion.section
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+                className="grid place-items-center overflow-hidden relative"
+                style={{
+                  padding: 24, borderRadius: 34, border: '1px solid #E7E7E7',
+                  minHeight: 200, background: '#fff',
+                }}
+              >
+                <motion.div
+                  style={{
+                    width: 120, height: 120, borderRadius: 999,
+                    background: `radial-gradient(circle at 32% 28%, ${CYAN} 0%, ${NAVY} 100%)`,
+                    boxShadow: `0 18px 40px ${CYAN}55`,
+                  }}
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </motion.section>
+            )}
+
+            {/* Theory body */}
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              className="bg-white"
+              style={{
+                padding: 34, borderRadius: 34, border: '1px solid #E7E7E7',
+                boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+              }}
+            >
+              <h2
+                className="font-body"
+                style={{
+                  fontSize: 20, fontWeight: 700, color: NAVY,
+                  lineHeight: '28px', margin: 0,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                What you'll learn
+              </h2>
+              <TheoryBody text={chapter.theory ?? ''} />
+            </motion.section>
+
+            {/* CTA — sticky-feel start quiz */}
+            <motion.section
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center"
+              style={{
+                padding: '24px 28px', borderRadius: 34, gap: 16,
+                background: '#fff', border: `2px solid ${CYAN}`,
+                boxShadow: '0 8px 28px rgba(26,188,254,0.16)',
+                position: 'sticky', bottom: 20,
+              }}
+            >
+              <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
+                <span
+                  className="font-body"
+                  style={{ fontSize: 14, fontWeight: 600, color: TXT_MID, lineHeight: '20px' }}
+                >
+                  Ready when you are
+                </span>
+                <span
+                  className="font-body"
+                  style={{ fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: '28px' }}
+                >
+                  Start the quiz for {chapter.name}
+                </span>
+              </div>
+              <motion.button
+                type="button"
+                onClick={onStartQuiz}
+                whileTap={{ scale: 0.96 }}
+                whileHover={{ y: -2 }}
+                className="grid place-items-center font-body shrink-0"
+                style={{
+                  background: NAVY, color: '#fff', borderRadius: 999,
+                  padding: '14px 28px', height: 56, gap: 12,
+                }}
+              >
+                <span className="flex items-center" style={{ gap: 12 }}>
+                  <Play className="w-5 h-5" strokeWidth={2.5} fill="#fff" />
+                  <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
+                    Start Quiz
+                  </span>
+                  <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+                </span>
+              </motion.button>
+            </motion.section>
+          </article>
+        )}
+      </main>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Body renderer — supports a tiny subset of Markdown so backend content with
-// **bold** or paragraph breaks renders cleanly. Backend has rich text in some
-// cases; the Flutter app shows it as plain text, but a bit of polish is free.
-// ---------------------------------------------------------------------------
-
 function TheoryBody({ text }: { text: string }) {
   if (!text) {
     return (
-      <p className="mt-4 text-sm text-[var(--color-text-light)]">
+      <p
+        className="font-body"
+        style={{ marginTop: 16, fontSize: 16, fontWeight: 400, color: TXT_MUTED, lineHeight: '24px' }}
+      >
         No theory content provided for this chapter yet.
       </p>
     )
   }
-
   const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0)
-
   return (
-    <div className="mt-4 space-y-4">
+    <div style={{ marginTop: 16 }}>
       {paragraphs.map((p, i) => (
         <p
           key={i}
-          className="text-base leading-relaxed text-[var(--color-text-secondary)]"
+          className="font-body"
+          style={{
+            fontSize: 18, fontWeight: 400, color: TXT_DARK,
+            lineHeight: '30px', marginTop: i === 0 ? 0 : 16,
+          }}
         >
           {renderInline(p)}
         </p>
@@ -217,13 +323,12 @@ function TheoryBody({ text }: { text: string }) {
   )
 }
 
-/** Renders **bold** segments inline. Everything else stays plain text. */
 function renderInline(text: string) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
   return parts.map((seg, i) => {
     if (seg.startsWith('**') && seg.endsWith('**')) {
       return (
-        <strong key={i} className="font-semibold text-[var(--color-text-primary)]">
+        <strong key={i} style={{ fontWeight: 700, color: NAVY }}>
           {seg.slice(2, -2)}
         </strong>
       )
@@ -233,14 +338,20 @@ function renderInline(text: string) {
 }
 
 // ---------------------------------------------------------------------------
-// States
-// ---------------------------------------------------------------------------
-
 function LoadingState() {
   return (
-    <div className="grid place-items-center py-20 text-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent" />
-      <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+    <div className="grid place-items-center text-center" style={{ padding: '80px 0' }}>
+      <div
+        className="animate-spin"
+        style={{
+          width: 36, height: 36, borderRadius: 999,
+          border: `4px solid ${CYAN}`, borderTopColor: 'transparent',
+        }}
+      />
+      <p
+        className="font-body"
+        style={{ marginTop: 16, fontSize: 16, color: TXT_MID }}
+      >
         Loading chapter…
       </p>
     </div>
@@ -249,7 +360,10 @@ function LoadingState() {
 
 function NotFoundState() {
   return (
-    <div className="grid place-items-center py-20 text-[var(--color-text-secondary)]">
+    <div
+      className="grid place-items-center font-body"
+      style={{ padding: '80px 0', color: TXT_MID }}
+    >
       Chapter not found.
     </div>
   )
@@ -257,16 +371,32 @@ function NotFoundState() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="grid place-items-center px-6 py-16 text-center">
-      <AlertTriangle className="h-16 w-16 text-[var(--color-text-light)]" />
-      <h2 className="mt-4 text-lg font-bold text-[var(--color-text-secondary)]">
+    <div className="grid place-items-center text-center" style={{ padding: '80px 0' }}>
+      <AlertTriangle className="w-14 h-14" style={{ color: TXT_MUTED }} />
+      <h2
+        className="font-body"
+        style={{ marginTop: 12, fontSize: 18, fontWeight: 700, color: TXT_DARK }}
+      >
         Couldn't load this chapter
       </h2>
-      <p className="mt-1 text-sm text-[var(--color-text-light)]">{message}</p>
-      <div className="mt-6">
-        <Button onClick={onRetry}>Retry</Button>
-      </div>
+      <p
+        className="font-body"
+        style={{ marginTop: 4, fontSize: 16, color: TXT_MUTED }}
+      >
+        {message}
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="font-body"
+        style={{
+          marginTop: 20, padding: '12px 28px', borderRadius: 999,
+          background: NAVY, color: '#fff',
+          fontSize: 16, fontWeight: 700,
+        }}
+      >
+        Retry
+      </button>
     </div>
   )
 }
-

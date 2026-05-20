@@ -1,19 +1,18 @@
 /**
- * ResetPasswordPage — POST /auth/reset-password.
- * Token comes from the reset email's deep link, captured as ?token=.
+ * ResetPasswordPage — restyled. POST /auth/reset-password. Token comes
+ * from the deep-link in the password-reset email as ?token=.
  */
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Lock } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { Check } from 'lucide-react'
 
-import { Button } from '../../components/Button'
-import { TextField } from '../../components/TextField'
 import { resetPassword } from '../../api/auth'
+import { AuthShell, AuthTextField, AuthSubmitButton } from './AuthShell'
 
 const schema = z
   .object({
@@ -25,8 +24,6 @@ const schema = z
     path: ['password_confirmation'],
   })
 type FormValues = z.infer<typeof schema>
-
-const PRIMARY = '#00167A'
 
 export function ResetPasswordPage() {
   const [params] = useSearchParams()
@@ -47,11 +44,7 @@ export function ResetPasswordPage() {
     },
   })
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { password: '', password_confirmation: '' },
   })
@@ -59,58 +52,77 @@ export function ResetPasswordPage() {
   const onSubmit = handleSubmit((values) => mutation.mutate(values))
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <main className="mx-auto flex w-full max-w-[480px] flex-1 flex-col px-9 pt-20 pb-12">
-        <h1 className="text-2xl font-bold text-[#1A1A2E]">Reset password</h1>
-        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-          Choose a new password.
-        </p>
-
-        {!token && (
-          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            This link is missing a reset token. Request a new reset email from{' '}
-            <Link to="/forgot-password" className="font-semibold underline">
-              Forgot password
-            </Link>
-            .
+    <AuthShell
+      title="Reset password"
+      subtitle="Choose a new password for your account."
+      footer={
+        <div className="text-center">
+          <Link
+            to="/login"
+            style={{ color: '#00167A', fontWeight: 700, textDecoration: 'none' }}
+          >
+            Back to sign in
+          </Link>
+        </div>
+      }
+    >
+      {done ? (
+        <div
+          className="flex items-start"
+          style={{
+            gap: 12, padding: 16, borderRadius: 16,
+            background: '#DCFCE7', border: '1px solid #86EFAC',
+          }}
+        >
+          <span
+            className="grid place-items-center shrink-0"
+            style={{
+              width: 32, height: 32, borderRadius: 999,
+              background: '#22C55E', color: '#fff',
+            }}
+          >
+            <Check className="w-5 h-5" strokeWidth={3} />
+          </span>
+          <div className="font-body" style={{ fontSize: 15, color: '#166534', lineHeight: '22px' }}>
+            Password reset successfully. Redirecting to sign in…
           </div>
-        )}
-
-        {done ? (
-          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            Password reset. Redirecting to login…
+        </div>
+      ) : !token ? (
+        <div
+          className="flex items-start"
+          style={{
+            gap: 12, padding: 16, borderRadius: 16,
+            background: '#FFE2E2', border: '1px solid #FCA5A5',
+          }}
+        >
+          <div className="font-body" style={{ fontSize: 15, color: '#B91C1C', lineHeight: '22px' }}>
+            Missing reset token. Use the link in your email or{' '}
+            <Link to="/forgot-password" style={{ textDecoration: 'underline', fontWeight: 700 }}>
+              request a new one
+            </Link>.
           </div>
-        ) : (
-          <form className="mt-6 space-y-3" onSubmit={onSubmit} noValidate>
-            <TextField
-              type="password"
-              placeholder="New password"
-              autoComplete="new-password"
-              leftIcon={<Lock className="h-5 w-5" />}
-              error={errors.password?.message}
-              {...register('password')}
-            />
-            <TextField
-              type="password"
-              placeholder="Confirm new password"
-              autoComplete="new-password"
-              leftIcon={<Lock className="h-5 w-5" />}
-              error={errors.password_confirmation?.message}
-              {...register('password_confirmation')}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              disabled={!token}
-              loading={mutation.isPending}
-              className="h-12 rounded-[10px]"
-              style={{ background: PRIMARY }}
-            >
-              Reset password
-            </Button>
-          </form>
-        )}
-      </main>
-    </div>
+        </div>
+      ) : (
+        <form onSubmit={onSubmit} noValidate className="flex flex-col" style={{ gap: 16 }}>
+          <AuthTextField
+            label="New password"
+            type="password"
+            placeholder="At least 6 characters"
+            error={errors.password?.message}
+            {...register('password')}
+          />
+          <AuthTextField
+            label="Confirm password"
+            type="password"
+            placeholder="Re-enter your password"
+            error={errors.password_confirmation?.message}
+            {...register('password_confirmation')}
+          />
+          <AuthSubmitButton type="submit" loading={mutation.isPending}>
+            Reset password
+          </AuthSubmitButton>
+        </form>
+      )}
+    </AuthShell>
   )
 }

@@ -14,10 +14,12 @@
  * Auth + nav side-effects live here so individual pages don't reimplement
  * the same logout / Tests / notification handlers six times.
  */
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
 
 import { useAuthStore } from '../state/auth'
+import { NavDrawer } from './NavDrawer'
 
 const NAVY = '#00167A'
 const CYAN = '#1ABCFE'
@@ -35,8 +37,11 @@ export function TopBar({
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
   const xp = me?.totalExp ?? 0
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (
+    <>
+    <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     <header
       className="w-full bg-white border-b"
       style={{ height: 117, borderColor: '#F3F3F3' }}
@@ -49,7 +54,8 @@ export function TopBar({
         <div className="flex items-center" style={{ gap: 24 }}>
           <button
             type="button"
-            aria-label="Menu"
+            aria-label="Open menu"
+            onClick={() => setDrawerOpen(true)}
             className="grid place-items-center"
             style={{ width: 34, height: 34, color: TXT_MID }}
           >
@@ -176,5 +182,6 @@ export function TopBar({
         </div>
       </div>
     </header>
+    </>
   )
 }

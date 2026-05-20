@@ -38,6 +38,7 @@ export async function getMissionQuestions(missionId: string): Promise<Question[]
 
 export type CheckResult = {
   isCorrect: boolean
+  expAwarded: number
   explanation?: string
 }
 
@@ -48,53 +49,67 @@ export type CheckResult = {
  *   - question      → the Question being answered
  *   - optionIds     → user's selected option IDs (MCQ)
  *   - shortAnswer   → user's text answer (short_answer type)
+ *   - tries         → 1 on first attempt, 2 on second. Backend's check_answer
+ *                     uses this to compute XP (2 / 1 / 0 per docx #16).
  */
 export async function checkAnswer(
   question: Question,
   optionIds: string[],
   shortAnswer?: string,
+  tries: number = 1,
 ): Promise<CheckResult> {
   if (isMockSessionActive()) {
-    return mockCheck(question, optionIds, shortAnswer)
+    return mockCheck(question, optionIds, shortAnswer, tries)
   }
   try {
-    // Backend uses PATCH for the answer-check action. Body shape matches
-    // subjects/views.py check_answer: answer_id / answer_ids / answer_text.
-    const body: Record<string, unknown> = { tries: 1 }
+    const body: Record<string, unknown> = { tries }
     if (optionIds && optionIds.length > 1) body.answer_ids = optionIds
     else if (optionIds && optionIds.length === 1) body.answer_id = optionIds[0]
     if (shortAnswer) body.answer_text = shortAnswer
-    const { data: envelope } = await api.patch<ApiEnvelope<{ is_correct?: boolean; explanation?: string }>>(
-      `/questions/${question.id}/check/`,
-      body,
-    )
+    const { data: envelope } = await api.patch<ApiEnvelope<{
+      is_correct?: boolean
+      exp_awarded?: number
+      exp_earned?: number
+      explanation?: string
+    }>>(`/questions/${question.id}/check/`, body)
     if (!envelope.success || !envelope.data) {
       throw new Error(envelope.message || 'Could not check answer')
     }
+    const isCorrect = !!envelope.data.is_correct
+    // Backend may name the field exp_awarded OR exp_earned depending on
+    // version; fall back to the docx-prescribed 2/1/0 formula if neither.
+    const expFromBackend =
+      typeof envelope.data.exp_awarded === 'number' ? envelope.data.exp_awarded :
+      typeof envelope.data.exp_earned === 'number'  ? envelope.data.exp_earned :
+      null
+    const expAwarded = expFromBackend ?? (isCorrect ? (tries === 1 ? 2 : 1) : 0)
     return {
-      isCorrect: !!envelope.data.is_correct,
+      isCorrect,
+      expAwarded,
       explanation: envelope.data.explanation,
     }
   } catch {
-    // If the network check fails, fall back to client-side flag (best-effort).
-    return mockCheck(question, optionIds, shortAnswer)
+    return mockCheck(question, optionIds, shortAnswer, tries)
   }
 }
 
 function mockCheck(
   question: Question,
   optionIds: string[],
-  shortAnswer?: string,
+  shortAnswer: string | undefined,
+  tries: number,
 ): CheckResult {
+  let isCorrect: boolean
   if (question.type === 'short_answer') {
-    // Match against any "correct" option's text (case-insensitive trim).
     const target = question.options.find((o) => o.isCorrect)?.optionText?.trim().toLowerCase() ?? ''
-    return { isCorrect: !!shortAnswer && shortAnswer.trim().toLowerCase() === target, explanation: question.explanation ?? undefined }
+    isCorrect = !!shortAnswer && shortAnswer.trim().toLowerCase() === target
+  } else {
+    const correctIds = new Set(question.options.filter((o) => o.isCorrect).map((o) => o.id))
+    const selected = new Set(optionIds)
+    isCorrect = correctIds.size === selected.size && [...correctIds].every((id) => selected.has(id))
   }
-  const correctIds = new Set(question.options.filter((o) => o.isCorrect).map((o) => o.id))
-  const selected = new Set(optionIds)
-  const same = correctIds.size === selected.size && [...correctIds].every((id) => selected.has(id))
-  return { isCorrect: same, explanation: question.explanation ?? undefined }
+  const expAwarded = isCorrect ? (tries === 1 ? 2 : tries === 2 ? 1 : 0) : 0
+  return { isCorrect, expAwarded, explanation: question.explanation ?? undefined }
 }
 
 // ---------------------------------------------------------------------------

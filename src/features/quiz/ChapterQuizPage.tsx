@@ -31,7 +31,7 @@ export function ChapterQuizPage() {
   const quizQ = useChapterQuiz(chapterId)
 
   const chapter = chaptersQ.data?.find((c) => c.id === chapterId) ?? null
-  const accent = subjectQ.data?.color ?? '#365DEA'
+  void subjectQ.data  // keep the query running for cache warmth
 
   const back = () =>
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}`)
@@ -56,7 +56,6 @@ export function ChapterQuizPage() {
         ) : (
           <QuizFlow
             questions={quizQ.data ?? []}
-            accent={accent}
             onExit={back}
           />
         )}

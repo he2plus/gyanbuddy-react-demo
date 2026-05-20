@@ -1,231 +1,246 @@
 /**
- * NotificationsPage — mirrors lib/screens/notifications/notification_screen.dart.
- *
- * Flutter app stores notifications LOCALLY (NotificationService uses
- * SharedPreferences). We do the same with localStorage so this screen has
- * zero backend dependency. FCM-pushed notifications will write into the
- * same store in Tier 5.
- *
- * Dropped: the four floating colored "decorative" circles the Flutter
- * version draws. They translate badly to web and read as filler.
+ * NotificationsPage — restyled. Lists recent app events (achievements,
+ * missions, leaderboard moves, etc.) with a clean empty state. Items are
+ * synthesised for the demo; the real backend has /api/notifications/.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import {
-  Bell,
-  MoreVertical,
-  Trash2,
-  Award,
-  HelpCircle,
-  Clock,
-  RefreshCcw,
-  AlertCircle,
+  Bell, BellOff, Trophy, Flame, BookOpen, Sparkles, Target, Check,
+  type LucideIcon,
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 
-import { ScreenHeader } from '../../components/ScreenHeader'
-import { PageContainer } from '../../components/PageContainer'
-import {
-  notificationStore,
-  notificationColor,
-  formatRelative,
-} from '../../lib/notifications'
-import type {
-  NotificationItem,
-  NotificationType,
-} from '../../types/notification'
+import { TopBar } from '../../shell/TopBar'
 
-const BRAND_PRIMARY = '#365DEA'
-const BRAND_BORDER = '#E0E0E0'
+const NAVY = '#00167A'
+const CYAN = '#1ABCFE'
+const TXT_DARK = '#121212'
+const TXT_MID = '#545454'
+const TXT_MUTED = '#989CA5'
+const SURFACE_BG = '#FAFAFA'
 
-function iconForType(type: NotificationType) {
-  switch (type) {
-    case 'quiz':
-      return HelpCircle
-    case 'achievement':
-      return Award
-    case 'reminder':
-      return Clock
-    case 'update':
-      return RefreshCcw
-    default:
-      return AlertCircle
-  }
+type NotificationKind = 'achievement' | 'mission' | 'leaderboard' | 'chapter' | 'test'
+
+type Notification = {
+  id: string
+  kind: NotificationKind
+  title: string
+  body: string
+  createdAt: Date
+  read: boolean
+}
+
+const KIND_META: Record<NotificationKind, { icon: LucideIcon; bg: string; fg: string }> = {
+  achievement: { icon: Trophy,    bg: '#FFF4D6', fg: '#B45309' },
+  mission:     { icon: Target,    bg: '#FFE7D7', fg: '#C05127' },
+  leaderboard: { icon: Sparkles,  bg: '#CFF1FF', fg: CYAN },
+  chapter:     { icon: BookOpen,  bg: '#E0E7FF', fg: NAVY },
+  test:        { icon: Flame,     bg: '#FFE2E2', fg: '#FF3131' },
+}
+
+function mockNotifications(): Notification[] {
+  const now = Date.now()
+  const mins = (m: number) => new Date(now - m * 60_000)
+  return [
+    { id: 'n1', kind: 'achievement', title: 'New personal best!',     body: 'You hit 88 XP today — keep going.',            createdAt: mins(15),       read: false },
+    { id: 'n2', kind: 'mission',     title: 'New mission unlocked',   body: 'Daily Chemistry Challenge is ready for you.',  createdAt: mins(45),       read: false },
+    { id: 'n3', kind: 'leaderboard', title: 'You moved up two ranks', body: "You're now #22 in Class 10-A.",                createdAt: mins(120),      read: true  },
+    { id: 'n4', kind: 'chapter',     title: 'Chapter completed',      body: 'Chemistry · Foundations · Introduction',       createdAt: mins(60 * 8),   read: true  },
+    { id: 'n5', kind: 'test',        title: 'Upcoming test',          body: 'Physics Mid-term in 2 days.',                  createdAt: mins(60 * 26),  read: true  },
+  ]
 }
 
 export function NotificationsPage() {
-  const [items, setItems] = useState<NotificationItem[] | null>(null)
-  const [showMenu, setShowMenu] = useState(false)
+  const navigate = useNavigate()
+  const [items, setItems] = useState<Notification[]>([])
+  useEffect(() => { setItems(mockNotifications()) }, [])
 
-  const load = () => {
-    setItems(notificationStore.getAll())
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  const isLoading = items === null
-  const isEmpty = !isLoading && items.length === 0
-
-  const trailing = useMemo(
-    () =>
-      !isLoading && items.length > 0 ? (
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowMenu((s) => !s)}
-            aria-label="More actions"
-            aria-haspopup="menu"
-            aria-expanded={showMenu}
-            className="grid h-10 w-10 place-items-center rounded-full hover:bg-[#F5F5F5]"
-          >
-            <MoreVertical className="h-5 w-5 text-[#333]" />
-          </button>
-          {showMenu && (
-            <div
-              role="menu"
-              className="absolute right-0 top-12 w-44 rounded-md border bg-white py-1 shadow-lg"
-              style={{ borderColor: BRAND_BORDER }}
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  if (window.confirm('Clear all notifications?')) {
-                    notificationStore.clear()
-                    setItems([])
-                  }
-                  setShowMenu(false)
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[#E74C3C] hover:bg-[#F5F5F5]"
-              >
-                <Trash2 className="h-4 w-4" />
-                Clear all
-              </button>
-            </div>
-          )}
-        </div>
-      ) : null,
-    [items, isLoading, showMenu],
-  )
+  const unread = useMemo(() => items.filter((n) => !n.read).length, [items])
+  const markAllRead = () => setItems((arr) => arr.map((n) => ({ ...n, read: true })))
 
   return (
-    <div className="min-h-screen bg-white">
-      <ScreenHeader title="Notifications" trailing={trailing} />
+    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+      <TopBar pageTitle="Notifications" testCount={1} />
 
-      <PageContainer variant="medium" className="pb-10 pt-2">
-        {isLoading && (
-          <div className="grid place-items-center py-20 text-[#999]">
-            Loading…
+      <main
+        className="mx-auto flex flex-col"
+        style={{ maxWidth: 900, padding: '50px 24px 60px', gap: 24 }}
+      >
+        <div className="flex items-center" style={{ gap: 18 }}>
+          <div
+            className="grid place-items-center shrink-0"
+            style={{
+              width: 56, height: 56, borderRadius: 18,
+              background: NAVY, color: '#fff',
+            }}
+          >
+            <Bell className="w-7 h-7" strokeWidth={2.2} />
           </div>
-        )}
-
-        {isEmpty && (
-          <div className="grid place-items-center px-6 py-20 text-center">
-            <Bell className="h-10 w-10 text-[#CCC]" strokeWidth={1.5} />
-            <h2 className="mt-3 text-base font-semibold text-[#666]">
-              No notifications
-            </h2>
+          <div className="flex-1 flex flex-col" style={{ gap: 2 }}>
+            <h1
+              className="font-body"
+              style={{ fontSize: 28, fontWeight: 700, color: TXT_DARK, lineHeight: '36px', margin: 0 }}
+            >
+              Notifications
+            </h1>
+            <span
+              className="font-body"
+              style={{ fontSize: 16, fontWeight: 500, color: TXT_MID, lineHeight: '22px' }}
+            >
+              {unread > 0 ? `${unread} unread • ${items.length} total` : `${items.length} total`}
+            </span>
+          </div>
+          {unread > 0 && (
             <button
               type="button"
-              onClick={load}
-              className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
-              style={{ color: BRAND_PRIMARY }}
+              onClick={markAllRead}
+              className="font-body"
+              style={{
+                padding: '10px 18px', borderRadius: 999,
+                background: '#fff', border: '1px solid #E7E7E7', color: NAVY,
+                fontSize: 14, fontWeight: 700,
+              }}
             >
-              <RefreshCcw className="h-3.5 w-3.5" /> Refresh
+              <span className="flex items-center" style={{ gap: 6 }}>
+                <Check className="w-4 h-4" strokeWidth={2.5} />
+                Mark all read
+              </span>
+            </button>
+          )}
+        </div>
+
+        {items.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <section
+            className="bg-white overflow-hidden"
+            style={{
+              borderRadius: 34, border: '1px solid #E7E7E7',
+              boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+            }}
+          >
+            {items.map((n, i) => (
+              <NotificationRow key={n.id} item={n} index={i} isLast={i === items.length - 1} />
+            ))}
+          </section>
+        )}
+
+        {items.length > 0 && (
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/home')}
+              className="font-body"
+              style={{ color: NAVY, fontWeight: 700, fontSize: 16, background: 'transparent' }}
+            >
+              ← Back to home
             </button>
           </div>
         )}
-
-        {!isLoading && !isEmpty && (
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <AnimatePresence initial={false}>
-              {items!.map((n) => (
-                <NotificationCard
-                  key={n.id}
-                  item={n}
-                  onMarkRead={() => setItems(notificationStore.markRead(n.id))}
-                  onDelete={() => {
-                    notificationStore.remove(n.id)
-                    setItems(notificationStore.getAll())
-                  }}
-                />
-              ))}
-            </AnimatePresence>
-          </ul>
-        )}
-      </PageContainer>
+      </main>
     </div>
   )
 }
 
-function NotificationCard({
-  item,
-  onMarkRead,
-  onDelete,
+function NotificationRow({
+  item, index, isLast,
 }: {
-  item: NotificationItem
-  onMarkRead: () => void
-  onDelete: () => void
+  item: Notification; index: number; isLast: boolean
 }) {
-  const Icon = iconForType(item.type)
-  const color = notificationColor(item.type)
-
+  const meta = KIND_META[item.kind]
+  const Icon = meta.icon
   return (
-    <motion.li
-      layout
+    <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -16 }}
-      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-xl border bg-white p-4 transition-shadow hover:shadow-sm"
+      transition={{ delay: index * 0.04, duration: 0.3 }}
+      className="flex items-start"
       style={{
-        borderColor: item.isRead ? BRAND_BORDER : BRAND_PRIMARY,
+        padding: '20px 28px', gap: 18,
+        background: item.read ? 'transparent' : 'rgba(26,188,254,0.05)',
+        borderBottom: isLast ? 'none' : '1px solid #F1F1F1',
       }}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-md"
-          style={{ background: `${color}15`, color }}
-          aria-hidden="true"
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div
-            className={`text-sm ${item.isRead ? 'font-medium text-[#444]' : 'font-bold text-[#222]'}`}
+      <div
+        className="grid place-items-center shrink-0"
+        style={{
+          width: 44, height: 44, borderRadius: 14,
+          background: meta.bg, color: meta.fg,
+        }}
+      >
+        <Icon className="w-5 h-5" strokeWidth={2.2} />
+      </div>
+      <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <span
+            className="font-body"
+            style={{ fontSize: 16, fontWeight: 700, color: TXT_DARK, lineHeight: '22px' }}
           >
             {item.title}
-          </div>
-          <p className="mt-0.5 line-clamp-2 text-sm text-[#666]">{item.body}</p>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-xs text-[#999]">
-              {formatRelative(item.timestamp)}
-            </span>
-            <div className="flex items-center gap-1">
-              {!item.isRead && (
-                <button
-                  type="button"
-                  onClick={onMarkRead}
-                  className="rounded px-2 py-1 text-xs font-medium hover:bg-[#F5F5F5]"
-                  style={{ color: BRAND_PRIMARY }}
-                >
-                  Mark as read
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={onDelete}
-                aria-label="Delete notification"
-                className="grid h-8 w-8 place-items-center rounded text-[#999] hover:bg-[#F5F5F5] hover:text-[#E74C3C]"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+          </span>
+          {!item.read && (
+            <span style={{ width: 8, height: 8, borderRadius: 999, background: CYAN }} />
+          )}
         </div>
+        <span
+          className="font-body"
+          style={{ fontSize: 14, fontWeight: 400, color: TXT_MID, lineHeight: '20px' }}
+        >
+          {item.body}
+        </span>
+        <span
+          className="font-body"
+          style={{ fontSize: 12, fontWeight: 500, color: TXT_MUTED, lineHeight: '16px' }}
+        >
+          {formatRelative(item.createdAt)}
+        </span>
       </div>
-    </motion.li>
+    </motion.div>
   )
+}
+
+function EmptyState() {
+  return (
+    <div
+      className="bg-white grid place-items-center text-center"
+      style={{
+        padding: 60, borderRadius: 34, border: '1px solid #E7E7E7',
+        boxShadow: '0 4px 18px rgba(0,0,0,0.04)', gap: 16,
+      }}
+    >
+      <div
+        className="grid place-items-center"
+        style={{
+          width: 88, height: 88, borderRadius: 999,
+          background: '#F8FAFC', border: '1px solid #EAEAEA',
+        }}
+      >
+        <BellOff className="w-9 h-9" style={{ color: TXT_MUTED }} strokeWidth={2} />
+      </div>
+      <div className="flex flex-col items-center" style={{ gap: 4 }}>
+        <span
+          className="font-body"
+          style={{ fontSize: 20, fontWeight: 700, color: TXT_DARK, lineHeight: '28px' }}
+        >
+          You're all caught up
+        </span>
+        <span
+          className="font-body"
+          style={{ fontSize: 14, fontWeight: 400, color: TXT_MUTED, lineHeight: '20px' }}
+        >
+          New notifications will show up here.
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function formatRelative(d: Date): string {
+  const diff = (Date.now() - d.getTime()) / 1000
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)} d ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

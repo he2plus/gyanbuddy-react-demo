@@ -79,7 +79,6 @@ export function TestQuizPage() {
             <TimerBar totalSeconds={totalSeconds} accent={accent} onExpire={() => void completeTest(testId).catch(() => undefined)} />
             <QuizFlow
               questions={questionsQ.data ?? test.questions ?? []}
-              accent={accent}
               onExit={async () => {
                 await completeTest(testId).catch(() => undefined)
                 back()

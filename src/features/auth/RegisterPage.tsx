@@ -1,35 +1,29 @@
 /**
- * RegisterPage — mirrors the `/auth/register` flow.
- *
- * Faithful to the Flutter API shape (admission #, first/last name, email,
- * password, school). On success: writes session via auth store, then routes
- * to /confirmation (Flutter does the same for new accounts).
+ * RegisterPage — restyled in the new design language. Backend contract
+ * preserved: posts to /auth/register, stores the returned session, routes
+ * to /confirmation for first-time profile setup.
  */
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Lock, Mail, User as UserIcon, School, Hash } from 'lucide-react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
-import { Button } from '../../components/Button'
-import { TextField } from '../../components/TextField'
 import { register as apiRegister, type RegisterInput } from '../../api/auth'
 import { useAuthStore } from '../../state/auth'
+import { AuthShell, AuthTextField, AuthSubmitButton } from './AuthShell'
 
 const schema = z.object({
   first_name: z.string().trim().min(1, 'First name is required'),
   last_name: z.string().trim().min(1, 'Last name is required'),
   email: z.string().trim().email('Enter a valid email'),
   username: z.string().trim().min(1, 'Admission number is required'),
-  admission_number: z.number({ message: 'Enter a valid admission number' }).int().positive('Enter a valid admission number'),
+  admission_number: z.number({ message: 'Enter a valid admission number' }).int().positive(),
   school: z.string().trim().min(1, 'School is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 type FormValues = z.infer<typeof schema>
-
-const PRIMARY = '#00167A'
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -39,7 +33,7 @@ export function RegisterPage() {
     mutationFn: (input: RegisterInput) => apiRegister(input),
     onSuccess: ({ user, tokens }) => {
       setSession(user, tokens)
-      toast.success('Welcome to Gyaan Buddy!')
+      toast.success('Welcome to GyanBuddy!')
       navigate('/confirmation', { replace: true })
     },
     onError: (err) => {
@@ -47,20 +41,11 @@ export function RegisterPage() {
     },
   })
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      first_name: '',
-      last_name: '',
-      email: '',
-      username: '',
-      admission_number: 0,
-      school: '',
-      password: '',
+      first_name: '', last_name: '', email: '',
+      username: '', admission_number: 0, school: '', password: '',
     },
   })
 
@@ -77,97 +62,77 @@ export function RegisterPage() {
   })
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <main className="mx-auto flex w-full max-w-[600px] flex-1 flex-col px-9 pt-12 pb-12">
-        <div className="mb-6 flex justify-center">
-          <img
-            src="/images/login_logo.png"
-            alt="Gyaan Buddy"
-            width={180}
-            className="h-auto w-[180px] object-contain"
-          />
-        </div>
-
-        <h1 className="text-base font-bold text-[#1A1A2E]">Create your account</h1>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+    <AuthShell
+      title="Create your account"
+      subtitle="Set up your GyanBuddy profile in under a minute."
+      footer={
+        <div className="text-center">
           Already have an account?{' '}
           <Link
             to="/login"
-            className="font-semibold underline-offset-4 hover:underline"
-            style={{ color: PRIMARY }}
+            style={{ color: '#00167A', fontWeight: 700, textDecoration: 'none' }}
           >
-            Log in
+            Sign in
           </Link>
-        </p>
-
-        <form className="mt-5 space-y-3" onSubmit={onSubmit} noValidate>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextField
-              placeholder="First name"
-              autoComplete="given-name"
-              leftIcon={<UserIcon className="h-5 w-5" />}
-              error={errors.first_name?.message}
-              {...register('first_name')}
-            />
-            <TextField
-              placeholder="Last name"
-              autoComplete="family-name"
-              leftIcon={<UserIcon className="h-5 w-5" />}
-              error={errors.last_name?.message}
-              {...register('last_name')}
-            />
-          </div>
-          <TextField
-            type="email"
-            placeholder="Email"
-            autoComplete="email"
-            leftIcon={<Mail className="h-5 w-5" />}
-            error={errors.email?.message}
-            {...register('email')}
+        </div>
+      }
+    >
+      <form onSubmit={onSubmit} noValidate className="flex flex-col" style={{ gap: 14 }}>
+        <div className="grid grid-cols-2" style={{ gap: 14 }}>
+          <AuthTextField
+            label="First name"
+            placeholder="Riya"
+            error={errors.first_name?.message}
+            {...register('first_name')}
           />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextField
-              placeholder="Admission username"
-              autoComplete="username"
-              leftIcon={<UserIcon className="h-5 w-5" />}
-              error={errors.username?.message}
-              {...register('username')}
-            />
-            <TextField
-              placeholder="Admission #"
-              inputMode="numeric"
-              type="number"
-              leftIcon={<Hash className="h-5 w-5" />}
-              error={errors.admission_number?.message}
-              {...register('admission_number', { valueAsNumber: true })}
-            />
-          </div>
-          <TextField
-            placeholder="School"
-            leftIcon={<School className="h-5 w-5" />}
-            error={errors.school?.message}
-            {...register('school')}
+          <AuthTextField
+            label="Last name"
+            placeholder="Sharma"
+            error={errors.last_name?.message}
+            {...register('last_name')}
           />
-          <TextField
-            type="password"
-            placeholder="Password"
-            autoComplete="new-password"
-            leftIcon={<Lock className="h-5 w-5" />}
-            error={errors.password?.message}
-            {...register('password')}
+        </div>
+        <AuthTextField
+          label="Email"
+          type="email"
+          placeholder="you@school.edu"
+          error={errors.email?.message}
+          {...register('email')}
+        />
+        <div className="grid grid-cols-2" style={{ gap: 14 }}>
+          <AuthTextField
+            label="Username"
+            placeholder="riyas"
+            error={errors.username?.message}
+            {...register('username')}
           />
-
-          <Button
-            type="submit"
-            fullWidth
-            loading={mutation.isPending}
-            className="mt-2 h-12 rounded-[10px]"
-            style={{ background: PRIMARY }}
-          >
+          <AuthTextField
+            label="Admission #"
+            type="number"
+            placeholder="1234"
+            error={errors.admission_number?.message}
+            {...register('admission_number', { valueAsNumber: true })}
+          />
+        </div>
+        <AuthTextField
+          label="School"
+          placeholder="GyanBuddy Demo School"
+          error={errors.school?.message}
+          {...register('school')}
+        />
+        <AuthTextField
+          label="Password"
+          type="password"
+          placeholder="At least 6 characters"
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        <div style={{ marginTop: 4 }}>
+          <AuthSubmitButton type="submit" loading={mutation.isPending}>
             Create account
-          </Button>
-        </form>
-      </main>
-    </div>
+          </AuthSubmitButton>
+        </div>
+      </form>
+    </AuthShell>
   )
 }

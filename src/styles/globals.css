@@ -70,6 +70,71 @@ body {
 .font-body    { font-family: var(--font-body); }
 .font-numeric { font-family: var(--font-numeric); font-weight: 900; }
 
+/* -------------------------------------------------------------------------
+ * Responsive collapse for the Figma-faithful pages.
+ *
+ * Every redesigned page uses an outer <main> with `maxWidth: 1920` and a
+ * `padding: '50px 120px 60px'` pattern. The inner content is usually a
+ * two-column flex layout (560 + 1056 etc.). On narrow viewports we:
+ *   1. Shrink the outer page gutter from 120px down to 16px.
+ *   2. Allow the flex columns to wrap so they stack.
+ *   3. Cap the left-column width so it doesn't overflow when stacked.
+ *
+ * We can't easily change the inline style values per breakpoint without
+ * touching every component, so this CSS overrides them via attribute
+ * selectors and the cascade.
+ * --------------------------------------------------------------------- */
+@media (max-width: 1280px) {
+  main[style*="padding: 50px 120px"],
+  main[style*="padding: 40px 120px"],
+  main[style*="padding: 60px 120px"] {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+  header[style*="padding: 24px 120px"] {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  main[style*="padding: 50px 120px"],
+  main[style*="padding: 40px 120px"],
+  main[style*="padding: 60px 120px"] {
+    padding: 28px 16px 40px !important;
+  }
+  header[style*="padding: 24px 120px"] {
+    padding: 16px 16px !important;
+    height: auto !important;
+  }
+  /* Make the page flex layouts wrap so the two columns stack. */
+  main > .flex,
+  main > div > .flex {
+    flex-wrap: wrap !important;
+  }
+  /* The fixed-width left column (560, 516, 500) should expand on stack. */
+  main [style*="width: 560px"],
+  main [style*="width: 516px"],
+  main [style*="width: 500px"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* The 84x84 hero avatar on Home shrinks a bit on mobile. */
+  main [style*="width: 84px"][style*="height: 84px"] {
+    width: 64px !important; height: 64px !important;
+  }
+  /* The big headline shrinks. */
+  main h1[style*="fontSize: 44px"],
+  main h1[style*="font-size: 44px"] {
+    font-size: 32px !important;
+    line-height: 40px !important;
+  }
+  /* Metric cards row → 1-column stack with smaller padding. */
+  main section[style*="gap: 44px"][style*="display: flex"] {
+    flex-wrap: wrap !important;
+  }
+}
+
 /* Subtle desktop scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
