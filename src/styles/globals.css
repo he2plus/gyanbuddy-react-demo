@@ -2,6 +2,12 @@
 @import "./tokens.css";
 
 /*
+ * Google Fonts (Open Sans, Plus Jakarta Sans, DM Sans) are loaded via
+ * <link> in index.html so they sit at the top of the document before any
+ * CSS @import order constraints kick in.
+ */
+
+/*
  * Expose design tokens as Tailwind v4 theme values so utilities like
  *   bg-primary, text-error, rounded-base
  * resolve from the single source of truth in tokens.css.
@@ -33,6 +39,9 @@
   --radius-base:           12px;
 
   --font-sans:             var(--font-sans);
+  --font-body:             var(--font-body);
+  --font-display:          var(--font-display);
+  --font-numeric:          var(--font-numeric);
 }
 
 * {
@@ -47,13 +56,19 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   background: var(--color-bg);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+
+/* Typography utilities — apply directly when a Figma element specifies a
+   non-default face. Display = Plus Jakarta Sans, Numeric = DM Sans Black. */
+.font-display { font-family: var(--font-display); }
+.font-body    { font-family: var(--font-body); }
+.font-numeric { font-family: var(--font-numeric); font-weight: 900; }
 
 /* Subtle desktop scrollbar */
 ::-webkit-scrollbar {

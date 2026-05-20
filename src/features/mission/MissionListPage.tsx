@@ -1,442 +1,504 @@
 /**
- * MissionListPage — mirrors lib/screens/mission/mission_screen.dart (calendar)
- * + lib/screens/mission/mission_subject_screen.dart (list for selected date).
+ * MissionListPage — pixel-faithful rebuild of Figma frame 10:5406
+ * ("Missions 1", 1920 × 1067).
  *
- * The Flutter app splits these into two screens; on web we keep it on one
- * route because the calendar and list comfortably co-exist on desktop. On
- * mobile they stack.
+ * Per docx mission rules:
+ *   - Only TODAY's missions are openable; past missions are read-only,
+ *     future missions are locked.
+ *   - When no mission is available for today → show "Explore Topics" CTA
+ *     that navigates to /subjects.
  *
- * Click a mission → MissionDetailPage. Status badge: Completed / Started / Locked.
+ * Layout:
+ *   - LEFT card (500 × 602): Mission Progress for the selected day
+ *       Illustration + "Mission Progress" + Date
+ *       Progress bar (% of today's missions done)
+ *       Mission preview card OR "No Mission Available" with Explore Topics
+ *   - RIGHT card (1116 × 866): month-grid calendar
+ *       Header "MAY 2026" with prev/next month buttons
+ *       Weekday labels: Sun mon tue wed thu fri sat
+ *       Date cells (127 × 100) with a small cyan dot under days that have
+ *       missions; today highlighted with a cyan ring.
  */
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  PlayCircle,
-  Clock,
-  AlertTriangle,
-} from 'lucide-react'
+import { motion } from 'framer-motion'
+import { ChevronLeft, ChevronRight, Lock, Play, Sparkles } from 'lucide-react'
 
-import { ScreenHeader } from '../../components/ScreenHeader'
-import { PageContainer } from '../../components/PageContainer'
-import { Button } from '../../components/Button'
+import { TopBar } from '../../shell/TopBar'
 import { useMissions } from './useMissions'
 import type { Mission } from '../../types/mission'
 
-const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const NAVY = '#00167A'
+const CYAN = '#1ABCFE'
+const TXT_DARK = '#121212'
+const TXT_MID = '#545454'
+const TXT_MUTED = '#989CA5'
+const SURFACE_BG = '#FAFAFA'
+
+const WEEKDAYS = ['Sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
 ]
 
-function isoDateOf(d: Date): string {
-  return d.toISOString().slice(0, 10)
-}
-
-function startOfMonth(year: number, month: number): Date {
-  return new Date(year, month, 1)
-}
-
+// ---------------------------------------------------------------------------
 export function MissionListPage() {
   const navigate = useNavigate()
+  const missionsQ = useMissions()
+  const missions = missionsQ.data ?? []
+
   const today = useMemo(() => new Date(), [])
-  const [cursor, setCursor] = useState(() => ({
+  const [cursor, setCursor] = useState<{ year: number; month: number }>(() => ({
     year: today.getFullYear(),
     month: today.getMonth(),
   }))
-  const [selectedDate, setSelectedDate] = useState<string>(isoDateOf(today))
+  const [selectedISO, setSelectedISO] = useState<string>(() =>
+    toISO(today.getFullYear(), today.getMonth(), today.getDate()),
+  )
 
-  const missionsQ = useMissions()
   const missionsByDate = useMemo(() => {
-    const map = new Map<string, Mission[]>()
-    for (const m of missionsQ.data ?? []) {
-      const day = m.missionDate.slice(0, 10)
-      const arr = map.get(day) ?? []
-      arr.push(m)
-      map.set(day, arr)
+    const m = new Map<string, Mission[]>()
+    for (const x of missions) {
+      const arr = m.get(x.missionDate) ?? []
+      arr.push(x)
+      m.set(x.missionDate, arr)
     }
-    return map
-  }, [missionsQ.data])
+    return m
+  }, [missions])
 
-  const todaysMissions = missionsByDate.get(selectedDate) ?? []
+  const selectedMissions = missionsByDate.get(selectedISO) ?? []
+  const todayISO = toISO(today.getFullYear(), today.getMonth(), today.getDate())
+  const isPast = selectedISO < todayISO
+  const isFuture = selectedISO > todayISO
+  const isToday = selectedISO === todayISO
+  const completedCount = selectedMissions.filter((m) => m.userCompleted).length
+  const progressPct = selectedMissions.length
+    ? Math.round((completedCount / selectedMissions.length) * 100)
+    : 0
+
+  const selectedLabel = useMemo(() => {
+    const [y, m, d] = selectedISO.split('-').map(Number)
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    })
+  }, [selectedISO])
 
   return (
-    <div className="min-h-screen bg-white">
-      <ScreenHeader title="Daily Missions" showBack={false} />
+    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+      <TopBar pageTitle="Missions" testCount={1} />
 
-      <PageContainer variant="wide" className="pb-12 pt-2">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Calendar — sticky on desktop */}
-          <div className="lg:col-span-5">
-            <div className="rounded-2xl border border-[var(--color-input-border)] bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-4">
-              <CalendarHeader
-                year={cursor.year}
-                month={cursor.month}
-                onPrev={() => {
-                  setCursor((c) =>
-                    c.month === 0
-                      ? { year: c.year - 1, month: 11 }
-                      : { year: c.year, month: c.month - 1 },
-                  )
-                }}
-                onNext={() => {
-                  setCursor((c) =>
-                    c.month === 11
-                      ? { year: c.year + 1, month: 0 }
-                      : { year: c.year, month: c.month + 1 },
-                  )
-                }}
-              />
-              <CalendarGrid
-                year={cursor.year}
-                month={cursor.month}
-                today={today}
-                selected={selectedDate}
-                missionsByDate={missionsByDate}
-                onSelect={(d) => setSelectedDate(d)}
-              />
-              <Legend />
-            </div>
-          </div>
+      <main className="mx-auto" style={{ maxWidth: 1920, padding: '50px 120px 60px' }}>
+        <div className="flex" style={{ gap: 64 }}>
+          <DailyMissionCard
+            dateLabel={selectedLabel}
+            missions={selectedMissions}
+            completedCount={completedCount}
+            progressPct={progressPct}
+            canOpen={isToday}
+            isPast={isPast}
+            isFuture={isFuture}
+            onStart={(missionId) => navigate(`/missions/${missionId}`)}
+            onExplore={() => navigate('/subjects')}
+          />
 
-          {/* Missions for selected date */}
-          <div className="lg:col-span-7">
-            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
-              {humanizeDate(selectedDate, today)}
-            </h2>
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-              {todaysMissions.length > 0
-                ? `${todaysMissions.length} ${todaysMissions.length === 1 ? 'mission' : 'missions'} for this day`
-                : 'No missions scheduled.'}
-            </p>
-
-            <div className="mt-4">
-              {missionsQ.isLoading && <LoadingState />}
-              {missionsQ.isError && (
-                <ErrorState
-                  message={
-                    missionsQ.error instanceof Error
-                      ? missionsQ.error.message
-                      : 'Failed to load missions'
-                  }
-                  onRetry={() => missionsQ.refetch()}
-                />
-              )}
-              {!missionsQ.isLoading && !missionsQ.isError && todaysMissions.length === 0 && (
-                <EmptyDayState />
-              )}
-              {!missionsQ.isLoading && !missionsQ.isError && todaysMissions.length > 0 && (
-                <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <AnimatePresence initial={false} mode="popLayout">
-                    {todaysMissions.map((m, i) => (
-                      <MissionCard
-                        key={m.id}
-                        mission={m}
-                        delay={i * 0.05}
-                        onClick={() => navigate(`/missions/${m.id}`)}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </ul>
-              )}
-            </div>
-          </div>
+          <CalendarCard
+            year={cursor.year}
+            month={cursor.month}
+            today={today}
+            selectedISO={selectedISO}
+            missionsByDate={missionsByDate}
+            onSelect={setSelectedISO}
+            onPrev={() => setCursor(prevMonth(cursor))}
+            onNext={() => setCursor(nextMonth(cursor))}
+          />
         </div>
-      </PageContainer>
+      </main>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Calendar
-// ---------------------------------------------------------------------------
-
-function CalendarHeader({
-  year,
-  month,
-  onPrev,
-  onNext,
+function DailyMissionCard({
+  dateLabel, missions, completedCount, progressPct, canOpen,
+  isPast, isFuture, onStart, onExplore,
 }: {
-  year: number
-  month: number
-  onPrev: () => void
-  onNext: () => void
+  dateLabel: string
+  missions: Mission[]
+  completedCount: number
+  progressPct: number
+  canOpen: boolean
+  isPast: boolean
+  isFuture: boolean
+  onStart: (id: string) => void
+  onExplore: () => void
+}) {
+  const active = missions[0]
+
+  return (
+    <motion.section
+      className="bg-white flex flex-col items-center text-center"
+      style={{
+        width: 500, borderRadius: 34, padding: 24, gap: 24,
+        boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+      }}
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div
+        className="grid place-items-center relative overflow-hidden"
+        style={{
+          width: 157, height: 161, borderRadius: 32, marginTop: 24,
+          background: 'radial-gradient(circle at 50% 30%, rgba(124,58,237,0.20), rgba(26,188,254,0.10) 60%, transparent 80%)',
+        }}
+      >
+        <motion.div
+          style={{
+            width: 90, height: 90, borderRadius: 999,
+            background: `radial-gradient(circle at 32% 28%, #A78BFA 0%, #7C3AED 55%, #4C1D95 100%)`,
+            boxShadow: '0 12px 24px rgba(124,58,237,0.40), inset 0 -6px 10px rgba(0,0,0,0.10), inset 0 4px 10px rgba(255,255,255,0.25)',
+          }}
+          animate={{ y: [0, -6, 0], rotate: [0, 6, 0, -6, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
+
+      <div className="flex flex-col items-center">
+        <h2
+          className="font-body"
+          style={{ fontSize: 26, fontWeight: 700, color: NAVY, lineHeight: '36px', margin: 0 }}
+        >
+          Mission Progress
+        </h2>
+        <span
+          className="font-body"
+          style={{ fontSize: 16, fontWeight: 600, color: TXT_MID, lineHeight: '22px' }}
+        >
+          {dateLabel}
+        </span>
+      </div>
+
+      <div className="flex flex-col w-full" style={{ gap: 6 }}>
+        <div className="flex items-center" style={{ gap: 10 }}>
+          <div
+            className="flex-1"
+            style={{ height: 8, borderRadius: 14, background: '#F1F1F1', overflow: 'hidden' }}
+          >
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: 0.9, ease: 'easeOut' }}
+              style={{ height: '100%', borderRadius: 14, background: CYAN }}
+            />
+          </div>
+          <span
+            className="font-body tabular-nums"
+            style={{ fontSize: 26, fontWeight: 700, color: TXT_DARK, lineHeight: '36px' }}
+          >
+            {progressPct}%
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span
+            className="font-body"
+            style={{ fontSize: 16, fontWeight: 600, color: TXT_MUTED, lineHeight: '22px' }}
+          >
+            {completedCount} of {missions.length} missions done
+          </span>
+          <span
+            className="font-body"
+            style={{
+              fontSize: 16, fontWeight: 600, color: TXT_MUTED, lineHeight: '22px',
+              letterSpacing: '0.04em', textTransform: 'uppercase',
+            }}
+          >
+            {missions.length > 0 && completedCount === missions.length ? 'Completed' : '—'}
+          </span>
+        </div>
+      </div>
+
+      {active ? (
+        <div
+          className="flex flex-col w-full"
+          style={{
+            border: `1px solid ${CYAN}`, borderRadius: 34, padding: '20px 24px', gap: 14,
+          }}
+        >
+          <div className="flex flex-col items-center" style={{ gap: 10 }}>
+            <span
+              className="font-body"
+              style={{ fontSize: 18, fontWeight: 700, color: NAVY, lineHeight: '25px' }}
+            >
+              {active.subject.name ?? 'Mission'}
+            </span>
+            <span
+              className="font-body text-center"
+              style={{ fontSize: 20, fontWeight: 700, color: TXT_DARK, lineHeight: '28px' }}
+            >
+              {active.title}
+            </span>
+            {active.description && (
+              <p
+                className="font-body text-center line-clamp-2"
+                style={{ fontSize: 14, fontWeight: 400, color: TXT_MUTED, lineHeight: '20px' }}
+              >
+                {active.description}
+              </p>
+            )}
+          </div>
+          <motion.button
+            type="button"
+            disabled={!canOpen}
+            onClick={canOpen ? () => onStart(active.id) : undefined}
+            className="grid place-items-center w-full disabled:cursor-not-allowed"
+            style={{
+              background: canOpen ? NAVY : '#CBD5E1', color: '#fff',
+              borderRadius: 42, padding: '16px 24px', height: 57,
+              opacity: canOpen ? 1 : 0.7,
+            }}
+            whileTap={canOpen ? { scale: 0.97 } : undefined}
+            whileHover={canOpen ? { y: -2 } : undefined}
+          >
+            <span className="flex items-center" style={{ gap: 14 }}>
+              {canOpen
+                ? <Play className="w-5 h-5" strokeWidth={2.5} fill="#fff" />
+                : <Lock className="w-5 h-5" strokeWidth={2.5} />}
+              <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
+                {canOpen ? 'Start Mission' : isPast ? 'Past mission' : 'Locked'}
+              </span>
+            </span>
+          </motion.button>
+        </div>
+      ) : (
+        <NoMissionAvailable onExplore={onExplore} isFuture={isFuture} />
+      )}
+    </motion.section>
+  )
+}
+
+function NoMissionAvailable({
+  onExplore, isFuture,
+}: {
+  onExplore: () => void; isFuture: boolean
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between">
-      <h3 className="text-base font-bold text-[var(--color-text-primary)]">
-        {MONTHS[month]} {year}
-      </h3>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onPrev}
-          aria-label="Previous month"
-          className="grid h-9 w-9 place-items-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-input-fill)]"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          aria-label="Next month"
-          className="grid h-9 w-9 place-items-center rounded-full text-[var(--color-text-secondary)] hover:bg-[var(--color-input-fill)]"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+    <div
+      className="flex flex-col w-full items-center"
+      style={{
+        border: `1px solid ${CYAN}`, borderRadius: 34, padding: '20px 24px', gap: 14,
+      }}
+    >
+      <div
+        className="grid place-items-center"
+        style={{
+          width: 44, height: 44, borderRadius: 14,
+          background: '#fff', border: '1px solid #E7E7E7',
+        }}
+      >
+        <Lock className="w-5 h-5" style={{ color: TXT_MID }} strokeWidth={2.5} />
       </div>
+      <div className="flex flex-col items-center text-center" style={{ gap: 6 }}>
+        <span
+          className="font-body"
+          style={{ fontSize: 20, fontWeight: 700, color: TXT_DARK, lineHeight: '28px' }}
+        >
+          No Mission Available
+        </span>
+        <span
+          className="font-body"
+          style={{ fontSize: 16, fontWeight: 600, color: TXT_MUTED, lineHeight: '22px' }}
+        >
+          {isFuture
+            ? 'Missions for this date have not been released yet.'
+            : 'Complete more topics to unlock missions on this day.'}
+        </span>
+      </div>
+      <motion.button
+        type="button"
+        onClick={onExplore}
+        className="grid place-items-center w-full"
+        style={{
+          background: NAVY, color: '#fff', borderRadius: 42,
+          padding: '16px 24px', height: 57,
+        }}
+        whileTap={{ scale: 0.97 }}
+        whileHover={{ y: -2 }}
+      >
+        <span className="flex items-center" style={{ gap: 14 }}>
+          <Sparkles className="w-5 h-5" strokeWidth={2.5} />
+          <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
+            Explore Topics
+          </span>
+        </span>
+      </motion.button>
     </div>
   )
 }
 
-function CalendarGrid({
-  year,
-  month,
-  today,
-  selected,
-  missionsByDate,
-  onSelect,
+// ---------------------------------------------------------------------------
+function CalendarCard({
+  year, month, today, selectedISO, missionsByDate, onSelect, onPrev, onNext,
 }: {
   year: number
   month: number
   today: Date
-  selected: string
+  selectedISO: string
   missionsByDate: Map<string, Mission[]>
-  onSelect: (d: string) => void
+  onSelect: (iso: string) => void
+  onPrev: () => void
+  onNext: () => void
 }) {
-  const first = startOfMonth(year, month)
-  const startWeekday = first.getDay() // 0 = Sunday
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const totalCells = Math.ceil((startWeekday + daysInMonth) / 7) * 7
-
-  const todayIso = isoDateOf(today)
+  const cells = useMemo(() => buildMonthGrid(year, month), [year, month])
+  const todayISO = toISO(today.getFullYear(), today.getMonth(), today.getDate())
 
   return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-light)]">
-        {DAYS.map((d) => (
-          <div key={d} className="py-1">
-            {d}
+    <motion.section
+      className="bg-white flex flex-col"
+      style={{
+        flex: 1, borderRadius: 34, padding: '34px 84px', gap: 44,
+        minHeight: 866,
+        boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+      }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="flex flex-col" style={{ gap: 44 }}>
+        <div className="flex items-center self-center" style={{ gap: 24 }}>
+          <NavBtn icon={ChevronLeft} onClick={onPrev} />
+          <div
+            className="grid place-items-center"
+            style={{
+              background: NAVY, border: `1px solid ${CYAN}`, color: '#fff',
+              borderRadius: 50, padding: '12px 26px', height: 58, minWidth: 300,
+              fontFamily: 'var(--font-body)', fontSize: 24, fontWeight: 700, lineHeight: '33px',
+              letterSpacing: '0.06em',
+            }}
+          >
+            {MONTHS[month]} {year}
           </div>
-        ))}
+          <NavBtn icon={ChevronRight} onClick={onNext} />
+        </div>
+
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
+          {WEEKDAYS.map((d) => (
+            <div
+              key={d}
+              className="font-body text-center"
+              style={{ fontSize: 16, fontWeight: 600, color: TXT_MID, lineHeight: '22px' }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {Array.from({ length: totalCells }).map((_, idx) => {
-          const dayOfMonth = idx - startWeekday + 1
-          const inMonth = dayOfMonth >= 1 && dayOfMonth <= daysInMonth
-          if (!inMonth) {
-            return <div key={idx} className="aspect-square" />
-          }
-          const date = new Date(year, month, dayOfMonth)
-          const iso = isoDateOf(date)
-          const isSelected = iso === selected
-          const isToday = iso === todayIso
-          const missions = missionsByDate.get(iso) ?? []
-          const status =
-            missions.length === 0
-              ? 'none'
-              : missions.every((m) => m.userCompleted)
-                ? 'done'
-                : missions.some((m) => m.userStarted)
-                  ? 'started'
-                  : 'fresh'
+
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
+        {cells.map((cell, i) => {
+          const iso = toISO(cell.year, cell.month, cell.day)
+          const isToday = iso === todayISO
+          const isSelected = iso === selectedISO
+          const hasMissions = missionsByDate.has(iso)
+          const inMonth = cell.month === month
           return (
-            <button
-              key={idx}
+            <motion.button
+              key={`${iso}-${i}`}
               type="button"
               onClick={() => onSelect(iso)}
-              aria-pressed={isSelected}
-              className={`relative aspect-square rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] ${
-                isSelected
-                  ? 'bg-[var(--color-primary)] text-white shadow-md'
+              className="relative flex flex-col items-center justify-center"
+              style={{
+                height: 100, borderRadius: 24,
+                background: isSelected
+                  ? `linear-gradient(135deg, ${CYAN}22 0%, ${CYAN}10 100%)`
                   : isToday
-                    ? 'bg-[color:var(--color-primary)]/10 text-[var(--color-primary)]'
-                    : 'text-[var(--color-text-primary)] hover:bg-[var(--color-input-fill)]'
-              }`}
+                    ? '#fff'
+                    : '#F8FAFC',
+                border: isToday
+                  ? `2px solid ${CYAN}`
+                  : isSelected
+                    ? `1px solid ${CYAN}`
+                    : '1px solid transparent',
+                opacity: inMonth ? 1 : 0.35,
+                cursor: 'pointer',
+              }}
+              whileTap={{ scale: 0.96 }}
+              whileHover={inMonth ? { y: -2 } : undefined}
             >
-              <span>{dayOfMonth}</span>
-              {status !== 'none' && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 24, fontWeight: 600,
+                  color: isSelected || isToday ? NAVY : TXT_DARK,
+                  lineHeight: '33px',
+                }}
+              >
+                {cell.day}
+              </span>
+              {hasMissions && (
                 <span
-                  className={`absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
-                    status === 'done'
-                      ? 'bg-emerald-500'
-                      : status === 'started'
-                        ? 'bg-amber-500'
-                        : isSelected
-                          ? 'bg-white'
-                          : 'bg-[var(--color-primary)]'
-                  }`}
-                  aria-hidden="true"
+                  className="absolute"
+                  style={{
+                    bottom: 14, width: 8, height: 8, borderRadius: 999,
+                    background: CYAN,
+                  }}
                 />
               )}
-            </button>
+            </motion.button>
           )
         })}
       </div>
-    </div>
+    </motion.section>
   )
 }
 
-function Legend() {
-  return (
-    <div className="mt-4 flex flex-wrap gap-3 text-xs text-[var(--color-text-secondary)]">
-      <Dot color="var(--color-primary)" label="Available" />
-      <Dot color="#F59E0B" label="In progress" />
-      <Dot color="#10B981" label="Completed" />
-    </div>
-  )
-}
-function Dot({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-      {label}
-    </span>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Mission card
-// ---------------------------------------------------------------------------
-
-function MissionCard({
-  mission,
-  delay,
-  onClick,
+function NavBtn({
+  icon: Icon, onClick,
 }: {
-  mission: Mission
-  delay: number
-  onClick: () => void
+  icon: typeof ChevronLeft; onClick: () => void
 }) {
-  const accent = mission.subject.color || '#365DEA'
   return (
-    <motion.li
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ delay, duration: 0.3, ease: 'easeOut' }}
+    <motion.button
+      type="button"
+      onClick={onClick}
+      className="grid place-items-center bg-white"
+      style={{
+        width: 58, height: 58, borderRadius: 50,
+        border: '1px solid #EAEAEA',
+      }}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.94 }}
     >
-      <button
-        type="button"
-        onClick={onClick}
-        className="group flex h-full w-full flex-col rounded-2xl border border-[var(--color-input-border)] bg-white p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            {mission.subject.name && (
-              <div
-                className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white"
-                style={{ background: accent }}
-              >
-                {mission.subject.name}
-              </div>
-            )}
-            <h3 className="mt-2 text-base font-bold text-[var(--color-text-primary)]">
-              {mission.title}
-            </h3>
-            {mission.description && (
-              <p className="mt-1 line-clamp-2 text-sm text-[var(--color-text-secondary)]">
-                {mission.description}
-              </p>
-            )}
-          </div>
-          <MissionStatusBadge mission={mission} />
-        </div>
-
-        <div className="mt-4 flex items-center justify-between text-sm text-[var(--color-text-secondary)]">
-          <span>
-            {mission.questionCount}{' '}
-            {mission.questionCount === 1 ? 'question' : 'questions'}
-          </span>
-          <span className="text-xs font-semibold text-[var(--color-primary)] opacity-0 transition-opacity group-hover:opacity-100">
-            Open →
-          </span>
-        </div>
-      </button>
-    </motion.li>
-  )
-}
-
-function MissionStatusBadge({ mission }: { mission: Mission }) {
-  if (mission.userCompleted || mission.status === 'completed') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-700">
-        <CheckCircle2 className="h-3 w-3" /> Done
-      </span>
-    )
-  }
-  if (mission.userStarted || mission.status === 'in_progress') {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
-        <PlayCircle className="h-3 w-3" /> Started
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-input-fill)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
-      <Clock className="h-3 w-3" /> New
-    </span>
+      <Icon className="w-6 h-6" style={{ color: TXT_MID }} strokeWidth={2.5} />
+    </motion.button>
   )
 }
 
 // ---------------------------------------------------------------------------
-// States + helpers
-// ---------------------------------------------------------------------------
-
-function humanizeDate(iso: string, today: Date): string {
-  const d = new Date(iso + 'T00:00:00')
-  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const diff = Math.round((d.getTime() - t.getTime()) / 86_400_000)
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Tomorrow'
-  if (diff === -1) return 'Yesterday'
-  return d.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
+function toISO(y: number, m: number, d: number): string {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-function LoadingState() {
-  return (
-    <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-      {Array.from({ length: 2 }).map((_, i) => (
-        <li
-          key={i}
-          className="rounded-2xl border border-[var(--color-input-border)] bg-white p-5"
-        >
-          <div className="h-4 w-16 animate-pulse rounded-full bg-[var(--color-input-fill)]" />
-          <div className="mt-3 h-5 w-2/3 animate-pulse rounded bg-[var(--color-input-fill)]" />
-          <div className="mt-2 h-3 w-full animate-pulse rounded bg-[var(--color-input-fill)]" />
-        </li>
-      ))}
-    </ul>
-  )
+type Cell = { year: number; month: number; day: number }
+
+function buildMonthGrid(year: number, month: number): Cell[] {
+  const first = new Date(year, month, 1)
+  const start = new Date(first)
+  start.setDate(first.getDate() - first.getDay())
+  const cells: Cell[] = []
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    cells.push({ year: d.getFullYear(), month: d.getMonth(), day: d.getDate() })
+  }
+  return cells
 }
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="grid place-items-center px-6 py-12 text-center">
-      <AlertTriangle className="h-12 w-12 text-[var(--color-text-light)]" />
-      <p className="mt-3 text-sm text-[var(--color-text-secondary)]">{message}</p>
-      <div className="mt-4">
-        <Button onClick={onRetry}>Retry</Button>
-      </div>
-    </div>
-  )
+function prevMonth(c: { year: number; month: number }): { year: number; month: number } {
+  if (c.month === 0) return { year: c.year - 1, month: 11 }
+  return { year: c.year, month: c.month - 1 }
 }
 
-function EmptyDayState() {
-  return (
-    <div className="grid place-items-center rounded-2xl border border-dashed border-[var(--color-input-border)] bg-[var(--color-bg)] px-6 py-12 text-center">
-      <div className="text-2xl">📭</div>
-      <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-        No missions for this day. Pick another date in the calendar.
-      </p>
-    </div>
-  )
+function nextMonth(c: { year: number; month: number }): { year: number; month: number } {
+  if (c.month === 11) return { year: c.year + 1, month: 0 }
+  return { year: c.year, month: c.month + 1 }
 }

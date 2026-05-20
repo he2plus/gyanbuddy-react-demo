@@ -58,12 +58,15 @@ export async function checkAnswer(
     return mockCheck(question, optionIds, shortAnswer)
   }
   try {
-    const { data: envelope } = await api.post<ApiEnvelope<{ is_correct?: boolean; explanation?: string }>>(
+    // Backend uses PATCH for the answer-check action. Body shape matches
+    // subjects/views.py check_answer: answer_id / answer_ids / answer_text.
+    const body: Record<string, unknown> = { tries: 1 }
+    if (optionIds && optionIds.length > 1) body.answer_ids = optionIds
+    else if (optionIds && optionIds.length === 1) body.answer_id = optionIds[0]
+    if (shortAnswer) body.answer_text = shortAnswer
+    const { data: envelope } = await api.patch<ApiEnvelope<{ is_correct?: boolean; explanation?: string }>>(
       `/questions/${question.id}/check/`,
-      {
-        selected_options: optionIds,
-        short_answer: shortAnswer,
-      },
+      body,
     )
     if (!envelope.success || !envelope.data) {
       throw new Error(envelope.message || 'Could not check answer')

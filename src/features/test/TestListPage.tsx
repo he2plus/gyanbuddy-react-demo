@@ -1,327 +1,420 @@
 /**
- * TestListPage — flat brand palette, no invented gradients. Three sections
- * (Active / Upcoming / Past) with denser cards that fill available width.
+ * TestListPage — pixel-faithful rebuild of Figma frame 83:2 ("Tests 1",
+ * 1920 × 1080). Includes the empty-state variants from frames 83:1015 and
+ * 93:580.
+ *
+ * Per docx test rules:
+ *   - Tabs at top of the list: All / Upcoming / Skipped / Completed
+ *     (default = All)
+ *   - Replace "View Details" with a "Start" button on each row
+ *   - Each row shows: status-coloured stroke, icon, title, subject + time,
+ *     status chip, Start button
+ *
+ * Layout:
+ *   - Header section (1499 × 134): "Assigned Tests" + summary + counter chips
+ *     (Skipped peach / Upcoming cyan / Completed green)
+ *   - Filter tab row (513 × 52)
+ *   - Test cards stacked vertically (1499 × 150 each, gap 24)
  */
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  CheckCircle2,
-  Clock,
-  PlayCircle,
-  XCircle,
-  AlertTriangle,
-  ChevronRight,
+  ClipboardList, CheckCircle2, Clock, AlertCircle, FileQuestion, Play,
 } from 'lucide-react'
 
-import { PageContainer } from '../../components/PageContainer'
+import { TopBar } from '../../shell/TopBar'
 import { useMyTests } from './useTests'
-import type { Test, TestStatusLiteral } from '../../types/test'
+import type { Test } from '../../types/test'
 
-const BRAND_PRIMARY = '#365DEA'
-const BRAND_BORDER = '#E0E0E0'
+const NAVY = '#00167A'
+const CYAN = '#1ABCFE'
+const TXT_DARK = '#121212'
+const TXT_MID = '#545454'
+const TXT_MUTED = '#989CA5'
+const SURFACE_BG = '#FAFAFA'
 
+type TestTab = 'all' | 'upcoming' | 'skipped' | 'completed'
+
+type TestStatus = 'upcoming' | 'skipped' | 'completed' | 'in_progress'
+
+function statusOf(t: Test): TestStatus {
+  // UserTestProgress only knows not_started / in_progress / completed.
+  // "Skipped" is purely date-based: scheduled time has passed and the
+  // student never finished it.
+  if (t.progress?.status === 'completed') return 'completed'
+  if (t.progress?.status === 'in_progress') return 'in_progress'
+  const at = new Date(t.testDatetime).getTime()
+  if (Number.isFinite(at) && at < Date.now()) return 'skipped'
+  return 'upcoming'
+}
+
+const STATUS_TONE: Record<TestStatus, { strokeColor: string; chipBg: string; chipFg: string; label: string }> = {
+  skipped:     { strokeColor: '#FF914D', chipBg: '#FFE7D7', chipFg: '#FF3131', label: 'Skipped' },
+  upcoming:    { strokeColor: CYAN,      chipBg: '#CFF1FF', chipFg: CYAN,      label: 'Upcoming' },
+  completed:   { strokeColor: '#00BF63', chipBg: '#C9F1DE', chipFg: '#00BF63', label: 'Completed' },
+  in_progress: { strokeColor: NAVY,      chipBg: '#E0E7FF', chipFg: NAVY,      label: 'In Progress' },
+}
+
+// ---------------------------------------------------------------------------
 export function TestListPage() {
   const navigate = useNavigate()
   const testsQ = useMyTests()
+  const tests = testsQ.data ?? []
+  const [tab, setTab] = useState<TestTab>('all')
 
-  const grouped = useMemo(() => {
-    const all = testsQ.data ?? []
-    return {
-      active: all.filter((t) => t.status === 'active'),
-      upcoming: all.filter((t) => t.status === 'upcoming'),
-      past: all.filter((t) => t.status === 'completed' || t.status === 'skipped'),
+  const counts = useMemo(() => {
+    const c = { upcoming: 0, skipped: 0, completed: 0 }
+    for (const t of tests) {
+      const s = statusOf(t)
+      if (s === 'completed') c.completed++
+      else if (s === 'upcoming') c.upcoming++
+      else if (s === 'skipped' || s === 'in_progress') c.skipped++
     }
-  }, [testsQ.data])
+    return c
+  }, [tests])
+
+  const filtered = useMemo(() => {
+    if (tab === 'all') return tests
+    return tests.filter((t) => {
+      const s = statusOf(t)
+      if (tab === 'upcoming') return s === 'upcoming'
+      if (tab === 'skipped')  return s === 'skipped' || s === 'in_progress'
+      if (tab === 'completed') return s === 'completed'
+      return true
+    })
+  }, [tests, tab])
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="border-b border-[#F0F0F0] px-6 py-6">
-        <PageContainer variant="wide" className="!px-0">
-          <h1 className="text-2xl font-extrabold tracking-tight text-[#222] sm:text-3xl">
-            Tests
-          </h1>
-          <p className="mt-1 text-sm text-[#666]">
-            Scheduled assessments from your teacher. Active tests open right
-            away; upcoming ones unlock at the start time.
-          </p>
-        </PageContainer>
-      </header>
+    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+      <TopBar pageTitle="My Tests" testCount={counts.upcoming + counts.skipped} />
 
-      <PageContainer variant="wide" className="pb-12 pt-6">
-        {testsQ.isLoading && <LoadingState />}
-        {testsQ.isError && (
-          <ErrorState
-            message={
-              testsQ.error instanceof Error
-                ? testsQ.error.message
-                : 'Failed to load tests'
-            }
-            onRetry={() => testsQ.refetch()}
-          />
-        )}
-
-        {!testsQ.isLoading && !testsQ.isError && testsQ.data && testsQ.data.length === 0 && (
-          <EmptyState />
-        )}
-
-        {!testsQ.isLoading && !testsQ.isError && testsQ.data && testsQ.data.length > 0 && (
-          <div className="flex flex-col gap-10">
-            {grouped.active.length > 0 && (
-              <Section
-                title="Active now"
-                rule="#10B981"
-                tests={grouped.active}
-                navigate={navigate}
-              />
-            )}
-            {grouped.upcoming.length > 0 && (
-              <Section
-                title="Upcoming"
-                rule="#F39C12"
-                tests={grouped.upcoming}
-                navigate={navigate}
-              />
-            )}
-            {grouped.past.length > 0 && (
-              <Section
-                title="Past"
-                rule="#9CA3AF"
-                tests={grouped.past}
-                navigate={navigate}
-              />
-            )}
+      <main className="mx-auto" style={{ maxWidth: 1920, padding: '50px 120px 60px' }}>
+        {/* Header section */}
+        <header className="flex items-center" style={{ gap: 32, marginBottom: 40 }}>
+          <div
+            className="grid place-items-center shrink-0"
+            style={{
+              width: 71, height: 71, borderRadius: 28,
+              background: '#F0F1F6', border: '1px solid #fff',
+            }}
+          >
+            <ClipboardList className="w-7 h-7" style={{ color: NAVY }} strokeWidth={2.2} />
           </div>
-        )}
-      </PageContainer>
-    </div>
-  )
-}
-
-function Section({
-  title,
-  rule,
-  tests,
-  navigate,
-}: {
-  title: string
-  rule: string
-  tests: Test[]
-  navigate: (path: string) => void
-}) {
-  return (
-    <section>
-      <div className="mb-4 flex items-center gap-3">
-        <div className="h-px flex-1" style={{ background: rule, opacity: 0.4 }} />
-        <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#666]">
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full"
-            style={{ background: rule }}
-          />
-          {title}
-          <span className="font-normal text-[#999]">· {tests.length}</span>
-        </h2>
-        <div className="h-px flex-1" style={{ background: rule, opacity: 0.4 }} />
-      </div>
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {tests.map((t, i) => (
-          <TestCard
-            key={t.id}
-            test={t}
-            delay={i * 0.03}
-            onClick={() => navigate(`/tests/${t.id}`)}
-          />
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-function TestCard({
-  test,
-  delay,
-  onClick,
-}: {
-  test: Test
-  delay: number
-  onClick: () => void
-}) {
-  const accent = test.subjectColor || BRAND_PRIMARY
-  return (
-    <motion.li
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.25, ease: 'easeOut' }}
-    >
-      <button
-        type="button"
-        onClick={onClick}
-        className="group flex h-full w-full flex-col overflow-hidden rounded-xl border bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#365DEA]"
-        style={{ borderColor: BRAND_BORDER }}
-      >
-        <div className="h-1 w-full" style={{ background: accent }} />
-
-        <div className="flex flex-1 flex-col p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              {test.subjectName && (
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#999]">
-                  {test.subjectName}
-                </div>
-              )}
-              <h3 className="mt-1 text-base font-bold text-[#222]">
-                {test.title}
-              </h3>
-              {test.moduleName && (
-                <div className="mt-0.5 text-xs text-[#888]">
-                  {test.moduleName}
-                </div>
-              )}
-            </div>
-            <StatusBadge status={test.status} />
-          </div>
-
-          <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-widest text-[#999]">
-                Starts
-              </dt>
-              <dd className="mt-0.5 font-medium text-[#222]">
-                {formatDateTime(test.testDatetime)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-widest text-[#999]">
-                Duration
-              </dt>
-              <dd className="mt-0.5 font-medium text-[#222]">
-                {test.durationMinutes} min
-              </dd>
-            </div>
-          </dl>
-
-          {test.progress && test.progress.status === 'completed' && (
-            <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-              <span className="font-bold">Score {test.progress.score}</span>
-              {' · '}
-              {test.progress.correctAnswers}/{test.progress.totalQuestions}{' '}
-              correct
-            </div>
-          )}
-
-          <div className="mt-auto flex items-center justify-between pt-4 text-sm text-[#666]">
-            <span>
-              {test.questionCount}{' '}
-              {test.questionCount === 1 ? 'question' : 'questions'}
-            </span>
-            <span
-              className="flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100"
-              style={{ color: BRAND_PRIMARY }}
+          <div className="flex flex-col" style={{ gap: 4 }}>
+            <h1
+              className="font-body"
+              style={{ fontSize: 24, fontWeight: 700, color: '#000', lineHeight: '33px', margin: 0 }}
             >
-              Open <ChevronRight className="h-4 w-4" />
+              Assigned Tests
+            </h1>
+            <span
+              className="font-body"
+              style={{ fontSize: 20, fontWeight: 600, color: TXT_MID, lineHeight: '28px' }}
+            >
+              {counts.skipped} skipped, {counts.upcoming} upcoming
             </span>
           </div>
-        </div>
-      </button>
-    </motion.li>
-  )
-}
 
-function StatusBadge({ status }: { status: TestStatusLiteral }) {
-  switch (status) {
-    case 'completed':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-          <CheckCircle2 className="h-3 w-3" /> Done
-        </span>
-      )
-    case 'active':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-          <PlayCircle className="h-3 w-3" /> Active
-        </span>
-      )
-    case 'skipped':
-      return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-red-700">
-          <XCircle className="h-3 w-3" /> Missed
-        </span>
-      )
-    case 'upcoming':
-    default:
-      return (
-        <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">
-          <Clock className="h-3 w-3" /> Upcoming
-        </span>
-      )
-  }
-}
+          <div className="flex-1" />
 
-function formatDateTime(iso: string): string {
-  const d = new Date(iso)
-  return d.toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
-function LoadingState() {
-  return (
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li
-          key={i}
-          className="rounded-xl border bg-white p-5"
-          style={{ borderColor: BRAND_BORDER }}
-        >
-          <div className="h-3 w-16 animate-pulse rounded bg-[#F5F5F5]" />
-          <div className="mt-3 h-5 w-2/3 animate-pulse rounded bg-[#F5F5F5]" />
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <div className="h-10 animate-pulse rounded bg-[#F5F5F5]" />
-            <div className="h-10 animate-pulse rounded bg-[#F5F5F5]" />
+          {/* Counter chips */}
+          <div className="flex items-center" style={{ gap: 12 }}>
+            <CounterChip
+              icon={<AlertCircle className="w-6 h-6" style={{ color: '#FF3131' }} strokeWidth={2.5} />}
+              label={`Skipped: ${counts.skipped}`}
+              bg="#FFE7D7" fg="#FF3131"
+            />
+            <CounterChip
+              icon={<Clock className="w-6 h-6" style={{ color: CYAN }} strokeWidth={2.5} />}
+              label={`Upcoming: ${counts.upcoming}`}
+              bg="#CFF1FF" fg={CYAN}
+            />
+            <CounterChip
+              icon={<CheckCircle2 className="w-6 h-6" style={{ color: '#00BF63' }} strokeWidth={2.5} />}
+              label={`Completed: ${counts.completed}`}
+              bg="#C9F1DE" fg="#00BF63"
+            />
           </div>
-        </li>
-      ))}
-    </ul>
-  )
-}
+        </header>
 
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string
-  onRetry: () => void
-}) {
-  return (
-    <div className="grid place-items-center px-6 py-12 text-center">
-      <AlertTriangle className="h-12 w-12 text-[#999]" />
-      <p className="mt-3 text-sm text-[#666]">{message}</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-4 rounded-md border px-4 py-2 text-sm font-semibold text-[#333] hover:bg-[#F5F5F5]"
-        style={{ borderColor: BRAND_BORDER }}
-      >
-        Retry
-      </button>
+        {/* Filter tab row */}
+        <FilterTabs active={tab} onChange={setTab} />
+
+        {/* Test cards list */}
+        <div className="flex flex-col" style={{ gap: 24, marginTop: 40 }}>
+          {testsQ.isLoading && (
+            <>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="animate-pulse bg-white"
+                  style={{ height: 150, borderRadius: 32, border: '1px solid #E7E7E7' }}
+                />
+              ))}
+            </>
+          )}
+          {!testsQ.isLoading && filtered.length === 0 && (
+            <EmptyState tab={tab} />
+          )}
+          {!testsQ.isLoading && filtered.map((t, i) => (
+            <TestCard
+              key={t.id}
+              test={t}
+              delay={i * 0.05}
+              onStart={() => navigate(`/tests/${t.id}`)}
+            />
+          ))}
+        </div>
+      </main>
     </div>
   )
 }
 
-function EmptyState() {
+// ---------------------------------------------------------------------------
+function CounterChip({
+  icon, label, bg, fg,
+}: {
+  icon: React.ReactNode; label: string; bg: string; fg: string
+}) {
   return (
     <div
-      className="grid place-items-center rounded-xl border border-dashed px-6 py-16 text-center"
-      style={{ borderColor: BRAND_BORDER }}
+      className="flex items-center"
+      style={{
+        height: 52, borderRadius: 50, padding: '12px 24px', gap: 12,
+        background: bg,
+      }}
     >
-      <h2 className="text-base font-bold text-[#444]">No tests scheduled</h2>
-      <p className="mt-1 text-sm text-[#888]">
-        You'll see them here when your teacher adds one.
-      </p>
+      {icon}
+      <span
+        className="font-body"
+        style={{ fontSize: 20, fontWeight: 600, color: fg, lineHeight: '28px' }}
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
+const TABS: { id: TestTab; label: string }[] = [
+  { id: 'all',       label: 'All' },
+  { id: 'upcoming',  label: 'Upcoming' },
+  { id: 'skipped',   label: 'Skipped' },
+  { id: 'completed', label: 'Completed' },
+]
+
+function FilterTabs({
+  active, onChange,
+}: {
+  active: TestTab; onChange: (t: TestTab) => void
+}) {
+  return (
+    <div className="flex" style={{ gap: 12 }}>
+      {TABS.map((t, i) => {
+        const isActive = t.id === active
+        return (
+          <motion.button
+            key={t.id}
+            type="button"
+            onClick={() => onChange(t.id)}
+            className="grid place-items-center bg-white"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.04 }}
+            whileTap={{ scale: 0.96 }}
+            style={{
+              height: 52, borderRadius: 50, padding: '12px 26px',
+              background: isActive ? NAVY : '#fff',
+              border: isActive ? 'none' : '1px solid #BEBEBE',
+              color: isActive ? '#fff' : TXT_MID,
+              boxShadow: isActive ? '0 4px 12px rgba(0,22,122,0.18)' : 'none',
+              fontFamily: 'var(--font-body)',
+              fontSize: isActive ? 18 : 20,
+              fontWeight: isActive ? 700 : 600,
+              lineHeight: '28px',
+            }}
+          >
+            {t.label}
+          </motion.button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+function TestCard({
+  test, delay, onStart,
+}: {
+  test: Test; delay: number; onStart: () => void
+}) {
+  const status = statusOf(test)
+  const tone = STATUS_TONE[status]
+
+  const dt = new Date(test.testDatetime)
+  const dateLabel = isNaN(dt.getTime())
+    ? '—'
+    : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const timeLabel = isNaN(dt.getTime())
+    ? ''
+    : dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+
+  return (
+    <motion.section
+      className="bg-white flex items-center"
+      style={{
+        minHeight: 150, borderRadius: 32, padding: '29px 32px', gap: 32,
+        border: `1px solid ${tone.strokeColor}`,
+      }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.35 }}
+      whileHover={{ y: -2, boxShadow: '0 10px 24px rgba(0,0,0,0.08)' }}
+    >
+      {/* Icon */}
+      <div
+        className="grid place-items-center shrink-0"
+        style={{
+          width: 71, height: 71, borderRadius: 999,
+          background: '#F8FAFC', border: '2px solid #fff',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+        }}
+      >
+        <FileQuestion className="w-8 h-8" style={{ color: NAVY }} strokeWidth={2} />
+      </div>
+
+      {/* Title + meta */}
+      <div className="flex flex-col flex-1" style={{ gap: 16 }}>
+        <div className="flex items-center" style={{ gap: 16 }}>
+          <h3
+            className="font-body"
+            style={{ fontSize: 24, fontWeight: 700, color: TXT_DARK, lineHeight: '33px', margin: 0 }}
+          >
+            {test.title}
+          </h3>
+          {test.subjectName && (
+            <span
+              className="grid place-items-center"
+              style={{
+                height: 32, borderRadius: 999, padding: '4px 14px',
+                background: `${test.subjectColor ?? CYAN}1A`,
+                color: test.subjectColor ?? CYAN,
+                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700, lineHeight: '24px',
+              }}
+            >
+              {test.subjectName}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center" style={{ gap: 40 }}>
+          <span
+            className="font-body"
+            style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px' }}
+          >
+            {dateLabel} · {timeLabel}
+          </span>
+          <span
+            className="font-body"
+            style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px' }}
+          >
+            {test.questionCount} questions · {test.durationMinutes} min
+          </span>
+        </div>
+      </div>
+
+      {/* Status chip + Start button */}
+      <div className="flex items-center shrink-0" style={{ gap: 12 }}>
+        <div
+          className="flex items-center"
+          style={{
+            height: 52, borderRadius: 50, padding: '12px 24px', gap: 12,
+            background: tone.chipBg,
+          }}
+        >
+          <span
+            className="font-body"
+            style={{ fontSize: 20, fontWeight: 600, color: tone.chipFg, lineHeight: '28px' }}
+          >
+            {tone.label}
+          </span>
+        </div>
+        {status !== 'completed' && (
+          <motion.button
+            type="button"
+            onClick={onStart}
+            className="grid place-items-center"
+            style={{
+              background: NAVY, color: '#fff', borderRadius: 50,
+              padding: '12px 24px', height: 52, gap: 12,
+            }}
+            whileTap={{ scale: 0.96 }}
+            whileHover={{ y: -2 }}
+          >
+            <span className="flex items-center" style={{ gap: 12 }}>
+              <Play className="w-5 h-5" strokeWidth={2.5} fill="#fff" />
+              <span style={{ fontSize: 20, fontWeight: 600, lineHeight: '28px' }}>
+                Start
+              </span>
+            </span>
+          </motion.button>
+        )}
+      </div>
+    </motion.section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+function EmptyState({ tab }: { tab: TestTab }) {
+  const copy: Record<TestTab, { title: string; subtitle: string }> = {
+    all: {
+      title: 'No tests assigned',
+      subtitle: 'Your teacher has not assigned any tests yet. Come back later.',
+    },
+    upcoming: {
+      title: 'No upcoming tests',
+      subtitle: 'You are caught up — nothing scheduled at the moment.',
+    },
+    skipped: {
+      title: 'Nothing skipped',
+      subtitle: 'You haven’t missed any tests. Keep it up!',
+    },
+    completed: {
+      title: 'No completed tests yet',
+      subtitle: 'When you finish a test it will show up here.',
+    },
+  }
+  const c = copy[tab]
+  return (
+    <div
+      className="grid place-items-center bg-white"
+      style={{
+        minHeight: 280, borderRadius: 32, border: `1px solid #EAEAEA`,
+        padding: 30, gap: 16,
+      }}
+    >
+      <div
+        className="grid place-items-center"
+        style={{
+          width: 88, height: 88, borderRadius: 999,
+          background: '#F8FAFC', border: '1px solid #EAEAEA',
+        }}
+      >
+        <ClipboardList className="w-9 h-9" style={{ color: TXT_MUTED }} strokeWidth={2} />
+      </div>
+      <div className="flex flex-col items-center text-center" style={{ gap: 6 }}>
+        <span
+          className="font-body"
+          style={{ fontSize: 22, fontWeight: 700, color: TXT_DARK, lineHeight: '30px' }}
+        >
+          {c.title}
+        </span>
+        <span
+          className="font-body"
+          style={{ fontSize: 16, fontWeight: 400, color: TXT_MUTED, lineHeight: '22px' }}
+        >
+          {c.subtitle}
+        </span>
+      </div>
     </div>
   )
 }

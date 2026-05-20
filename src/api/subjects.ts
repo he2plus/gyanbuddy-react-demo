@@ -33,7 +33,7 @@ export async function getSubjectById(id: string): Promise<Subject> {
     if (found) return parseSubject(found)
     throw new Error('Subject not found (mock)')
   }
-  const { data: envelope } = await api.get<ApiEnvelope<SubjectDTO>>(`/subjects/${id}`)
+  const { data: envelope } = await api.get<ApiEnvelope<SubjectDTO>>(`/subjects/${id}/`)
   if (!envelope.success || !envelope.data) {
     throw new Error(envelope.message || 'Failed to load subject')
   }

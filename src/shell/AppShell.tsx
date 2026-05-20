@@ -8,18 +8,33 @@ import { BottomTabs } from './BottomTabs'
 import { SideNav } from './SideNav'
 import { useUIStore } from '../state/ui'
 
-const HIDE_CHROME_ON = new Set([
+// Pages with their own Figma-faithful top bar render the chrome themselves;
+// the persistent SideNav would steal width and break pixel-exact layouts.
+// Exact paths or prefix patterns (anything starting with these) are hidden.
+const HIDE_CHROME_EXACT = new Set([
   '/login',
   '/register',
   '/forgot-password',
   '/reset-password',
   '/onboarding',
   '/confirmation',
+  '/home',
+  '/subjects',
+  '/missions',
+  '/leaderboard',
+  '/tests',
 ])
+// Anything under these prefixes also runs chrome-less (Journey page, etc.)
+const HIDE_CHROME_PREFIX = ['/subjects/', '/missions/', '/tests/']
+
+function isChromeless(path: string): boolean {
+  if (HIDE_CHROME_EXACT.has(path)) return true
+  return HIDE_CHROME_PREFIX.some((p) => path.startsWith(p))
+}
 
 export function AppShell() {
   const { pathname } = useLocation()
-  const showChrome = !HIDE_CHROME_ON.has(pathname)
+  const showChrome = !isChromeless(pathname)
   const collapsed = useUIStore((s) => s.sidenavCollapsed)
 
   const sidebarWidth = collapsed ? 64 : 240

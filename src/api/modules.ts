@@ -34,7 +34,7 @@ const isMockSession = () =>
 export async function getSubjectModules(subjectId: string): Promise<Module[]> {
   if (isMockSession()) return mockModulesFor(subjectId)
   const { data: envelope } = await api.get<ApiEnvelope<ModuleDTO[]>>(
-    `/subjects/${subjectId}/modules`,
+    `/subjects/${subjectId}/modules/`,
   )
   if (!envelope.success) {
     throw new Error(envelope.message || 'Failed to load modules')

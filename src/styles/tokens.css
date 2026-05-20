@@ -1,48 +1,95 @@
 /*
- * Design tokens — ported verbatim from lib/theme/app_theme.dart (§6 of context.txt)
- * Single source of truth. Tailwind v4 reads these via @theme in globals.css.
+ * Design tokens — VERIFIED against the Figma file
+ * "Gyanbuddy student dashboard" (file key M3Gc9gO1maTgx50pTPNxax).
+ *
+ * Colour values extracted programmatically by walking the SOLID fills across
+ * all 8 frames inside the "Final Screens" section. Brand navy `#00167a`,
+ * accent cyan `#1abcfe`, text greys `#121212 / #545454 / #989ca5`, and the
+ * status palette all come straight from the file — not invented locally.
+ *
+ * Typography: the Figma uses Open Sans (159 uses, dominant), Plus Jakarta Sans
+ * (42 uses on 24px headings), Bubbleboddy Neue Trial (5 uses, accent only),
+ * and DM Sans Black (4 uses on the big 54px/40px metric numbers). Per the
+ * "use current font" directive we are NOT loading those — the system stack
+ * stays. When/if we want to ship the real type system, the targets are
+ * recorded here.
+ *
+ * Variable NAMES are kept stable so existing components keep working;
+ * only VALUES change.
  */
 
 :root {
-  /* Brand */
-  --color-primary:         #365DEA;
-  --color-primary-light:   #5B7AFF;
-  --color-primary-dark:    #2A4BD8;
+  /* --- Brand ---
+     Primary is the dominant navy used for buttons, the leaderboard hero
+     card, the sidebar lockup, and the "King of Leaderboard" pill.
+     Accent is the bright cyan used for progress bars, "YOU" badges,
+     and per-chapter "due" highlights. */
+  --color-primary:         #00167A;  /* navy   — was #365DEA */
+  --color-primary-light:   #1ABCFE;  /* accent cyan — was #5B7AFF (same role as old `--color-accent` if any) */
+  --color-primary-dark:    #000F5C;  /* darker navy for hover/active */
+  --color-accent:          #1ABCFE;  /* alias of -light, for new components */
 
-  /* Buttons */
-  --color-button:          #365DEA;
+  /* --- Buttons ---
+     Primary CTA = navy. Hover = primary-dark. Disabled = light grey. */
+  --color-button:          #00167A;
+  --color-button-hover:    #000F5C;
   --color-button-text:     #FFFFFF;
   --color-button-disabled: #CCCCCC;
 
-  /* Text */
-  --color-text-primary:    #333333;
-  --color-text-secondary:  #666666;
-  --color-text-light:      #999999;
+  /* --- Text ---
+     Figma uses near-black (#121212) for primary text, mid-grey for
+     secondary, and a slightly cool light grey for muted labels. */
+  --color-text-primary:    #121212;
+  --color-text-secondary:  #545454;
+  --color-text-light:      #989CA5;
 
-  /* Surfaces */
+  /* --- Surfaces --- */
   --color-bg:              #FFFFFF;
-  --color-surface:         #F8F9FA;
+  --color-surface:         #F8FAFC;  /* card backgrounds */
+  --color-surface-muted:   #FAFAFA;  /* off-white tiles */
 
-  /* Inputs */
+  /* --- Inputs --- */
   --color-input-border:    #E0E0E0;
-  --color-input-fill:      #F5F5F5;
-  --color-input-focus:     #365DEA;
+  --color-input-fill:      #F1F1F1;
+  --color-input-focus:     #00167A;
 
-  /* Status */
-  --color-error:           #E74C3C;
-  --color-success:         #27AE60;
+  /* --- Status (verified against Figma chip backgrounds) ---
+     Each status has both a text colour and a tinted background for chip
+     badges (DONE / OVERDUE / DUE / LOCKED in subject accordion). */
+  --color-error:           #FF3131;
+  --color-error-bg:        #FFD9D9;
+  --color-success:         #00BF63;
+  --color-success-bg:      #C9F1DE;
   --color-warning:         #F39C12;
+  --color-due-bg:          #FFE7D7;  /* peach (DUE chip background) */
+  --color-due-text:        #C05127;
+  --color-locked-bg:       #F1F1F1;
+  --color-locked-text:     #989CA5;
 
-  /* Geometry */
+  /* --- Geometry --- */
+  --radius-sm:             8px;
   --radius-base:           12px;
+  --radius-lg:             16px;
+  --radius-xl:             24px;
 
-  /* Layout — locked decisions from §8.A */
+  /* --- Layout (decisions from §8.A) --- */
   --shell-mobile-width:    430px;
   --shell-sidenav-width:   240px;
   --shell-content-max:     540px;
 
-  /* Typography */
-  --font-sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-               Arial, "Noto Sans", sans-serif, "Apple Color Emoji",
-               "Segoe UI Emoji";
+  /* --- Typography ---
+     Three faces loaded from Google Fonts (see globals.css @import):
+       --font-body     : Open Sans          — body, labels, list rows
+       --font-display  : Plus Jakarta Sans  — section/screen headings
+       --font-numeric  : DM Sans 900        — big metric digits
+     Bubbleboddy Neue Trial is paid and not loaded; usage points fall back
+     to Open Sans 700 via --font-body. */
+  --font-body:    "Open Sans", -apple-system, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Open Sans", -apple-system,
+                  "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-numeric: "DM Sans", "Plus Jakarta Sans", -apple-system,
+                  "Segoe UI", Roboto, sans-serif;
+  /* Back-compat alias */
+  --font-sans:    var(--font-body);
 }

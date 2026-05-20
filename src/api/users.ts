@@ -40,7 +40,7 @@ export async function getCurrentUser(): Promise<User> {
   if (MOCK_AUTH && tokenStorage.read()?.accessToken === 'mock_access_token') {
     return mockMe()
   }
-  const { data: envelope } = await api.get<ApiEnvelope<UserDTO>>('/users/me')
+  const { data: envelope } = await api.get<ApiEnvelope<UserDTO>>('/users/me/')
   if (!envelope.success || !envelope.data) {
     throw new Error(envelope.message || 'Failed to load user')
   }
@@ -52,7 +52,7 @@ export async function logout(): Promise<void> {
     return
   }
   try {
-    await api.post('/users/logout')
+    await api.post('/auth/logout/')
   } catch {
     // swallow: caller will clear local state regardless.
   }
@@ -97,7 +97,7 @@ export async function updateProfile(input: UpdateProfileInput): Promise<User> {
       profile_picture: input.profile_image ?? current.profilePicture ?? undefined,
     } as UserDTO)
   }
-  const { data: envelope } = await api.put<ApiEnvelope<UserDTO>>('/users/me', input)
+  const { data: envelope } = await api.put<ApiEnvelope<UserDTO>>('/users/me/', input)
   if (!envelope.success || !envelope.data) {
     throw new Error(envelope.message || 'Failed to update profile')
   }
@@ -120,8 +120,10 @@ export async function changePassword(input: ChangePasswordInput): Promise<{ mess
     }
     return { message: 'Password changed successfully.' }
   }
-  const { data: envelope } = await api.put<ApiEnvelope<unknown>>(
-    '/users/change-password',
+  // Backend exposes this as POST /api/users/change_password/ (DRF @action
+   // default url_path keeps underscores). Method is POST, not PUT.
+   const { data: envelope } = await api.post<ApiEnvelope<unknown>>(
+    '/users/change_password/',
     input,
   )
   if (!envelope.success) {
