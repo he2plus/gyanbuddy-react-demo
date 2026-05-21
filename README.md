@@ -65,16 +65,17 @@ mkdir -p logs
 #   REDIS_URL=redis://redis:6379/0
 
 # 4. Bring up Postgres + Redis + Django (skip ai-service / qdrant)
-docker compose -f docker-compose.dev.yml up db redis web celery -d
+docker compose -f docker-compose.dev.yml up db redis web -d
 
-# 5. Migrate + seed demo data
+# 5. Drop the demo seed file into the backend (see backend-extras/ in THIS repo)
+cp ../gyanbuddy-react/backend-extras/management-commands/seed_student_demo.py \
+   gyaan_buddy/users/management/commands/
+
+# 6. Migrate + seed rich demo data
 docker exec gyan-buddy-web-1 python manage.py migrate
-# (drop bootstrap_local.py + seed_local.py + enroll_local.py + seed_classmates.py
-#  into the backend root — see this repo's `archive/source` branch for copies)
-docker exec gyan-buddy-web-1 python manage.py shell -c "exec(open('bootstrap_local.py').read())"
-docker exec gyan-buddy-web-1 python manage.py shell -c "exec(open('seed_local.py').read())"
-docker exec gyan-buddy-web-1 python manage.py shell -c "exec(open('enroll_local.py').read())"
-docker exec gyan-buddy-web-1 python manage.py shell -c "exec(open('seed_classmates.py').read())"
+docker exec gyan-buddy-web-1 python manage.py seed_test_data --flush
+docker exec gyan-buddy-web-1 python manage.py seed_test_data
+docker exec gyan-buddy-web-1 python manage.py seed_student_demo
 ```
 
 Then back in this repo, create `.env.local` (gitignored) with:
@@ -92,8 +93,26 @@ npm install
 npm run dev
 ```
 
-Log in as **`demo_student / demo1234`** (created by the bootstrap script) and
-you're running against the real backend.
+### Demo logins (all share password `Test@1234`)
+
+After the seeds run, every account below has rich data on every screen —
+3 subjects, mix of completed / in-progress / not-started chapters, today's
+mission ready, 3 tests scheduled, 8 notifications, distinct leaderboard XP.
+
+| Username        | Class | Rank | XP    | Pattern |
+|-----------------|-------|------|-------|---------|
+| `alice.sharma`  | 9-A   | #1   | 2180  | Most chapters Done |
+| `diana.patel`   | 9-A   | #2   | 1890  | Strong but not complete |
+| `bob.verma`     | 9-A   | #3   | 1544  | Mid-progress |
+| `charlie.nair`  | 9-A   | #4   | 1276  | A few completed |
+| `eve.gupta`     | 9-A   | #5   |  980  | Just getting started |
+
+Any of the above logs into the same class so the leaderboard shows the
+same 5 names regardless of who you sign in as — you can A/B test the
+view between a top student and a struggling one without changing data.
+
+See [`backend-extras/README.md`](backend-extras/README.md) for the full
+seed-data contract.
 
 ---
 
