@@ -23,9 +23,12 @@ const HIDE_CHROME_EXACT = new Set([
   '/missions',
   '/leaderboard',
   '/tests',
+  '/notifications',
+  '/profile',
+  '/credits',
 ])
 // Anything under these prefixes also runs chrome-less (Journey page, etc.)
-const HIDE_CHROME_PREFIX = ['/subjects/', '/missions/', '/tests/']
+const HIDE_CHROME_PREFIX = ['/subjects/', '/missions/', '/tests/', '/profile/']
 
 function isChromeless(path: string): boolean {
   if (HIDE_CHROME_EXACT.has(path)) return true

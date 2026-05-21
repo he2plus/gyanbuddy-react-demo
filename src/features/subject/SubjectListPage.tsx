@@ -47,6 +47,23 @@ const SUBJECT_ICON: Record<string, LucideIcon> = {
 const iconFor = (s: Subject): LucideIcon =>
   SUBJECT_ICON[(s.code || '').toUpperCase()] ?? BookOpen
 
+// Figma-rendered 3D PNGs — same mapping as the Home rail. Used in the
+// collapsed subject row icon and as a fallback illustration for chapter
+// chips when there's no subject-specific chapter art.
+const SUBJECT_PNG: Record<string, string> = {
+  CHEM: '/images/figma/subj-1-chemistry.png',
+  BIO:  '/images/figma/subj-2-biology.png',
+  PHY:  '/images/figma/subj-3-physics.png',
+  GEO:  '/images/figma/subj-4-geography.png',
+  MATH: '/images/figma/subj-5-maths.png',
+  ENG:  '/images/figma/subj-6-english.png',
+  HIS:  '/images/figma/subj-7-history.png',
+  SAN:  '/images/figma/subj-8-sanskrit.png',
+  GEN:  '/images/figma/subj-2-biology.png',
+}
+const subjectPngFor = (s: Subject): string | null =>
+  SUBJECT_PNG[(s.code || '').toUpperCase()] ?? null
+
 type Filter = 'all' | 'overdue' | 'in_progress' | 'locked'
 
 // Chapter status (derived client-side from Module fields the backend ships).
@@ -77,17 +94,20 @@ export function SubjectListPage() {
   const subjectsQ = useSubjects()
   const [params] = useSearchParams()
   const [filter, setFilter] = useState<Filter>('all')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  // Tri-state: undefined = "use the default (first subject) as a starter",
+  // null = "user explicitly collapsed everything", string = "this id is open".
+  // The undefined sentinel is what lets the user actually close the
+  // auto-expanded row — without it, activeId would fall back to default and
+  // the row would never visually collapse.
+  const [expandedId, setExpandedId] = useState<string | null | undefined>(undefined)
 
-  // Default the first subject to expanded once the data arrives, but honour
-  // ?expand={subjectId} (used by the Home subject rail to deep-link).
   const subjects = subjectsQ.data ?? []
   const expandFromUrl = params.get('expand')
   useEffect(() => {
     if (expandFromUrl) setExpandedId(expandFromUrl)
   }, [expandFromUrl])
   const defaultExpanded = subjects[0]?.id ?? null
-  const activeId = expandedId ?? defaultExpanded
+  const activeId = expandedId === undefined ? defaultExpanded : expandedId
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
@@ -197,6 +217,7 @@ function SubjectRow({
 }) {
   const Icon = iconFor(subject)
   const accent = subject.color || NAVY
+  const subjectPng = subjectPngFor(subject)
 
   // Fetch modules for the expanded row only — avoids loading every subject's
   // chapter data when most rows are collapsed.
@@ -251,7 +272,9 @@ function SubjectRow({
         }}
         whileHover={{ y: expanded ? 0 : -2 }}
       >
-        {/* Icon container 105 x 84 (expanded) / 100 x 72 (collapsed) */}
+        {/* Icon container 105 x 84 (expanded) / 100 x 72 (collapsed) — uses
+            the Figma 3D PNG for the subject when available, falls back to
+            the tinted Lucide glyph for codes we don't have art for yet. */}
         <div
           className="grid place-items-center shrink-0"
           style={{
@@ -260,16 +283,30 @@ function SubjectRow({
             boxShadow: expanded ? `0 6px 14px ${accent}28` : `0 4px 10px ${accent}18`,
           }}
         >
-          <span
-            className="grid place-items-center"
-            style={{
-              width: 56, height: 56, borderRadius: 16,
-              background: `linear-gradient(135deg, ${accent}26 0%, ${accent}10 100%)`,
-              color: accent,
-            }}
-          >
-            <Icon className="w-8 h-8" strokeWidth={2} />
-          </span>
+          {subjectPng ? (
+            <img
+              src={subjectPng}
+              alt=""
+              draggable={false}
+              className="select-none"
+              style={{
+                width: 60, height: 60, objectFit: 'contain',
+                filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.08))',
+              }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <span
+              className="grid place-items-center"
+              style={{
+                width: 56, height: 56, borderRadius: 16,
+                background: `linear-gradient(135deg, ${accent}26 0%, ${accent}10 100%)`,
+                color: accent,
+              }}
+            >
+              <Icon className="w-8 h-8" strokeWidth={2} />
+            </span>
+          )}
         </div>
 
         {/* Title + count + progress */}
@@ -404,10 +441,14 @@ const BIO_ILLUSTRATIONS = [
 ]
 
 function illustrationFor(subjectCode: string, orderIndex: number): string | null {
-  if (subjectCode?.toUpperCase() === 'BIO' && orderIndex < BIO_ILLUSTRATIONS.length) {
+  const upper = subjectCode?.toUpperCase()
+  if (upper === 'BIO' && orderIndex < BIO_ILLUSTRATIONS.length) {
     return BIO_ILLUSTRATIONS[orderIndex]
   }
-  return null
+  // Fallback: use the subject's own 3D icon so the chapter chip is never
+  // a blank tinted box. Biology gets specific illustrations because Figma
+  // shipped them; other subjects re-use the rail icon for now.
+  return SUBJECT_PNG[upper] ?? null
 }
 
 // ---------------------------------------------------------------------------
