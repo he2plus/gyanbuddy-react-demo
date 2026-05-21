@@ -3,7 +3,7 @@
  * Uses framer-motion for the slide + a backdrop click to close.
  */
 import { useEffect } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home, BookOpen, Target, ClipboardList, Trophy, Bell, User, CreditCard,
@@ -31,10 +31,11 @@ const ITEMS = [
 export function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const logout = useAuthStore((s) => s.logout)
   const me = useAuthStore((s) => s.user)
-  const location = useLocation()
 
-  // Close drawer whenever the route changes (navigation tap)
-  useEffect(() => { onClose() }, [location.pathname, onClose])
+  // Note: route-change-closes-drawer is handled by NavLink onClick below,
+  // NOT by a useEffect on location.pathname. The previous useEffect had
+  // `onClose` in its deps, which is a fresh function each parent render —
+  // the effect re-fired and slammed the drawer shut the same frame it opened.
 
   // Close on Escape
   useEffect(() => {
@@ -174,6 +175,7 @@ export function NavDrawer({ open, onClose }: { open: boolean; onClose: () => voi
                   key={to}
                   to={to}
                   end
+                  onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center w-full text-left ${isActive ? '' : ''}`
                   }

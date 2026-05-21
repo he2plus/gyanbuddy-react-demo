@@ -14,9 +14,9 @@
  * Auth + nav side-effects live here so individual pages don't reimplement
  * the same logout / Tests / notification handlers six times.
  */
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
 
 import { useAuthStore } from '../state/auth'
 import { NavDrawer } from './NavDrawer'
@@ -36,12 +36,27 @@ export function TopBar({
   const me = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
+  const location = useLocation()
   const xp = me?.totalExp ?? 0
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  // useCallback so NavDrawer's effect deps stay stable (defence in depth —
+  // the real fix lives inside NavDrawer, but a stable handle never hurts).
+  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
+
+  // Show a back arrow on every page except the root /home.
+  const showBack = location.pathname !== '/home'
+  const goBack = () => {
+    if (window.history.state && window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/home')
+    }
+  }
+
   return (
     <>
-    <NavDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+    <NavDrawer open={drawerOpen} onClose={closeDrawer} />
     <header
       className="w-full bg-white border-b"
       style={{ height: 117, borderColor: '#F3F3F3' }}
@@ -50,17 +65,41 @@ export function TopBar({
         className="mx-auto flex items-center"
         style={{ maxWidth: 1920, padding: '24px 120px', gap: 34, height: '100%' }}
       >
-        {/* Left lockup: burger + G + title/subtitle */}
-        <div className="flex items-center" style={{ gap: 24 }}>
+        {/* Left lockup: burger + [back] + G + title/subtitle */}
+        <div className="flex items-center" style={{ gap: 16 }}>
           <button
             type="button"
             aria-label="Open menu"
             onClick={() => setDrawerOpen(true)}
             className="grid place-items-center"
-            style={{ width: 34, height: 34, color: TXT_MID }}
+            style={{
+              width: 40, height: 40, borderRadius: 12, color: TXT_MID,
+              background: 'transparent',
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F1F1')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
-            <Menu className="w-8 h-8" strokeWidth={2.5} />
+            <Menu className="w-7 h-7" strokeWidth={2.5} />
           </button>
+          {showBack && (
+            <button
+              type="button"
+              aria-label="Go back"
+              onClick={goBack}
+              className="grid place-items-center"
+              style={{
+                width: 40, height: 40, borderRadius: 12,
+                background: '#F8FAFC', border: '1px solid #E7E7E7',
+                color: NAVY,
+                transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#EEF2FF')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#F8FAFC')}
+            >
+              <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+            </button>
+          )}
           <div
             className="grid place-items-center bg-white shadow-sm"
             style={{ width: 65, height: 68, borderRadius: 14 }}

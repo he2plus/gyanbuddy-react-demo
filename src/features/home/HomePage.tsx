@@ -71,6 +71,23 @@ const SUBJECT_ICON: Record<string, LucideIcon> = {
 const iconFor = (s: Subject): LucideIcon =>
   SUBJECT_ICON[(s.code || '').toUpperCase()] ?? BookOpen
 
+// Figma-rendered 3D PNGs for the subject rail (top-right). Map by code so
+// re-ordering subjects in the API doesn't break the visual mapping.
+const SUBJECT_PNG: Record<string, string> = {
+  CHEM: '/images/figma/subj-1-chemistry.png',
+  BIO:  '/images/figma/subj-2-biology.png',
+  PHY:  '/images/figma/subj-3-physics.png',
+  GEO:  '/images/figma/subj-4-geography.png',
+  MATH: '/images/figma/subj-5-maths.png',
+  ENG:  '/images/figma/subj-6-english.png',
+  HIS:  '/images/figma/subj-7-history.png',
+  SAN:  '/images/figma/subj-8-sanskrit.png',
+  // Fallbacks for other codes — pick a sensible neighbour by topic
+  GEN:  '/images/figma/subj-2-biology.png',
+}
+const pngFor = (s: Subject): string | null =>
+  SUBJECT_PNG[(s.code || '').toUpperCase()] ?? null
+
 // ---------------------------------------------------------------------------
 export function HomePage() {
   const me = useAuthStore((s) => s.user)
@@ -358,9 +375,9 @@ function TrophyBanner({
         </div>
       </div>
 
-      {/* Trophy decoration on the right — gentle float so it's not a static PNG */}
+      {/* Trophy decoration on the right — Figma-rendered PNG, gentle float */}
       <motion.img
-        src="/images/home_trophy.png"
+        src="/images/figma/trophy-decoration.png"
         alt=""
         aria-hidden="true"
         draggable={false}
@@ -368,7 +385,7 @@ function TrophyBanner({
         style={{ right: 30, bottom: 30, width: 135, height: 'auto', opacity: 0.95 }}
         animate={{ y: [0, -6, 0], rotate: [0, 2, 0, -2, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/home_trophy.png' }}
       />
     </motion.section>
   )
@@ -724,17 +741,29 @@ function ActiveSubjectCard({
         )}
       </div>
 
-      {/* Illustration zone — CSS+SVG molecule (animated) replaces the flat
-          flask icon. Genuinely moves so the page doesn't read as a static PNG. */}
+      {/* Illustration zone — real 3D molecule rendered from the Figma file
+          (exported via the REST API). Gently floats so the page doesn't
+          read like a static PNG. */}
       <div
-        className="relative overflow-hidden"
+        className="relative overflow-hidden grid place-items-center"
         style={{
           marginTop: 24, height: 237, borderRadius: 16,
           background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%)',
         }}
         aria-hidden="true"
       >
-        <MoleculeIllustration />
+        <motion.img
+          src="/images/figma/molecule.png"
+          alt=""
+          draggable={false}
+          className="select-none"
+          style={{
+            maxHeight: 220, width: 'auto', height: 'auto',
+            filter: 'drop-shadow(0 12px 28px rgba(124,58,237,0.22))',
+          }}
+          animate={{ y: [0, -8, 0], rotate: [0, 2, 0, -2, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+        />
       </div>
 
       {/* Chapter list */}
@@ -884,12 +913,18 @@ function SubjectRail({
               className="grid place-items-center"
               style={{
                 width: 52, height: 52, borderRadius: 16,
-                background: `linear-gradient(135deg, ${accent}26 0%, ${accent}10 100%)`,
+                background: `linear-gradient(135deg, ${accent}1A 0%, ${accent}06 100%)`,
                 color: accent,
-                boxShadow: `inset 0 0 0 1px ${accent}22`,
               }}
             >
-              {s.logo ? (
+              {pngFor(s) ? (
+                <img
+                  src={pngFor(s) as string} alt=""
+                  className="w-12 h-12 object-contain select-none"
+                  draggable={false}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : s.logo ? (
                 <img
                   src={s.logo} alt=""
                   className="w-9 h-9 object-contain"
@@ -932,81 +967,7 @@ function AnimatedNumber({
   return <>{shown}{suffix}</>
 }
 
-// ---------------------------------------------------------------------------
-// CSS+SVG molecule — fills the Chemistry illustration zone with something
-// that actually moves. 5 atoms with radial-gradient depth, 6 bonds via SVG
-// lines, the whole thing rotates slowly. Replaces the flat lucide flask.
-// ---------------------------------------------------------------------------
-function MoleculeIllustration() {
-  // Atom positions in a 280x180 viewBox (normalized to the 337x237 zone)
-  const atoms = [
-    { cx: 140, cy: 90,  r: 32, color: '#7C3AED', glow: '#A78BFA' }, // centre purple
-    { cx:  72, cy: 60,  r: 22, color: '#1ABCFE', glow: '#7DD3FC' }, // top-left cyan
-    { cx:  72, cy: 130, r: 22, color: '#1ABCFE', glow: '#7DD3FC' }, // bottom-left cyan
-    { cx: 220, cy: 50,  r: 22, color: '#6366F1', glow: '#A5B4FC' }, // top-right indigo
-    { cx: 230, cy: 130, r: 26, color: '#7C3AED', glow: '#C4B5FD' }, // bottom-right purple
-  ]
-  const bonds = [
-    [0, 1], [0, 2], [0, 3], [0, 4], [3, 4], [1, 2],
-  ] as const
-
-  return (
-    <div className="relative w-full h-full grid place-items-center">
-      <motion.svg
-        viewBox="0 0 280 180"
-        className="w-[80%] h-[80%]"
-        style={{ filter: 'drop-shadow(0 12px 32px rgba(124, 58, 237, 0.18))' }}
-        animate={{ rotate: [0, 6, 0, -6, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        {/* Bonds — drawn first so atoms sit on top */}
-        {bonds.map(([a, b], i) => {
-          const A = atoms[a], B = atoms[b]
-          return (
-            <line
-              key={i}
-              x1={A.cx} y1={A.cy} x2={B.cx} y2={B.cy}
-              stroke="#94A3B8" strokeWidth={4} strokeLinecap="round"
-              opacity={0.55}
-            />
-          )
-        })}
-        {/* Atoms with radial-gradient highlight */}
-        {atoms.map((a, i) => (
-          <motion.g
-            key={i}
-            animate={{ y: [0, -3, 0, 3, 0] }}
-            transition={{
-              duration: 4 + i * 0.4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              delay: i * 0.15,
-            }}
-          >
-            <defs>
-              <radialGradient id={`atom-${i}`} cx="35%" cy="32%" r="70%">
-                <stop offset="0%"  stopColor={a.glow} />
-                <stop offset="55%" stopColor={a.color} />
-                <stop offset="100%" stopColor={a.color} stopOpacity="0.85" />
-              </radialGradient>
-            </defs>
-            <circle
-              cx={a.cx} cy={a.cy} r={a.r}
-              fill={`url(#atom-${i})`}
-              stroke={a.color} strokeWidth="0.5" strokeOpacity="0.5"
-            />
-            {/* Specular highlight */}
-            <ellipse
-              cx={a.cx - a.r * 0.35} cy={a.cy - a.r * 0.4}
-              rx={a.r * 0.32} ry={a.r * 0.22}
-              fill="#fff" opacity={0.45}
-            />
-          </motion.g>
-        ))}
-      </motion.svg>
-    </div>
-  )
-}
+// (CSS+SVG molecule removed — replaced by the Figma-rendered molecule.png)
 
 // ---------------------------------------------------------------------------
 // Decorative translucent circles for the trophy banner background.

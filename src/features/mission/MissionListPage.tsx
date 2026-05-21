@@ -147,19 +147,20 @@ function DailyMissionCard({
     >
       <div
         className="grid place-items-center relative overflow-hidden"
-        style={{
-          width: 157, height: 161, borderRadius: 32, marginTop: 24,
-          background: 'radial-gradient(circle at 50% 30%, rgba(124,58,237,0.20), rgba(26,188,254,0.10) 60%, transparent 80%)',
-        }}
+        style={{ width: 200, height: 200, marginTop: 12 }}
       >
-        <motion.div
+        <motion.img
+          src="/images/figma/mission-character.png"
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="select-none"
           style={{
-            width: 90, height: 90, borderRadius: 999,
-            background: `radial-gradient(circle at 32% 28%, #A78BFA 0%, #7C3AED 55%, #4C1D95 100%)`,
-            boxShadow: '0 12px 24px rgba(124,58,237,0.40), inset 0 -6px 10px rgba(0,0,0,0.10), inset 0 4px 10px rgba(255,255,255,0.25)',
+            maxHeight: 200, width: 'auto', height: 'auto',
+            filter: 'drop-shadow(0 12px 20px rgba(0,22,122,0.18))',
           }}
-          animate={{ y: [0, -6, 0], rotate: [0, 6, 0, -6, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
 

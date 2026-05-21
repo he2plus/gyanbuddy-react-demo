@@ -373,6 +373,8 @@ function SubjectRow({
                 <ChapterChip
                   key={m.id}
                   module={m}
+                  subjectCode={subject.code}
+                  orderIndex={i}
                   delay={i * 0.04}
                   onClick={() => onChapterClick(m.id)}
                 />
@@ -385,17 +387,39 @@ function SubjectRow({
   )
 }
 
+// Biology-themed 3D illustrations exported from Figma. Indexed by chapter
+// position within the subject (the Figma's Biology row showed lungs, brain,
+// genetics, seed). For non-Biology subjects we fall back to a tinted glyph.
+const BIO_ILLUSTRATIONS = [
+  '/images/figma/illus-life-processes.png',
+  '/images/figma/illus-control-coord.png',
+  '/images/figma/illus-heredity.png',
+  '/images/figma/illus-reproduction.png',
+]
+
+function illustrationFor(subjectCode: string, orderIndex: number): string | null {
+  if (subjectCode?.toUpperCase() === 'BIO' && orderIndex < BIO_ILLUSTRATIONS.length) {
+    return BIO_ILLUSTRATIONS[orderIndex]
+  }
+  return null
+}
+
 // ---------------------------------------------------------------------------
 // ChapterChip — Figma Frame 37/38/39/40 (224 × 261, white bg, radius 34)
 // ---------------------------------------------------------------------------
 function ChapterChip({
-  module: m, delay, onClick,
+  module: m, subjectCode, orderIndex, delay, onClick,
 }: {
-  module: Module; delay: number; onClick: () => void
+  module: Module
+  subjectCode: string
+  orderIndex: number
+  delay: number
+  onClick: () => void
 }) {
   const status = chapterStatus(m)
   const chip = STATUS_CHIP[status]
   const locked = status === 'locked'
+  const chapterIllustration = illustrationFor(subjectCode, orderIndex)
 
   return (
     <motion.button
@@ -438,33 +462,50 @@ function ChapterChip({
         )}
       </div>
 
-      {/* Illustration zone — placeholder gradient circle (real 3D PNGs TBD) */}
+      {/* Illustration zone — Biology-themed 3D PNGs by chapter order, with
+          a tinted-glyph fallback for other subjects until they have their
+          own art. */}
       <div
-        className="grid place-items-center"
+        className="grid place-items-center relative"
         style={{
           height: 95, marginTop: 10,
           background: locked
             ? 'radial-gradient(circle at 50% 50%, #EEF2F5 0%, #FAFAFA 70%)'
-            : 'radial-gradient(circle at 50% 30%, rgba(26,188,254,0.18), rgba(124,58,237,0.06) 60%, transparent 80%)',
-          borderRadius: 16,
+            : 'radial-gradient(circle at 50% 30%, rgba(26,188,254,0.14), rgba(124,58,237,0.04) 60%, transparent 80%)',
+          borderRadius: 16, overflow: 'hidden',
         }}
       >
-        <div
-          className="grid place-items-center"
-          style={{
-            width: 60, height: 60, borderRadius: 999,
-            background: locked
-              ? 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%)'
-              : `linear-gradient(135deg, ${chip.fg} 0%, ${chip.bg} 100%)`,
-            boxShadow: locked ? 'none' : `0 8px 22px ${chip.fg}40`,
-          }}
-        >
-          <Leaf
-            className="w-7 h-7"
-            style={{ color: locked ? TXT_MUTED : '#fff', opacity: 0.95 }}
-            strokeWidth={2}
+        {chapterIllustration ? (
+          <img
+            src={chapterIllustration}
+            alt=""
+            draggable={false}
+            className="select-none"
+            style={{
+              maxHeight: 88, width: 'auto', height: 'auto',
+              opacity: locked ? 0.45 : 1,
+              filter: locked ? 'grayscale(0.8)' : 'none',
+            }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
-        </div>
+        ) : (
+          <div
+            className="grid place-items-center"
+            style={{
+              width: 60, height: 60, borderRadius: 999,
+              background: locked
+                ? 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 100%)'
+                : `linear-gradient(135deg, ${chip.fg} 0%, ${chip.bg} 100%)`,
+              boxShadow: locked ? 'none' : `0 8px 22px ${chip.fg}40`,
+            }}
+          >
+            <Leaf
+              className="w-7 h-7"
+              style={{ color: locked ? TXT_MUTED : '#fff', opacity: 0.95 }}
+              strokeWidth={2}
+            />
+          </div>
+        )}
       </div>
 
       {/* Title + progress */}
