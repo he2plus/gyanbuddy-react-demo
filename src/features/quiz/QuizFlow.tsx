@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 
 import { checkAnswer } from '../../api/quiz'
+import { ChapterCompletedSplash } from '../module/ChapterCompletedSplash'
 import type { Question, QuestionOption } from '../../types/question'
 
 const NAVY = '#00167A'
@@ -46,9 +47,21 @@ type FeedbackState =
 type Props = {
   questions: Question[]
   onExit: () => void
+  /**
+   * Optional celebratory interstitial title/subtitle. When the caller is a
+   * chapter quiz, pass the chapter + module names — the ResultsCard then
+   * triggers the ChapterCompletedSplash on Done instead of just exiting.
+   */
+  celebration?: {
+    chapterName: string
+    moduleName: string
+    /** When true, finishing fires the splash; when false, plain Done. */
+    enabled: boolean
+  }
 }
 
-export function QuizFlow({ questions, onExit }: Props) {
+export function QuizFlow({ questions, onExit, celebration }: Props) {
+  const [showSplash, setShowSplash] = useState(false)
   const [index, setIndex] = useState(0)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [shortAnswer, setShortAnswer] = useState('')
@@ -96,16 +109,35 @@ export function QuizFlow({ questions, onExit }: Props) {
   if (finished) {
     const maxPossible = questions.length * 2  // best case = 2 XP per Q
     return (
-      <ResultsCard
-        xpEarned={totalXp}
-        xpMax={maxPossible}
-        onExit={onExit}
-        onRestart={() => {
-          setIndex(0)
-          setTotalXp(0)
-          setFinished(false)
-        }}
-      />
+      <>
+        <ResultsCard
+          xpEarned={totalXp}
+          xpMax={maxPossible}
+          onExit={() => {
+            if (celebration?.enabled) {
+              setShowSplash(true)
+            } else {
+              onExit()
+            }
+          }}
+          onRestart={() => {
+            setIndex(0)
+            setTotalXp(0)
+            setFinished(false)
+          }}
+        />
+        {showSplash && celebration?.enabled && (
+          <ChapterCompletedSplash
+            chapterName={celebration.chapterName}
+            moduleName={celebration.moduleName}
+            xpEarned={totalXp}
+            onContinue={() => {
+              setShowSplash(false)
+              onExit()
+            }}
+          />
+        )}
+      </>
     )
   }
 

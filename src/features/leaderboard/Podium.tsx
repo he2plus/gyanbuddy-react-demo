@@ -1,28 +1,26 @@
 /**
- * Podium — top-3 visualisation. 2nd ─ 1st ─ 3rd ordering with pedestal heights
- * 1 > 2 > 3, medal-coloured rank chips. Avoids the generic AI-template feel:
- *   - No gradient washes, no glassmorphism, no decorative SVG balloons.
- *   - Uses the project's flat palette (brand navy, primary, medal yellow/silver/bronze).
- *   - Pedestal height is fixed in CSS so it doesn't drift with content; avatar
- *     sizes are uniform, and the "You" highlight reuses the same primary-tint
- *     ring that the rest of the app uses for the active-row callout.
+ * Podium — top-3 visualisation. Reads as a 3D-ish stage: gold trophy crown
+ * floats above #1, pedestals have radial shading and an inset shadow so
+ * they don't look like flat blocks, and the medal palette (gold/silver/
+ * bronze) lines up with the rest of the app.
  *
- * If fewer than 3 entries are available the missing slots are rendered as
- * faded "—" placeholders so the layout stays symmetric.
+ * Why not the Figma PNG: the exported leaderboard-podium.png has the demo
+ * names + avatars baked in, so it can't drive live data. This stays as a
+ * data-driven component and just leans into the same visual language.
  */
 import { motion } from 'framer-motion'
 import { Crown } from 'lucide-react'
 
-const MEDAL: Record<1 | 2 | 3, string> = {
-  1: '#F5B400',
-  2: '#9CA3AF',
-  3: '#B45309',
+const MEDAL: Record<1 | 2 | 3, { base: string; light: string; dark: string }> = {
+  1: { base: '#F5B400', light: '#FFD24A', dark: '#B97A00' },
+  2: { base: '#9CA3AF', light: '#CBD5E1', dark: '#64748B' },
+  3: { base: '#B45309', light: '#D97706', dark: '#7C2D12' },
 }
 
 const PEDESTAL_HEIGHT: Record<1 | 2 | 3, number> = {
-  1: 132,
-  2: 96,
-  3: 72,
+  1: 156,
+  2: 116,
+  3: 88,
 }
 
 export type PodiumEntry = {
@@ -47,24 +45,35 @@ export function Podium({ entries, meId, onClick }: Props) {
 
   return (
     <div
-      className="rounded-2xl border bg-white px-5 pt-6 pb-0 shadow-sm sm:px-8 sm:pt-8"
-      style={{ borderColor: '#E0E0E0' }}
+      className="relative overflow-hidden bg-white"
+      style={{
+        borderRadius: 24, padding: '40px 32px 0',
+        border: '1px solid #E7E7E7',
+        boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+      }}
     >
-      <div className="mx-auto flex max-w-md items-end justify-center gap-4 sm:gap-6">
+      {/* Soft radial backdrop that hints at a stage spotlight */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at 50% 0%, rgba(26,188,254,0.10), transparent 60%)',
+        }}
+      />
+
+      <div
+        className="relative mx-auto flex items-end justify-center"
+        style={{ maxWidth: 540, gap: 32 }}
+      >
         <Column rank={2} entry={second} meId={meId} onClick={onClick} delay={0.08} />
-        <Column rank={1} entry={first} meId={meId} onClick={onClick} delay={0} />
-        <Column rank={3} entry={third} meId={meId} onClick={onClick} delay={0.16} />
+        <Column rank={1} entry={first}  meId={meId} onClick={onClick} delay={0} />
+        <Column rank={3} entry={third}  meId={meId} onClick={onClick} delay={0.16} />
       </div>
     </div>
   )
 }
 
 function Column({
-  rank,
-  entry,
-  meId,
-  onClick,
-  delay,
+  rank, entry, meId, onClick, delay,
 }: {
   rank: 1 | 2 | 3
   entry?: PodiumEntry
@@ -76,39 +85,50 @@ function Column({
   const medal = MEDAL[rank]
   const height = PEDESTAL_HEIGHT[rank]
 
-  const avatarSize = rank === 1 ? 76 : 60
+  const avatarSize = rank === 1 ? 84 : 64
   const initials = (entry?.firstName?.[0] ?? entry?.username?.[0] ?? '·').toUpperCase()
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.35, ease: 'easeOut' }}
+      transition={{ delay, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-1 flex-col items-center"
     >
-      {/* Crown above #1 */}
-      {rank === 1 && (
-        <Crown
-          className="mb-1 h-5 w-5"
-          style={{ color: medal }}
-          strokeWidth={2.5}
-          aria-hidden="true"
-        />
+      {/* Crown sits above #1, gently bobs */}
+      {rank === 1 && entry && (
+        <motion.div
+          animate={{ y: [0, -3, 0], rotate: [0, 3, 0, -3, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+          className="mb-1 grid place-items-center"
+          style={{
+            width: 44, height: 36, borderRadius: 8,
+            color: medal.base,
+            filter: `drop-shadow(0 4px 10px ${medal.base}66)`,
+          }}
+        >
+          <Crown className="w-9 h-9" strokeWidth={2.4} fill={medal.light} />
+        </motion.div>
       )}
 
-      {/* Avatar */}
+      {/* Avatar with depth */}
       <button
         type="button"
         onClick={entry && onClick ? () => onClick(entry) : undefined}
         disabled={!entry}
         aria-label={entry ? `${entry.fullName || entry.username}, rank ${rank}` : `Rank ${rank} unfilled`}
-        className="group relative grid shrink-0 place-items-center rounded-full font-extrabold text-white shadow-sm transition-transform disabled:cursor-default"
+        className="group relative grid shrink-0 place-items-center rounded-full font-extrabold text-white disabled:cursor-default"
         style={{
           width: avatarSize,
           height: avatarSize,
-          background: entry ? medal : '#EEEEEE',
-          outline: isMe ? '3px solid #365DEA' : 'none',
+          background: entry
+            ? `radial-gradient(circle at 32% 28%, ${medal.light} 0%, ${medal.base} 55%, ${medal.dark} 100%)`
+            : 'radial-gradient(circle at 50% 30%, #F1F5F9 0%, #E2E8F0 70%)',
+          outline: isMe ? '3px solid #00167A' : 'none',
           outlineOffset: 2,
+          boxShadow: entry
+            ? `0 10px 22px ${medal.base}55, inset 0 -6px 10px rgba(0,0,0,0.18), inset 0 4px 10px rgba(255,255,255,0.30)`
+            : 'inset 0 -4px 8px rgba(0,0,0,0.06), inset 0 2px 4px rgba(255,255,255,0.5)',
         }}
       >
         {entry?.profilePicture ? (
@@ -120,8 +140,9 @@ function Column({
         ) : (
           <span
             style={{
-              fontSize: rank === 1 ? 28 : 22,
+              fontSize: rank === 1 ? 32 : 24,
               color: entry ? '#FFFFFF' : '#BDBDBD',
+              textShadow: entry ? '0 1px 2px rgba(0,0,0,0.22)' : 'none',
             }}
           >
             {initials}
@@ -129,30 +150,70 @@ function Column({
         )}
       </button>
 
-      {/* Name + XP */}
-      <div className="mt-2 min-h-[2.5rem] w-full max-w-[120px] text-center">
+      {/* Name + XP — fixed height so columns line up */}
+      <div className="mt-3 min-h-[2.75rem] w-full max-w-[140px] text-center">
         <div
-          className={`truncate text-[13px] font-bold ${entry ? 'text-[#222]' : 'text-[#BBB]'}`}
+          className={`truncate font-body ${entry ? '' : 'opacity-50'}`}
+          style={{
+            fontSize: rank === 1 ? 15 : 13,
+            fontWeight: 700,
+            color: '#121212',
+            lineHeight: '20px',
+          }}
         >
           {entry?.fullName || entry?.username || '—'}
         </div>
         {entry && (
-          <div className="text-[11px] font-semibold text-[#666] tabular-nums">
+          <div
+            className="font-body tabular-nums"
+            style={{
+              fontSize: 12, fontWeight: 600, color: '#545454', lineHeight: '16px',
+              marginTop: 1,
+            }}
+          >
             {entry.totalExp.toLocaleString()} XP
           </div>
         )}
       </div>
 
-      {/* Pedestal */}
+      {/* 3D-looking pedestal — gradient body + inset darkening at the bottom +
+          a lighter top edge to read as the front face of a block. */}
       <div
-        className="mt-2 flex w-full max-w-[120px] items-start justify-center rounded-t-lg pt-2 text-base font-extrabold text-white"
+        className="relative mt-2 w-full max-w-[140px] flex items-start justify-center text-base font-extrabold text-white"
         style={{
           height,
-          background: medal,
-          boxShadow: 'inset 0 -10px 0 rgba(0,0,0,0.08)',
+          paddingTop: 8,
+          borderRadius: '14px 14px 4px 4px',
+          background: `linear-gradient(180deg, ${medal.light} 0%, ${medal.base} 45%, ${medal.dark} 100%)`,
+          boxShadow: `
+            inset 0 -16px 0 rgba(0,0,0,0.14),
+            inset 0 6px 0 rgba(255,255,255,0.32),
+            0 12px 24px rgba(0,0,0,0.10)
+          `,
         }}
       >
-        {rank}
+        <span
+          className="font-body"
+          style={{
+            fontFamily: 'var(--font-numeric)',
+            fontSize: rank === 1 ? 40 : 32,
+            fontWeight: 900, color: '#fff',
+            lineHeight: 1,
+            textShadow: '0 2px 4px rgba(0,0,0,0.25)',
+          }}
+        >
+          {rank}
+        </span>
+
+        {/* Tiny shine highlight */}
+        <span
+          className="absolute pointer-events-none"
+          style={{
+            top: 6, left: 10, width: 18, height: 6, borderRadius: 99,
+            background: 'rgba(255,255,255,0.35)',
+            filter: 'blur(2px)',
+          }}
+        />
       </div>
     </motion.div>
   )

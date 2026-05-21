@@ -31,10 +31,20 @@ export function ChapterQuizPage() {
   const quizQ = useChapterQuiz(chapterId)
 
   const chapter = chaptersQ.data?.find((c) => c.id === chapterId) ?? null
-  void subjectQ.data  // keep the query running for cache warmth
+  const chapters = chaptersQ.data ?? []
+  // Fire the celebratory splash when the LAST chapter of the module's quiz
+  // is completed — per docx #13 (last topic → chapter-completed animation).
+  const isLastChapter =
+    chapters.length > 0 &&
+    chapter?.id === chapters[chapters.length - 1]?.id
+  void subjectQ.data
 
   const back = () =>
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}`)
+  // After the splash, go back to the journey page (not the chapter detail)
+  // so the user can see the whole path marked completed.
+  const backToJourney = () =>
+    navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters`)
 
   return (
     <div className="min-h-screen bg-white">
@@ -56,7 +66,16 @@ export function ChapterQuizPage() {
         ) : (
           <QuizFlow
             questions={quizQ.data ?? []}
-            onExit={back}
+            onExit={isLastChapter ? backToJourney : back}
+            celebration={
+              isLastChapter && chapter
+                ? {
+                    chapterName: chapter.name,
+                    moduleName: 'this module',
+                    enabled: true,
+                  }
+                : undefined
+            }
           />
         )}
       </PageContainer>

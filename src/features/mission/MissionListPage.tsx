@@ -22,7 +22,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Lock, Play, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Lock, Play, Sparkles, Target } from 'lucide-react'
 
 import { TopBar } from '../../shell/TopBar'
 import { useMissions } from './useMissions'
@@ -35,7 +35,7 @@ const TXT_MID = '#545454'
 const TXT_MUTED = '#989CA5'
 const SURFACE_BG = '#FAFAFA'
 
-const WEEKDAYS = ['Sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 const MONTHS = [
   'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
   'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
@@ -319,8 +319,11 @@ function NoMissionAvailable({
         onClick={onExplore}
         className="grid place-items-center w-full"
         style={{
-          background: NAVY, color: '#fff', borderRadius: 42,
+          // Cyan → navy gradient per Figma, with a matching glow.
+          background: `linear-gradient(90deg, ${CYAN} 0%, ${NAVY} 100%)`,
+          color: '#fff', borderRadius: 42,
           padding: '16px 24px', height: 57,
+          boxShadow: '0 10px 22px rgba(0,22,122,0.25)',
         }}
         whileTap={{ scale: 0.97 }}
         whileHover={{ y: -2 }}
@@ -409,41 +412,47 @@ function CalendarCard({
               className="relative flex flex-col items-center justify-center"
               style={{
                 height: 100, borderRadius: 24,
+                // Solid navy when this cell is selected; outlined cyan ring
+                // when it's today but not selected; faint surface otherwise.
                 background: isSelected
-                  ? `linear-gradient(135deg, ${CYAN}22 0%, ${CYAN}10 100%)`
+                  ? NAVY
                   : isToday
                     ? '#fff'
                     : '#F8FAFC',
-                border: isToday
-                  ? `2px solid ${CYAN}`
-                  : isSelected
-                    ? `1px solid ${CYAN}`
+                border: isSelected
+                  ? `2px solid ${NAVY}`
+                  : isToday
+                    ? `2px solid ${CYAN}`
                     : '1px solid transparent',
                 opacity: inMonth ? 1 : 0.35,
                 cursor: 'pointer',
+                boxShadow: isSelected ? '0 8px 18px rgba(0,22,122,0.25)' : 'none',
               }}
               whileTap={{ scale: 0.96 }}
               whileHover={inMonth ? { y: -2 } : undefined}
             >
+              {/* Mission indicator — cyan target icon top-right when this
+                  day has missions. Replaces the dot per Figma. */}
+              {hasMissions && (
+                <Target
+                  className="absolute"
+                  style={{
+                    top: 8, right: 8, width: 18, height: 18,
+                    color: isSelected ? '#fff' : CYAN,
+                  }}
+                  strokeWidth={2.4}
+                />
+              )}
               <span
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontSize: 24, fontWeight: 600,
-                  color: isSelected || isToday ? NAVY : TXT_DARK,
+                  color: isSelected ? '#fff' : isToday ? NAVY : TXT_DARK,
                   lineHeight: '33px',
                 }}
               >
                 {cell.day}
               </span>
-              {hasMissions && (
-                <span
-                  className="absolute"
-                  style={{
-                    bottom: 14, width: 8, height: 8, borderRadius: 999,
-                    background: CYAN,
-                  }}
-                />
-              )}
             </motion.button>
           )
         })}

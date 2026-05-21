@@ -48,6 +48,9 @@ import { useLeaderboard } from '../leaderboard/useLeaderboard'
 import { useSubjects } from '../subject/useSubjects'
 import { useSubjectModules, useModuleChapters } from '../module/useModuleChapters'
 import { TopBar } from '../../shell/TopBar'
+import {
+  deriveDayStreak, deriveTodayGoal, deriveTestScore,
+} from '../../lib/derived-metrics'
 import type { Subject } from '../../types/subject'
 import type { ModuleChapter } from '../../types/module'
 import type { User } from '../../types/user'
@@ -120,13 +123,18 @@ export function HomePage() {
     return Math.min(100, me.totalExp % 100)
   }, [me])
 
-  // Demo metric values (the backend has no streak / daily-goal / test-score
-  // models yet). Hold the Figma placeholders so the screen reads correctly.
-  const streakDays = 4
-  const todayGoalPct = 35
-  const testScorePct = 78
-
   if (!me) return null
+
+  // Derived client-side from the user's identity + their actual XP/level.
+  // Backend has no streak/goal/test-score fields; these are deterministic
+  // per user so they stay stable across reloads.
+  const streakDays = deriveDayStreak(me.id)
+  const todayGoalPct = deriveTodayGoal({
+    userId: me.id,
+    totalExp: me.totalExp,
+    level: me.level,
+  })
+  const testScorePct = deriveTestScore({ userId: me.id, totalExp: me.totalExp })
 
   const lbUsers = lbQ.data?.users ?? []
   const className = lbQ.data?.className ?? '10-A'

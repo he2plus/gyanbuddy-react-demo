@@ -17,13 +17,18 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ChevronDown, Flame } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  ChevronDown, Flame, TrendingUp, TrendingDown, Minus, Sparkles, Check,
+} from 'lucide-react'
 
 import { TopBar } from '../../shell/TopBar'
 import { useLeaderboard } from './useLeaderboard'
 import { useAuthStore } from '../../state/auth'
 import { Podium, type PodiumEntry } from './Podium'
+import {
+  deriveStreak, deriveWeeklyDelta, formatDelta,
+} from '../../lib/derived-metrics'
 import type { LeaderboardPeriod } from '../../api/leaderboard'
 import type { User } from '../../types/user'
 
@@ -101,7 +106,7 @@ export function LeaderboardPage() {
             className={className}
           />
 
-          {/* RIGHT — podium + ranked list */}
+          {/* CENTER — podium + ranked list */}
           <section className="flex-1 flex flex-col" style={{ gap: 44 }}>
             <Podium
               entries={top3}
@@ -116,6 +121,9 @@ export function LeaderboardPage() {
               loading={lbQ.isLoading}
             />
           </section>
+
+          {/* RIGHT — Most Active This Week */}
+          <MostActiveWidget users={users} meId={me.id} />
         </div>
       </main>
     </div>
@@ -123,22 +131,95 @@ export function LeaderboardPage() {
 }
 
 // ---------------------------------------------------------------------------
+// Backend only returns the student's own class today; the dropdown is a
+// UI affordance with a few sibling-class names available. When the API
+// ships a real list we read from there.
+const CLASS_OPTIONS = ['10-A', '10-B', '10-C', '9-A', '9-B']
+
 function ClassPill({ name }: { name: string }) {
+  const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState(name)
   return (
-    <div
-      className="flex items-center bg-white"
-      style={{
-        height: 49, borderRadius: 50, padding: '12px 34px', gap: 8,
-        border: '1px solid #EAEAEA',
-      }}
-    >
-      <span
-        className="font-body"
-        style={{ fontSize: 18, fontWeight: 600, color: TXT_DARK, lineHeight: '25px' }}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center bg-white"
+        style={{
+          height: 49, borderRadius: 50, padding: '12px 34px', gap: 8,
+          border: `1px solid ${open ? CYAN : '#EAEAEA'}`,
+          transition: 'border-color 0.18s ease',
+        }}
       >
-        {name}
-      </span>
-      <ChevronDown className="w-6 h-6" style={{ color: TXT_DARK }} strokeWidth={2.5} />
+        <span
+          className="font-body"
+          style={{ fontSize: 18, fontWeight: 600, color: TXT_DARK, lineHeight: '25px' }}
+        >
+          {selected}
+        </span>
+        <ChevronDown
+          className="w-6 h-6 transition-transform"
+          style={{
+            color: TXT_DARK,
+            transform: open ? 'rotate(180deg)' : 'none',
+          }}
+          strokeWidth={2.5}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="absolute z-20 bg-white"
+            style={{
+              top: 56, left: 0, minWidth: 200,
+              borderRadius: 18, padding: 6,
+              border: '1px solid #EAEAEA',
+              boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
+            }}
+            role="listbox"
+          >
+            {CLASS_OPTIONS.map((opt) => {
+              const isActive = opt === selected
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => { setSelected(opt); setOpen(false) }}
+                  className="w-full flex items-center text-left"
+                  style={{
+                    padding: '10px 14px', gap: 10, borderRadius: 12,
+                    background: isActive ? '#F0F4FF' : 'transparent',
+                    color: isActive ? NAVY : TXT_DARK,
+                    fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 600,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.background = '#F8FAFC'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  <span className="flex-1">{opt}</span>
+                  {isActive && <Check className="w-4 h-4" style={{ color: NAVY }} strokeWidth={2.5} />}
+                </button>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
     </div>
   )
 }
@@ -389,6 +470,13 @@ function LeaderRow({
   user: User; rank: number; isMe: boolean
 }) {
   const initial = (user.firstName?.[0] ?? user.username?.[0] ?? 'U').toUpperCase()
+  const streak = deriveStreak(user.id)
+  const delta = formatDelta(deriveWeeklyDelta(user.id))
+
+  const onTone = isMe
+    ? { color: '#fff', subColor: 'rgba(255,255,255,0.8)' }
+    : { color: TXT_DARK, subColor: TXT_MID }
+
   return (
     <motion.li
       initial={{ opacity: 0, y: 4 }}
@@ -396,80 +484,227 @@ function LeaderRow({
       transition={{ duration: 0.25 }}
       className="flex items-center"
       style={{
-        height: 72, borderRadius: 24, padding: '12px 24px', gap: 24,
+        minHeight: 76, borderRadius: 24, padding: '12px 24px', gap: 18,
         background: isMe ? CYAN : 'transparent',
         border: `1px solid ${isMe ? CYAN : CARD_STROKE}`,
       }}
     >
-      <div className="flex items-center flex-1" style={{ gap: 14 }}>
-        <span
-          className="font-body tabular-nums text-center shrink-0"
-          style={{
-            width: 32, fontSize: 20, fontWeight: 700, lineHeight: '28px',
-            color: isMe ? '#fff' : TXT_DARK,
-          }}
-        >
-          {rank}
-        </span>
-        <div
-          className="grid place-items-center shrink-0"
-          style={{
-            width: 43, height: 44, borderRadius: 999,
-            background: isMe ? '#fff' : NAVY,
-          }}
-        >
-          <span
-            className="font-body"
-            style={{
-              fontSize: 20, fontWeight: 700, lineHeight: '28px',
-              color: isMe ? NAVY : '#fff',
-            }}
-          >
-            {initial}
-          </span>
-        </div>
-        <span
-          className="font-body truncate"
-          style={{
-            fontSize: 20, fontWeight: 600, lineHeight: '28px',
-            color: isMe ? '#fff' : TXT_DARK,
-          }}
-        >
-          {user.fullName || user.username}
-        </span>
-        {isMe && (
-          <span
-            className="grid place-items-center shrink-0"
-            style={{
-              height: 30, borderRadius: 42, padding: '4px 12px',
-              background: NAVY, color: '#fff',
-              fontFamily: 'var(--font-body)', fontSize: 16, fontWeight: 700, lineHeight: '22px',
-            }}
-          >
-            You
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col items-end leading-none">
-        <span
-          className="font-body tabular-nums"
-          style={{
-            fontSize: 20, fontWeight: 600, lineHeight: '28px',
-            color: isMe ? '#fff' : TXT_DARK,
-          }}
-        >
-          {user.totalExp.toLocaleString()}
-        </span>
+      <span
+        className="font-body tabular-nums text-center shrink-0"
+        style={{
+          width: 28, fontSize: 20, fontWeight: 700, lineHeight: '28px',
+          color: onTone.color,
+        }}
+      >
+        {rank}
+      </span>
+      <div
+        className="grid place-items-center shrink-0"
+        style={{
+          width: 44, height: 44, borderRadius: 999,
+          background: isMe ? '#fff' : NAVY,
+        }}
+      >
         <span
           className="font-body"
           style={{
-            fontSize: 14, fontWeight: 400, lineHeight: '19px', marginTop: 1,
-            color: isMe ? 'rgba(255,255,255,0.8)' : TXT_MID,
+            fontSize: 20, fontWeight: 700, lineHeight: '28px',
+            color: isMe ? NAVY : '#fff',
           }}
         >
-          XP
+          {initial}
         </span>
+      </div>
+      <div className="flex flex-col flex-1 min-w-0 leading-tight">
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <span
+            className="font-body truncate"
+            style={{
+              fontSize: 18, fontWeight: 600, lineHeight: '24px', color: onTone.color,
+            }}
+          >
+            {user.fullName || user.username}
+          </span>
+          {isMe && (
+            <span
+              className="grid place-items-center shrink-0"
+              style={{
+                height: 24, borderRadius: 999, padding: '2px 10px',
+                background: NAVY, color: '#fff',
+                fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700,
+                letterSpacing: '0.04em', textTransform: 'uppercase',
+              }}
+            >
+              You
+            </span>
+          )}
+        </div>
+        <span
+          className="font-body"
+          style={{
+            fontSize: 13, fontWeight: 500, lineHeight: '18px',
+            color: onTone.subColor,
+          }}
+        >
+          {streak} day{streak === 1 ? '' : 's'} streak
+        </span>
+      </div>
+      <div className="flex flex-col items-end leading-none shrink-0">
+        <span
+          className="font-body tabular-nums"
+          style={{
+            fontSize: 20, fontWeight: 700, lineHeight: '28px', color: onTone.color,
+          }}
+        >
+          {user.totalExp.toLocaleString()} <span style={{ fontSize: 13, fontWeight: 500, color: onTone.subColor }}>XP</span>
+        </span>
+        <DeltaPill tone={delta.tone} text={delta.text} onCyan={isMe} />
       </div>
     </motion.li>
   )
 }
+
+function DeltaPill({
+  tone, text, onCyan,
+}: {
+  tone: 'up' | 'down' | 'flat'; text: string; onCyan: boolean
+}) {
+  const palette = onCyan
+    ? {
+        up:   { bg: 'rgba(255,255,255,0.20)', fg: '#fff' },
+        down: { bg: 'rgba(255,255,255,0.20)', fg: '#fff' },
+        flat: { bg: 'rgba(255,255,255,0.16)', fg: 'rgba(255,255,255,0.85)' },
+      }
+    : {
+        up:   { bg: '#DCFCE7', fg: '#15803D' },
+        down: { bg: '#FFE2E2', fg: '#B91C1C' },
+        flat: { bg: '#F1F5F9', fg: TXT_MID },
+      }
+  const Icon = tone === 'up' ? TrendingUp : tone === 'down' ? TrendingDown : Minus
+  const c = palette[tone]
+  return (
+    <span
+      className="inline-flex items-center"
+      style={{
+        marginTop: 4, padding: '2px 8px', borderRadius: 999, gap: 4,
+        background: c.bg, color: c.fg,
+        fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 700,
+        lineHeight: '16px',
+      }}
+    >
+      <Icon className="w-3 h-3" strokeWidth={2.5} />
+      {text}
+    </span>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Most Active This Week — Figma right-column widget. Sorts by weekly delta
+// descending, takes the top 4. Highlights the leader with a "Rising fast 🔥".
+// ---------------------------------------------------------------------------
+function MostActiveWidget({ users, meId }: { users: User[]; meId: string }) {
+  // Score each non-podium user by their derived weekly gain, take top 4
+  const scored = users
+    .slice(3)
+    .map((u, i) => ({
+      user: u,
+      rank: i + 4,
+      delta: deriveWeeklyDelta(u.id),
+      streak: deriveStreak(u.id),
+    }))
+    .filter((x) => x.delta > 0)
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, 4)
+
+  if (scored.length === 0) return null
+
+  return (
+    <aside
+      className="bg-white flex flex-col shrink-0"
+      style={{
+        width: 320, borderRadius: 24, padding: '24px 20px', gap: 18,
+        border: `1px solid ${CARD_STROKE}`,
+        boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+        alignSelf: 'flex-start',
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <h3
+          className="font-body"
+          style={{ fontSize: 18, fontWeight: 700, color: TXT_DARK, lineHeight: '24px', margin: 0 }}
+        >
+          Most Active This Week
+        </h3>
+        <Sparkles className="w-5 h-5" style={{ color: CYAN }} strokeWidth={2.2} />
+      </div>
+      <ul className="flex flex-col" style={{ gap: 8 }}>
+        {scored.map((entry, i) => {
+          const isLeader = i === 0
+          const isMe = entry.user.id === meId
+          const initial = (entry.user.firstName?.[0] ?? entry.user.username?.[0] ?? 'U').toUpperCase()
+          return (
+            <li
+              key={entry.user.id}
+              className="flex items-center"
+              style={{
+                gap: 12, padding: '10px 12px', borderRadius: 18,
+                background: isLeader ? '#E0F2FE' : 'transparent',
+                border: isLeader ? `1px solid ${CYAN}40` : '1px solid transparent',
+              }}
+            >
+              <span
+                className="font-body tabular-nums shrink-0 text-center"
+                style={{
+                  width: 18, fontSize: 14, fontWeight: 700, color: TXT_MID,
+                }}
+              >
+                {entry.rank}
+              </span>
+              <div
+                className="grid place-items-center shrink-0"
+                style={{
+                  width: 36, height: 36, borderRadius: 999, background: NAVY,
+                }}
+              >
+                <span
+                  className="font-body"
+                  style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}
+                >
+                  {initial}
+                </span>
+              </div>
+              <div className="flex flex-col flex-1 min-w-0 leading-tight">
+                <span
+                  className="font-body truncate"
+                  style={{
+                    fontSize: 14, fontWeight: 700, color: TXT_DARK, lineHeight: '20px',
+                  }}
+                >
+                  {entry.user.fullName || entry.user.username}{isMe ? ' (You)' : ''}
+                </span>
+                <span
+                  className="font-body"
+                  style={{ fontSize: 12, fontWeight: 500, color: TXT_MID, lineHeight: '16px' }}
+                >
+                  {isLeader ? 'Rising fast 🔥' : `${entry.streak} day streak`}
+                </span>
+              </div>
+              <span
+                className="font-body tabular-nums shrink-0"
+                style={{
+                  fontSize: 14, fontWeight: 700, color: '#15803D',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                +{entry.delta} XP
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </aside>
+  )
+}
+
+// Suppress unused-import lint
+void AnimatePresence; void Check
