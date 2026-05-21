@@ -17,8 +17,8 @@
  *   Due     : bg #ffe7d7, text #ff8f3d
  *   Locked  : bg #f1f1f1, text #989ca5
  */
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronDown, ChevronUp, Lock, AlertTriangle,
@@ -75,11 +75,17 @@ const STATUS_CHIP: Record<ChapterStatus, { bg: string; fg: string; label: string
 export function SubjectListPage() {
   const navigate = useNavigate()
   const subjectsQ = useSubjects()
+  const [params] = useSearchParams()
   const [filter, setFilter] = useState<Filter>('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // Default the first subject to expanded once the data arrives.
+  // Default the first subject to expanded once the data arrives, but honour
+  // ?expand={subjectId} (used by the Home subject rail to deep-link).
   const subjects = subjectsQ.data ?? []
+  const expandFromUrl = params.get('expand')
+  useEffect(() => {
+    if (expandFromUrl) setExpandedId(expandFromUrl)
+  }, [expandFromUrl])
   const defaultExpanded = subjects[0]?.id ?? null
   const activeId = expandedId ?? defaultExpanded
 

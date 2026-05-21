@@ -117,7 +117,13 @@ function mockCheck(
 // ---------------------------------------------------------------------------
 
 function mockQuestionsForChapter(chapterId: string): Question[] {
-  const make = (i: number, text: string, opts: Array<{ t: string; c?: boolean }>): QuestionDTO => ({
+  const make = (
+    i: number,
+    text: string,
+    opts: Array<{ t: string; c?: boolean }>,
+    hint: string,
+    explanation: string,
+  ): QuestionDTO => ({
     id: `${chapterId}-q${i}`,
     question_text: text,
     question_type: 'mcq_single',
@@ -126,6 +132,8 @@ function mockQuestionsForChapter(chapterId: string): Question[] {
     is_active: true,
     is_hots: false,
     level: 1,
+    hint,
+    explanation,
     options: opts.map((o, idx) => ({
       id: `${chapterId}-q${i}-o${idx + 1}`,
       option_text: o.t,
@@ -135,24 +143,42 @@ function mockQuestionsForChapter(chapterId: string): Question[] {
   })
 
   return [
-    make(1, 'Which of the following best describes the topic of this chapter?', [
-      { t: 'A core idea you just learned', c: true },
-      { t: 'A topic from the next chapter' },
-      { t: 'A topic from an unrelated subject' },
-      { t: 'A topic that does not exist' },
-    ]),
-    make(2, 'Which statement is TRUE?', [
-      { t: 'The theory section covered no examples' },
-      { t: 'The theory section covered guided examples', c: true },
-      { t: 'There is no quiz after the theory' },
-      { t: 'You cannot revisit previous chapters' },
-    ]),
-    make(3, 'What should you do if you get a question wrong?', [
-      { t: 'Skip the chapter' },
-      { t: 'Stop using the app' },
-      { t: 'Read the explanation and try again', c: true },
-      { t: 'Restart the entire module' },
-    ]),
+    make(
+      1,
+      'Which of the following best describes the topic of this chapter?',
+      [
+        { t: 'A core idea you just learned', c: true },
+        { t: 'A topic from the next chapter' },
+        { t: 'A topic from an unrelated subject' },
+        { t: 'A topic that does not exist' },
+      ],
+      'Think back to the theory section you just read — the chapter is about the central concept it introduced, not anything from later chapters or other subjects.',
+      'The chapter introduces a core idea (the one you just read about in the theory section). Subsequent chapters and other subjects each have their own topics, and the chapter wouldn\'t exist at all if its topic didn\'t.',
+    ),
+    make(
+      2,
+      'Which statement is TRUE about how the theory section in this app is presented?',
+      [
+        { t: 'The theory section covered no examples' },
+        { t: 'The theory section covered guided examples', c: true },
+        { t: 'There is no quiz after the theory' },
+        { t: 'You cannot revisit previous chapters' },
+      ],
+      'Look at the structure of the chapter — what came right after the explanation of the concept?',
+      'Every chapter in GyanBuddy walks you through guided examples after the theory, then ends with a short quiz. You can also revisit previous chapters at any time from the journey page.',
+    ),
+    make(
+      3,
+      'What is the best thing to do if you get a question wrong?',
+      [
+        { t: 'Skip the chapter and move on' },
+        { t: 'Stop using the app' },
+        { t: 'Read the explanation and try again', c: true },
+        { t: 'Restart the entire module from scratch' },
+      ],
+      'GyanBuddy is built around learning from mistakes. What feature did the app surface the moment you got something wrong?',
+      'Getting a question wrong is the most valuable signal you have — read the explanation that appears, then try the question again. You earn 1 XP if you get it right on the second attempt.',
+    ),
   ].map(parseQuestion)
 }
 

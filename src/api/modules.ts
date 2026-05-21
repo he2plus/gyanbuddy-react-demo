@@ -99,14 +99,15 @@ function mockChaptersFor(moduleId: string): ModuleChapter[] {
     `Welcome to **${chapter}**. In this chapter you'll learn the core ideas, work through guided examples, and try a short quiz at the end. ` +
     `Take your time on the key principles below — they show up again in later chapters and on the assessment. ` +
     `If anything is unclear, you can revisit the previous chapters using the path on the left.`
+  // Five stages mirrors the Figma Life Processes journey layout exactly:
+  // intro (done) → building blocks (done) → hands-on (in progress, character
+  // stands here) → deeper dive (locked) → final project (locked + finish flag).
   const dtos: ModuleChapterDTO[] = [
-    c({ id: `${moduleId}-c1`, title: 'Introduction', order: 1, status: 'completed', theory: theory('Introduction') }),
-    c({ id: `${moduleId}-c2`, title: 'Building Blocks', order: 2, status: 'completed', theory: theory('Building Blocks') }),
-    c({ id: `${moduleId}-c3`, title: 'Key Principles', order: 3, status: 'completed', is_important: true, theory: theory('Key Principles') }),
-    c({ id: `${moduleId}-c4`, title: 'Hands-on Practice', order: 4, status: 'in_progress', is_important: true, theory: theory('Hands-on Practice') }),
-    c({ id: `${moduleId}-c5`, title: 'Deeper Dive', order: 5, status: 'not_started', theory: theory('Deeper Dive') }),
-    c({ id: `${moduleId}-c6`, title: 'Real-world Applications', order: 6, status: 'not_started', is_important: true, theory: theory('Real-world Applications') }),
-    c({ id: `${moduleId}-c7`, title: 'Final Project', order: 7, status: 'not_started', theory: theory('Final Project') }),
+    c({ id: `${moduleId}-c1`, title: 'Introduction',         order: 1, status: 'completed',   theory: theory('Introduction') }),
+    c({ id: `${moduleId}-c2`, title: 'Building Blocks',      order: 2, status: 'completed',   theory: theory('Building Blocks') }),
+    c({ id: `${moduleId}-c3`, title: 'Hands-on Practice',    order: 3, status: 'in_progress', is_important: true, theory: theory('Hands-on Practice') }),
+    c({ id: `${moduleId}-c4`, title: 'Deeper Dive',          order: 4, status: 'not_started', theory: theory('Deeper Dive') }),
+    c({ id: `${moduleId}-c5`, title: 'Final Project',        order: 5, status: 'not_started', theory: theory('Final Project') }),
   ]
   return dtos.map((dto) => parseChapter(dto, moduleId))
 }

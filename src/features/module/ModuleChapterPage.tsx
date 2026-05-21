@@ -369,14 +369,17 @@ function SnakePath({
   const N = chapters.length
 
   // Position each podium on a normalized 0..1 coordinate space.
-  // X snakes via sine; Y advances linearly. Platform width ≈ 14% of zone.
+  // For ≤5 stages we keep the path almost linear (matches the Figma Life
+  // Processes mock), with just enough sine to feel natural. For longer
+  // journeys we open up the amplitude so each platform stays distinct.
   const positions = useMemo(() => {
     if (N === 0) return [] as Array<{ x: number; y: number }>
+    const linear = N <= 5
+    const amplitude = linear ? 0.18 : 0.32
+    const humps = linear ? 1.0 : N <= 6 ? 1.5 : 2.0
     return chapters.map((_, i) => {
       const t = i / Math.max(1, N - 1)
-      // Sine snake with 2 humps for ≤6 chapters, 3 for more
-      const humps = N <= 6 ? 1.5 : 2.0
-      const x = 0.5 + 0.36 * Math.sin(t * Math.PI * 2 * humps)
+      const x = 0.5 + amplitude * Math.sin(t * Math.PI * 2 * humps)
       const y = t
       return { x, y }
     })

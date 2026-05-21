@@ -181,7 +181,7 @@ export function HomePage() {
             <SubjectRail
               subjects={subjectsQ.data ?? []}
               activeId={activeSubject?.id ?? null}
-              onPick={(id) => navigate(`/subjects/${id}`)}
+              onPick={(id) => navigate(`/subjects?expand=${id}`)}
             />
           </div>
         </div>
@@ -882,7 +882,7 @@ function SubjectRail({
   onPick: (id: string) => void
 }) {
   return (
-    <aside className="flex flex-col" style={{ width: 92, gap: 24 }}>
+    <aside className="flex flex-col" style={{ width: 96, gap: 20 }}>
       {subjects.map((s, i) => {
         const Icon = iconFor(s)
         const active = s.id === activeId
@@ -896,11 +896,11 @@ function SubjectRail({
             onClick={() => onPick(s.id)}
             className="grid place-items-center bg-white"
             style={{
-              width: 92, height: 72, borderRadius: 32,
-              padding: '10px 24px',
+              width: 96, height: 80, borderRadius: 28,
+              padding: 12,
               boxShadow: active
-                ? `0 0 0 2px ${accent}, 0 6px 16px rgba(0,0,0,0.08)`
-                : '0 2px 8px rgba(0,0,0,0.04)',
+                ? `0 0 0 2px ${accent}, 0 10px 22px rgba(0,0,0,0.10)`
+                : '0 4px 12px rgba(0,0,0,0.05)',
               border: active ? 'none' : `1px solid ${CARD_STROKE}`,
             }}
             initial={{ opacity: 0, x: 16 }}
@@ -909,31 +909,38 @@ function SubjectRail({
             whileHover={{ x: -4, transition: { duration: 0.18 } }}
             whileTap={{ scale: 0.97 }}
           >
-            <span
-              className="grid place-items-center"
-              style={{
-                width: 52, height: 52, borderRadius: 16,
-                background: `linear-gradient(135deg, ${accent}1A 0%, ${accent}06 100%)`,
-                color: accent,
-              }}
-            >
-              {pngFor(s) ? (
-                <img
-                  src={pngFor(s) as string} alt=""
-                  className="w-12 h-12 object-contain select-none"
-                  draggable={false}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              ) : s.logo ? (
-                <img
-                  src={s.logo} alt=""
-                  className="w-9 h-9 object-contain"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              ) : (
+            {/* Figma puts the icon directly in the 92x72 tile — no tinted
+                wrapper. We do the same. Subject-PNGs are 3D-rendered with
+                their own colours, so a background tint would just dull them. */}
+            {pngFor(s) ? (
+              <img
+                src={pngFor(s) as string} alt=""
+                draggable={false}
+                className="select-none"
+                style={{
+                  width: 56, height: 56, objectFit: 'contain',
+                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.08))',
+                }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : s.logo ? (
+              <img
+                src={s.logo} alt=""
+                style={{ width: 48, height: 48, objectFit: 'contain' }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <span
+                className="grid place-items-center"
+                style={{
+                  width: 52, height: 52, borderRadius: 16,
+                  background: `linear-gradient(135deg, ${accent}1A 0%, ${accent}06 100%)`,
+                  color: accent,
+                }}
+              >
                 <Icon className="w-7 h-7" strokeWidth={2} />
-              )}
-            </span>
+              </span>
+            )}
           </motion.button>
         )
       })}
