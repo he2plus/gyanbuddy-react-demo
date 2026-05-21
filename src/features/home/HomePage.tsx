@@ -85,6 +85,12 @@ const SUBJECT_PNG: Record<string, string> = {
   ENG:  '/images/figma/subj-6-english.png',
   HIS:  '/images/figma/subj-7-history.png',
   SAN:  '/images/figma/subj-8-sanskrit.png',
+  // Aliases the backend actually ships
+  MATHS:   '/images/figma/subj-5-maths.png',
+  SCI:     '/images/figma/subj-3-physics.png',
+  SCIENCE: '/images/figma/subj-3-physics.png',
+  ENGLISH: '/images/figma/subj-6-english.png',
+  HISTORY: '/images/figma/subj-7-history.png',
   // Fallbacks for other codes — pick a sensible neighbour by topic
   GEN:  '/images/figma/subj-2-biology.png',
 }

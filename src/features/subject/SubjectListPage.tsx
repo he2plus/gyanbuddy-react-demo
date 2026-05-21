@@ -51,6 +51,7 @@ const iconFor = (s: Subject): LucideIcon =>
 // collapsed subject row icon and as a fallback illustration for chapter
 // chips when there's no subject-specific chapter art.
 const SUBJECT_PNG: Record<string, string> = {
+  // Canonical Figma codes
   CHEM: '/images/figma/subj-1-chemistry.png',
   BIO:  '/images/figma/subj-2-biology.png',
   PHY:  '/images/figma/subj-3-physics.png',
@@ -59,6 +60,13 @@ const SUBJECT_PNG: Record<string, string> = {
   ENG:  '/images/figma/subj-6-english.png',
   HIS:  '/images/figma/subj-7-history.png',
   SAN:  '/images/figma/subj-8-sanskrit.png',
+  // Aliases the backend actually ships
+  MATHS: '/images/figma/subj-5-maths.png',
+  SCI:   '/images/figma/subj-3-physics.png',     // general Science → physics-themed
+  SCIENCE: '/images/figma/subj-3-physics.png',
+  ENGLISH: '/images/figma/subj-6-english.png',
+  HISTORY: '/images/figma/subj-7-history.png',
+  // Generic fallback
   GEN:  '/images/figma/subj-2-biology.png',
 }
 const subjectPngFor = (s: Subject): string | null =>

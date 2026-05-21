@@ -44,10 +44,14 @@ export type UserTestProgress = {
 
 export type TestDTO = {
   id?: string
+  /** Real backend: human-readable test name (e.g. "English 9-A") */
+  name?: string
   test_datetime?: string
   duration?: number | null
   class_group?: string
   class_group_name?: string
+  /** Real backend: array of class group refs */
+  class_groups?: Array<{ id: string; name: string }>
   subject?: string
   subject_name?: string
   subject_color?: string
@@ -56,6 +60,8 @@ export type TestDTO = {
   module_name?: string
   module_chapter?: string
   chapter_title?: string
+  /** Real backend: array of chapter titles included in the test */
+  module_chapters_summary?: string[]
   question_count?: number
   user_progress?: UserTestProgressDTO | null
   questions?: QuestionDTO[]
@@ -72,6 +78,8 @@ export type Test = {
   subjectLogo: string | null
   moduleName: string | null
   chapterTitle: string | null
+  /** Array of chapter titles included in this test (e.g. ["Grammar: Tenses", ...]) */
+  chapterTitles: string[]
   questionCount: number
   progress: UserTestProgress | null
   questions: Question[]
@@ -115,21 +123,38 @@ export function parseTest(dto: TestDTO): Test {
   const testDatetime = dto.test_datetime ?? new Date().toISOString()
   const progress = parseProgress(dto.user_progress)
   const endIso = new Date(new Date(testDatetime).getTime() + duration * 60_000).toISOString()
+  let subjectColor = dto.subject_color ?? null
+  if (subjectColor && !subjectColor.startsWith('#')) subjectColor = `#${subjectColor}`
+  const classGroupName =
+    dto.class_group_name ??
+    (Array.isArray(dto.class_groups) && dto.class_groups.length > 0
+      ? dto.class_groups.map((g) => g.name).join(', ')
+      : null)
+  const chapterTitles = Array.isArray(dto.module_chapters_summary)
+    ? dto.module_chapters_summary.filter((s): s is string => typeof s === 'string' && s.length > 0)
+    : []
+  // Prefer the real backend `name`, fall back through chapter / module / generic.
+  const title =
+    dto.name ??
+    dto.chapter_title ??
+    dto.module_name ??
+    (chapterTitles[0] ?? 'Test')
   return {
     id: String(dto.id ?? ''),
     testDatetime,
     durationMinutes: duration,
-    classGroupName: dto.class_group_name ?? null,
+    classGroupName,
     subjectId: dto.subject ? String(dto.subject) : null,
     subjectName: dto.subject_name ?? null,
-    subjectColor: dto.subject_color ?? null,
+    subjectColor,
     subjectLogo: dto.subject_logo ?? null,
     moduleName: dto.module_name ?? null,
-    chapterTitle: dto.chapter_title ?? null,
+    chapterTitle: dto.chapter_title ?? chapterTitles[0] ?? null,
+    chapterTitles,
     questionCount: dto.question_count ?? 0,
     progress,
     questions: (dto.questions ?? []).map(parseQuestion),
-    title: dto.chapter_title ?? dto.module_name ?? 'Test',
+    title,
     testEndTime: endIso,
     status: deriveStatus(testDatetime, duration, progress),
   }

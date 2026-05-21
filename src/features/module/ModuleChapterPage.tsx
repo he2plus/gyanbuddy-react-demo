@@ -36,6 +36,28 @@ const TXT_MID = '#545454'
 const TXT_MUTED = '#989CA5'
 const SURFACE_BG = '#FAFAFA'
 
+// Subject illustration map — same one used on the Subjects list. We look it
+// up here so the topic-preview card renders the *actual* subject art instead
+// of a generic placeholder.
+const SUBJECT_PNG: Record<string, string> = {
+  CHEM: '/images/figma/subj-1-chemistry.png',
+  BIO:  '/images/figma/subj-2-biology.png',
+  PHY:  '/images/figma/subj-3-physics.png',
+  GEO:  '/images/figma/subj-4-geography.png',
+  MATH: '/images/figma/subj-5-maths.png',
+  ENG:  '/images/figma/subj-6-english.png',
+  HIS:  '/images/figma/subj-7-history.png',
+  SAN:  '/images/figma/subj-8-sanskrit.png',
+  MATHS: '/images/figma/subj-5-maths.png',
+  SCI:   '/images/figma/subj-3-physics.png',
+  SCIENCE: '/images/figma/subj-3-physics.png',
+  ENGLISH: '/images/figma/subj-6-english.png',
+  HISTORY: '/images/figma/subj-7-history.png',
+  GEN:  '/images/figma/subj-2-biology.png',
+}
+const subjectPngForCode = (code: string | null | undefined): string | null =>
+  code ? (SUBJECT_PNG[code.toUpperCase()] ?? null) : null
+
 // ---------------------------------------------------------------------------
 export function ModuleChapterPage() {
   const params = useParams<Params>()
@@ -94,6 +116,7 @@ export function ModuleChapterPage() {
             overallPct={overallPct}
             currentChapter={currentChapter}
             isLoading={isLoading}
+            subjectCode={subjectQ.data?.code ?? null}
             onStart={() => currentChapter && goToChapter(currentChapter.id)}
           />
 
@@ -198,7 +221,7 @@ export function ModuleChapterPage() {
 // Start button. Mirrors Figma Frame 37 (500 × 622).
 // ---------------------------------------------------------------------------
 function TopicPreviewCard({
-  module, chapters, completedCount, overallPct, currentChapter, isLoading, onStart,
+  module, chapters, completedCount, overallPct, currentChapter, isLoading, subjectCode, onStart,
 }: {
   module: Module | null
   chapters: ModuleChapter[]
@@ -206,6 +229,7 @@ function TopicPreviewCard({
   overallPct: number
   currentChapter: ModuleChapter | null
   isLoading: boolean
+  subjectCode: string | null
   onStart: () => void
 }) {
   if (isLoading || !module) {
@@ -220,6 +244,7 @@ function TopicPreviewCard({
   // Topic 1 index — currentChapter's order is 1-based
   const topicNum = currentChapter?.order ?? 1
   const overdueText = formatOverdue(currentChapter)
+  const illustration = subjectPngForCode(subjectCode)
 
   return (
     <motion.section
@@ -232,7 +257,8 @@ function TopicPreviewCard({
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* Illustration zone — placeholder gradient with floating shape */}
+      {/* Illustration zone — real subject art, falls back to a tinted ball
+          if the subject's code isn't in our PNG map. */}
       <div
         className="grid place-items-center relative overflow-hidden"
         style={{
@@ -240,15 +266,27 @@ function TopicPreviewCard({
           background: 'radial-gradient(circle at 50% 30%, rgba(26,188,254,0.18), rgba(124,58,237,0.06) 60%, transparent 80%)',
         }}
       >
-        <motion.div
-          style={{
-            width: 130, height: 130, borderRadius: 999,
-            background: `radial-gradient(circle at 32% 28%, #34D5FF 0%, ${CYAN} 50%, #0A95D4 100%)`,
-            boxShadow: `0 12px 28px ${CYAN}55, inset 0 -8px 12px rgba(0,0,0,0.12), inset 0 6px 12px rgba(255,255,255,0.30)`,
-          }}
-          animate={{ y: [0, -8, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        />
+        {illustration ? (
+          <motion.img
+            src={illustration}
+            alt=""
+            draggable={false}
+            className="select-none"
+            style={{ maxHeight: 200, width: 'auto', filter: 'drop-shadow(0 14px 30px rgba(0,22,122,0.18))' }}
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ) : (
+          <motion.div
+            style={{
+              width: 130, height: 130, borderRadius: 999,
+              background: `radial-gradient(circle at 32% 28%, #34D5FF 0%, ${CYAN} 50%, #0A95D4 100%)`,
+              boxShadow: `0 12px 28px ${CYAN}55, inset 0 -8px 12px rgba(0,0,0,0.12), inset 0 6px 12px rgba(255,255,255,0.30)`,
+            }}
+            animate={{ y: [0, -8, 0] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
       </div>
 
       {/* Title + topic count + progress */}
@@ -368,19 +406,27 @@ function SnakePath({
 }) {
   const N = chapters.length
 
-  // Position each podium on a normalized 0..1 coordinate space.
-  // For ≤5 stages we keep the path almost linear (matches the Figma Life
-  // Processes mock), with just enough sine to feel natural. For longer
-  // journeys we open up the amplitude so each platform stays distinct.
+  // Position each podium on a normalised 0..1 coordinate space.
+  //
+  // Goals:
+  //   - Always alternate sides so adjacent stages never stack vertically.
+  //   - Keep y inside [0.08, 0.88] so the first stage doesn't get cut off
+  //     by the journey header and the last doesn't collide with the bottom
+  //     "Let's start with X" CTA.
+  //   - Work for N = 1, 2, 3, 4, 5+. Previous version assumed N ≥ 5 and
+  //     collapsed both stages to x=0.5 when N=2 (sin(0) = sin(2π) = 0).
   const positions = useMemo(() => {
     if (N === 0) return [] as Array<{ x: number; y: number }>
-    const linear = N <= 5
-    const amplitude = linear ? 0.18 : 0.32
-    const humps = linear ? 1.0 : N <= 6 ? 1.5 : 2.0
+    if (N === 1) return [{ x: 0.5, y: 0.5 }]
+    const Y_TOP = 0.08
+    const Y_BOTTOM = 0.88
+    const amplitude = N <= 3 ? 0.28 : N <= 5 ? 0.30 : 0.34
     return chapters.map((_, i) => {
-      const t = i / Math.max(1, N - 1)
-      const x = 0.5 + amplitude * Math.sin(t * Math.PI * 2 * humps)
-      const y = t
+      const yFrac = i / (N - 1)
+      const y = Y_TOP + yFrac * (Y_BOTTOM - Y_TOP)
+      // Alternate left / right with a smooth cosine so the connecting
+      // bezier path reads as a real snake instead of zig-zag teeth.
+      const x = 0.5 + amplitude * Math.cos(i * Math.PI)
       return { x, y }
     })
   }, [chapters, N])

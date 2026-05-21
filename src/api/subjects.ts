@@ -33,9 +33,21 @@ export async function getSubjectById(id: string): Promise<Subject> {
     if (found) return parseSubject(found)
     throw new Error('Subject not found (mock)')
   }
-  const { data: envelope } = await api.get<ApiEnvelope<SubjectDTO>>(`/subjects/${id}/`)
-  if (!envelope.success || !envelope.data) {
-    throw new Error(envelope.message || 'Failed to load subject')
+  // DRF detail endpoint returns the object directly (NO {success, data}
+  // envelope), unlike the list endpoint which IS wrapped. Handle both shapes.
+  const { data } = await api.get<SubjectDTO | ApiEnvelope<SubjectDTO>>(
+    `/subjects/${id}/`,
+  )
+  const maybeEnvelope = data as Partial<ApiEnvelope<SubjectDTO>>
+  if (maybeEnvelope.success === false) {
+    throw new Error(maybeEnvelope.message || 'Failed to load subject')
   }
-  return parseSubject(envelope.data)
+  const dto: SubjectDTO | undefined =
+    maybeEnvelope.success === true && maybeEnvelope.data
+      ? maybeEnvelope.data
+      : (data as SubjectDTO)
+  if (!dto || !(dto as { id?: unknown }).id) {
+    throw new Error('Failed to load subject')
+  }
+  return parseSubject(dto)
 }
