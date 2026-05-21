@@ -5,8 +5,13 @@
  * carrying a `data` blob (title / body / type / etc.) plus delivery metadata
  * (is_read, created_at). This file flattens that into a clean Notification
  * shape the UI can render directly.
+ *
+ * Mock-aware: when VITE_DEV_MOCK_AUTH=true AND the caller has the mock
+ * token, returns a rich set of fixture notifications so the Vercel demo
+ * shows a populated bell instead of a "Failed to load" error.
  */
 import { api } from './client'
+import { isMockSessionActive } from './modules'
 
 export type NotificationKind =
   | 'achievement'
@@ -132,6 +137,7 @@ function parseOne(w: WireNotification): Notification {
 }
 
 export async function getNotifications(): Promise<Notification[]> {
+  if (isMockSessionActive()) return mockNotifications()
   const { data: envelope } = await api.get<WireEnvelope>('/notifications/')
   if (envelope?.success === false) {
     throw new Error(envelope.message || 'Failed to load notifications')
@@ -140,6 +146,7 @@ export async function getNotifications(): Promise<Notification[]> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
+  if (isMockSessionActive()) return  // optimistic UI flip only
   // Endpoint name guessed from the DRF action naming convention; if it
   // isn't there we silently no-op rather than break the UX.
   try {
@@ -147,4 +154,85 @@ export async function markAllNotificationsRead(): Promise<void> {
   } catch {
     // best-effort; the local UI still flips state optimistically
   }
+}
+
+// ---------------------------------------------------------------------------
+// Mock fixtures — 7 notifications spanning every kind so the bell is fully
+// populated on the Vercel demo where there's no backend to call.
+// ---------------------------------------------------------------------------
+function mockNotifications(): Notification[] {
+  const now = Date.now()
+  const mins = (m: number) => new Date(now - m * 60_000)
+  return [
+    {
+      id: 'demo-n1',
+      kind: 'achievement',
+      title: '🏆 New personal best!',
+      body: "You crossed 1500 XP today. Three more chapters and you'll hit Level 4.",
+      createdAt: mins(8),
+      read: false,
+      rawType: 'level_up',
+      targetId: null,
+    },
+    {
+      id: 'demo-n2',
+      kind: 'mission',
+      title: '🎯 New mission unlocked',
+      body: 'Daily Chemistry Challenge is ready — 5 quick questions to keep the streak.',
+      createdAt: mins(35),
+      read: false,
+      rawType: 'mission_created',
+      targetId: 'm-1',
+    },
+    {
+      id: 'demo-n3',
+      kind: 'test',
+      title: '📝 Upcoming test',
+      body: 'Physics Mid-term is in 2 days. Tap to start preparing now.',
+      createdAt: mins(2 * 60 + 15),
+      read: false,
+      rawType: 'test_created',
+      targetId: 't-2',
+    },
+    {
+      id: 'demo-n4',
+      kind: 'leaderboard',
+      title: '📈 You moved up 2 ranks',
+      body: "You're now #3 in Class 10-C this week. Two more correct answers to overtake Rohan.",
+      createdAt: mins(4 * 60),
+      read: false,
+      rawType: 'rank_change',
+      targetId: null,
+    },
+    {
+      id: 'demo-n5',
+      kind: 'chapter',
+      title: '📚 Chapter completed',
+      body: 'Chemistry · Foundations · Building Blocks — well done. Hands-on Practice is next.',
+      createdAt: mins(6 * 60),
+      read: true,
+      rawType: 'chapter_complete',
+      targetId: null,
+    },
+    {
+      id: 'demo-n6',
+      kind: 'mission',
+      title: '🔥 Streak alert',
+      body: "You've kept a 12-day streak. Finish today's mission to stretch it to 13.",
+      createdAt: mins(18 * 60),
+      read: true,
+      rawType: 'mission_reminder',
+      targetId: null,
+    },
+    {
+      id: 'demo-n7',
+      kind: 'test',
+      title: '✅ Test result published',
+      body: 'Mathematics test result is out — you scored 86%. Top of the class on Linear Equations.',
+      createdAt: mins(30 * 60),
+      read: true,
+      rawType: 'test_result',
+      targetId: 't-3',
+    },
+  ]
 }
