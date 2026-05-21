@@ -29,9 +29,12 @@ const TXT_MUTED = '#989CA5'
 export function TopBar({
   pageTitle,
   testCount = 0,
+  hideBack = false,
 }: {
   pageTitle: string
   testCount?: number
+  /** Force the back arrow off (Leaderboard frame in Figma has none). */
+  hideBack?: boolean
 }) {
   const me = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -44,8 +47,9 @@ export function TopBar({
   // the real fix lives inside NavDrawer, but a stable handle never hurts).
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
 
-  // Show a back arrow on every page except the root /home.
-  const showBack = location.pathname !== '/home'
+  // Show a back arrow on every page except the root /home, unless explicitly
+  // suppressed by the page (some Figma frames don't render one).
+  const showBack = !hideBack && location.pathname !== '/home'
   const goBack = () => {
     if (window.history.state && window.history.length > 1) {
       navigate(-1)
