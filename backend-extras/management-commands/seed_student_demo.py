@@ -324,6 +324,7 @@ class Command(BaseCommand):
         self._level_chapter_progress(accounts, subjects)
         self._seed_daily_missions(accounts, subjects)
         self._seed_notifications(accounts, subjects)
+        self._dedup_answer_rows()
 
         self.stdout.write(self.style.SUCCESS(
             "\n✔  Student demo data layered.\n"
@@ -587,6 +588,39 @@ class Command(BaseCommand):
                             },
                         )
         self.stdout.write(f"    {created} mission(s) created (idempotent across re-runs).")
+
+    def _dedup_answer_rows(self):
+        """
+        The backend's `check_answer` view uses Answer.objects.get_or_create()
+        keyed on (user, question), which throws MultipleObjectsReturned ->
+        HTTP 500 if duplicate Answer rows exist. Running seed_test_data
+        twice (without --flush in between) produces exactly that situation
+        because the seed isn't idempotent on Answer creation.
+
+        Defensive cleanup: for every (user, question) pair with >1 Answer
+        row, keep the most recent and delete the rest. Safe to run any
+        number of times.
+        """
+        self.stdout.write("  • De-duplicating Answer rows (defence vs. backend 500)…")
+        from gyaan_buddy.subjects.models import Answer
+        from django.db.models import Count
+        dups = (
+            Answer.objects
+            .values('user_id', 'question_id')
+            .annotate(c=Count('id'))
+            .filter(c__gt=1)
+        )
+        deleted = 0
+        for d in dups:
+            rows = list(
+                Answer.objects
+                .filter(user_id=d['user_id'], question_id=d['question_id'])
+                .order_by('-created_at')
+            )
+            for r in rows[1:]:
+                r.delete()
+                deleted += 1
+        self.stdout.write(f"    {deleted} duplicate Answer row(s) removed.")
 
     def _seed_notifications(
         self, accounts: dict[str, Account], subjects: list[Subject],
