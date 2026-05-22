@@ -153,8 +153,11 @@ export function ModuleChapterPage() {
               </p>
             </header>
 
-            {/* Path zone */}
-            <div className="flex-1 relative" style={{ minHeight: 480 }}>
+            {/* Path zone — minHeight matches the snake-path's intrinsic
+                height so the absolutely-positioned platforms (including
+                the FINISH-flag last platform with its name label) always
+                fit without overlapping the bottom CTA. */}
+            <div className="flex-1 relative" style={{ minHeight: 620 }}>
               {isLoading && <LoadingPath />}
               {isError && (
                 <ErrorState
@@ -419,16 +422,19 @@ function SnakePath({
   //
   // Goals:
   //   - Always alternate sides so adjacent stages never stack vertically.
-  //   - Keep y inside [0.08, 0.88] so the first stage doesn't get cut off
-  //     by the journey header and the last doesn't collide with the bottom
-  //     "Let's start with X" CTA.
+  //   - Keep y inside [0.06, 0.80] so the FIRST stage doesn't get clipped
+  //     by the journey header and the LAST stage (FINISH flag + name
+  //     label below it) doesn't extend past the container bottom and
+  //     overlap the "Let's start with X" CTA bar. The old 0.08-0.88
+  //     range left only ~12% headroom which a 150-180px tall platform
+  //     could blow through. 0.80 leaves a full 100px+ of breathing room.
   //   - Work for N = 1, 2, 3, 4, 5+. Previous version assumed N ≥ 5 and
   //     collapsed both stages to x=0.5 when N=2 (sin(0) = sin(2π) = 0).
   const positions = useMemo(() => {
     if (N === 0) return [] as Array<{ x: number; y: number }>
     if (N === 1) return [{ x: 0.5, y: 0.5 }]
-    const Y_TOP = 0.08
-    const Y_BOTTOM = 0.88
+    const Y_TOP = 0.06
+    const Y_BOTTOM = 0.80
     const amplitude = N <= 3 ? 0.28 : N <= 5 ? 0.30 : 0.34
     return chapters.map((_, i) => {
       const yFrac = i / (N - 1)
@@ -440,11 +446,12 @@ function SnakePath({
     })
   }, [chapters, N])
 
-  // Build SVG path connecting podium centres
+  // Build SVG path connecting podium centres. Height matches the
+  // container below so the curve scales with viewBox preservation.
   const pathD = useMemo(() => {
     if (positions.length < 2) return ''
     const w = 988
-    const h = 520
+    const h = 600
     const pts = positions.map((p) => ({ x: p.x * w, y: p.y * h }))
     let d = `M ${pts[0].x} ${pts[0].y}`
     for (let i = 0; i < pts.length - 1; i++) {
@@ -456,10 +463,10 @@ function SnakePath({
   }, [positions])
 
   return (
-    <div className="relative w-full" style={{ height: 520 }}>
+    <div className="relative w-full" style={{ height: 600 }}>
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none"
-        viewBox="0 0 988 520" preserveAspectRatio="none"
+        viewBox="0 0 988 600" preserveAspectRatio="none"
         aria-hidden="true"
       >
         <path
