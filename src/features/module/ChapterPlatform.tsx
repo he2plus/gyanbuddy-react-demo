@@ -57,10 +57,15 @@ export function ChapterPlatform({
   const src = assetFor(chapter, isFirst, isLast, hasCharacter)
   const interactive = !!onClick && (chapter.isInProgress || chapter.isCompleted || isFirst)
 
-  // Always use motion.button so the union typing stays simple. When the
-  // chapter is locked we just disable the button + drop the click handler.
+  // The wrapper's HEIGHT must equal the platform image's height (no label
+  // contributing to the layout box) — that way SnakePath's
+  // `transform: translate(-50%, -50%)` puts the IMAGE's centre on the
+  // path point, and the dashed snake actually appears to pass through
+  // the pedestal. The name label is absolutely-positioned below the
+  // image, so it floats outside the centred hit area and never pulls
+  // the geometric centre upward.
   return (
-    <div className="flex flex-col items-center" style={{ width: '100%' }}>
+    <div className="relative" style={{ width: '100%' }}>
       <motion.button
         type="button"
         onClick={interactive ? onClick : undefined}
@@ -83,15 +88,20 @@ export function ChapterPlatform({
         />
       </motion.button>
 
-      {/* Label below the platform */}
+      {/* Label — absolutely-positioned below the image so it doesn't
+          inflate the parent's bounding box. */}
       <div
         className="font-body text-center"
         style={{
-          marginTop: 6, maxWidth: 160,
+          position: 'absolute',
+          top: '100%', left: '50%', transform: 'translateX(-50%)',
+          marginTop: 6,
+          width: 'max-content', maxWidth: 180,
           fontSize: 14, fontWeight: 700, lineHeight: '18px',
           color: chapter.isCompleted ? '#22D3A0'
                : chapter.isInProgress ? '#00167A'
                : '#989CA5',
+          pointerEvents: 'none',
         }}
       >
         {chapter.name}

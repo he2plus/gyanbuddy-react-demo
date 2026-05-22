@@ -492,6 +492,12 @@ function SnakePath({
             style={{
               left: `${p.x * 100}%`,
               top:  `${p.y * 100}%`,
+              // translate(-50%, -50%) on a wrapper whose HEIGHT equals
+              // the platform IMAGE (the name label is absolutely-
+              // positioned in ChapterPlatform, so it doesn't inflate
+              // the wrapper's bounding box). Result: the image's
+              // visual centre lands on the path point, and the dashed
+              // snake appears to weave through the pedestals.
               transform: 'translate(-50%, -50%)',
               width: `${w}%`,
               maxWidth: 200,
