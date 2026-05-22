@@ -495,19 +495,15 @@ function PodiumCard({
         boxShadow: '0 18px 36px rgba(0,22,122,0.18)',
       }}
     >
-      {/* Hero illustration — natural aspect ratio of the PNG (~600x400,
-          all three pedestals + trophy + names visible). object-fit:
-          contain inside a flexible-height container lets the image scale
-          with the card width but never crop. */}
-      <div className="relative w-full grid place-items-center" style={{ padding: '12px 12px 0' }}>
-        <img
-          src="/images/figma/leaderboard-podium.png"
-          alt=""
-          className="block w-full h-auto select-none"
-          draggable={false}
-          style={{ maxWidth: 540 }}
-        />
-      </div>
+      {/* Hero podium — DYNAMICALLY rendered from the live top-3 so the
+          names above each pedestal always match the ranked list below.
+          (Previously we used a static PNG with names baked in — Tanishq /
+          Naman / Girish — which clashed with the actual data.) */}
+      <PodiumHero
+        first={users[0] ?? null}
+        second={users[1] ?? null}
+        third={users[2] ?? null}
+      />
 
       {/* Ranked-list panel — sits BELOW the image (no negative margin
           overlap any more, that was hiding pedestals #2 and #3). */}
@@ -552,6 +548,162 @@ function PodiumCard({
         )}
       </div>
     </motion.section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// PodiumHero — top-3 visualisation, fully driven by live data.
+//
+// Layout (left→right): #2 silver, #1 gold (taller, with floating trophy),
+// #3 bronze. Pedestals are cream-coloured with cyan rank numbers — matches
+// the Figma art direction without baking student names into a PNG.
+// ---------------------------------------------------------------------------
+function PodiumHero({
+  first, second, third,
+}: {
+  first: User | null; second: User | null; third: User | null
+}) {
+  return (
+    <div
+      className="relative w-full overflow-hidden"
+      style={{
+        padding: '28px 16px 0',
+        // Subtle radial "spotlight" so the navy backdrop has depth
+        background:
+          'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.10), transparent 55%)',
+      }}
+    >
+      <div
+        className="relative grid items-end mx-auto"
+        style={{
+          maxWidth: 480,
+          gridTemplateColumns: '1fr 1.2fr 1fr',
+          gap: 8,
+          minHeight: 280,
+        }}
+      >
+        <PodiumColumn rank={2} user={second} />
+        <PodiumColumn rank={1} user={first} />
+        <PodiumColumn rank={3} user={third} />
+      </div>
+    </div>
+  )
+}
+
+const PEDESTAL_HEIGHTS: Record<1 | 2 | 3, number> = { 1: 140, 2: 100, 3: 76 }
+const PEDESTAL_GRADIENT = 'linear-gradient(180deg, #E8E5DC 0%, #BFBAB0 100%)'
+const PEDESTAL_FACE = 'linear-gradient(180deg, #F2EFE7 0%, #CFCAC0 100%)'
+const RANK_NUMBER_COLOUR = '#5FD4FF'
+
+function PodiumColumn({ rank, user }: { rank: 1 | 2 | 3; user: User | null }) {
+  const initial = (user?.firstName?.[0] ?? user?.username?.[0] ?? '·').toUpperCase()
+  const isLeader = rank === 1
+  const pedestalH = PEDESTAL_HEIGHTS[rank]
+  const avatarSize = isLeader ? 64 : 52
+  return (
+    <div className="flex flex-col items-center" style={{ gap: 8 }}>
+      {/* Trophy floats above #1 */}
+      {isLeader && (
+        <motion.div
+          animate={{ y: [0, -3, 0] }}
+          transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+          aria-hidden="true"
+        >
+          <svg width="68" height="64" viewBox="0 0 68 64" fill="none">
+            {/* Cup body */}
+            <path
+              d="M18 8 H50 V28 C50 38 42 46 34 46 C26 46 18 38 18 28 Z"
+              fill="#F5B400"
+              stroke="#B97A00"
+              strokeWidth="2"
+            />
+            {/* Highlight on the cup */}
+            <path d="M22 12 H30 V22 C30 22 28 26 24 26 C20 26 22 14 22 12 Z" fill="#FFD24A" opacity="0.6" />
+            {/* Left handle */}
+            <path d="M18 14 C10 14 10 28 18 28" stroke="#B97A00" strokeWidth="4" fill="none" strokeLinecap="round" />
+            {/* Right handle */}
+            <path d="M50 14 C58 14 58 28 50 28" stroke="#B97A00" strokeWidth="4" fill="none" strokeLinecap="round" />
+            {/* Stem */}
+            <rect x="32" y="46" width="4" height="8" fill="#B97A00" />
+            {/* Base */}
+            <rect x="22" y="54" width="24" height="6" rx="1" fill="#B97A00" />
+          </svg>
+        </motion.div>
+      )}
+
+      {/* Spacer so #2 and #3 align nicely under the trophy zone */}
+      {!isLeader && <div aria-hidden style={{ height: 28 }} />}
+
+      {/* Name (above pedestal) */}
+      <span
+        className="font-body text-center"
+        style={{
+          fontSize: isLeader ? 14 : 13,
+          fontWeight: 700,
+          color: '#fff',
+          lineHeight: '18px',
+          minHeight: 36,
+          maxWidth: '100%',
+          padding: '0 4px',
+        }}
+      >
+        {user
+          ? (user.fullName || user.username).split(' ').slice(0, 2).join(' ')
+          : '—'}
+      </span>
+
+      {/* Avatar */}
+      <div
+        className="grid place-items-center"
+        style={{
+          width: avatarSize, height: avatarSize, borderRadius: 999,
+          background: '#fff',
+          border: '3px solid rgba(255,255,255,0.4)',
+          marginBottom: 4,
+          color: NAVY,
+          fontFamily: 'var(--font-body)',
+          fontSize: isLeader ? 24 : 20, fontWeight: 800,
+          boxShadow: '0 6px 14px rgba(0,0,0,0.25)',
+        }}
+      >
+        {user?.profilePicture ? (
+          <img
+            src={user.profilePicture}
+            alt=""
+            className="w-full h-full rounded-full object-cover"
+          />
+        ) : (
+          initial
+        )}
+      </div>
+
+      {/* Pedestal — cream block with big cyan rank number */}
+      <div
+        className="relative w-full grid place-items-start justify-center"
+        style={{
+          height: pedestalH,
+          background: PEDESTAL_GRADIENT,
+          borderTopLeftRadius: 10, borderTopRightRadius: 10,
+          paddingTop: 12,
+          boxShadow:
+            'inset 0 -12px 0 rgba(0,0,0,0.10), inset 6px 0 0 rgba(255,255,255,0.20)',
+          backgroundImage: PEDESTAL_FACE,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-numeric)',
+            fontSize: isLeader ? 56 : 44,
+            fontWeight: 900,
+            color: RANK_NUMBER_COLOUR,
+            lineHeight: 1,
+            textShadow: '0 2px 4px rgba(0,0,0,0.18)',
+          }}
+        >
+          {rank}
+        </span>
+      </div>
+    </div>
   )
 }
 
