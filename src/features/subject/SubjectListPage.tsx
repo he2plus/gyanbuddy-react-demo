@@ -121,7 +121,13 @@ export function SubjectListPage() {
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
       <TopBar pageTitle="Subject" testCount={1} />
 
-      <main className="mx-auto" style={{ maxWidth: 1920, padding: '50px 120px 80px' }}>
+      <main
+        className="mx-auto w-full"
+        style={{
+          maxWidth: 1920,
+          padding: 'clamp(24px, 3vw, 50px) clamp(16px, 4vw, 120px) clamp(40px, 5vw, 80px)',
+        }}
+      >
         {/* Filter chip row — search bar intentionally omitted per directive #5 */}
         <FilterChipRow active={filter} onChange={setFilter} />
 

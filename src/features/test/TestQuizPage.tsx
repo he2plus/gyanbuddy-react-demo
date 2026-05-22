@@ -81,7 +81,7 @@ export function TestQuizPage() {
               questions={questionsQ.data ?? test.questions ?? []}
               onExit={async () => {
                 await completeTest(testId).catch(() => undefined)
-                back()
+                navigate('/leaderboard')
               }}
             />
           </>

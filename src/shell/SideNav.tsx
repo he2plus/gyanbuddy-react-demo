@@ -24,7 +24,7 @@ const items = [
   { to: '/subjects', label: 'Subjects', icon: BookOpen, end: true },
   { to: '/missions', label: 'Missions', icon: Target, end: true },
   { to: '/tests', label: 'Tests', icon: ClipboardList, end: true },
-  { to: '/leaderboard', label: 'Leaderboard', icon: Trophy, end: true },
+  { to: '/podium', label: 'Leaderboard', icon: Trophy, end: true },
   { to: '/notifications', label: 'Notifications', icon: Bell, end: true },
   { to: '/profile', label: 'Profile', icon: User, end: true },
   { to: '/credits', label: 'Credits', icon: CreditCard, end: true },

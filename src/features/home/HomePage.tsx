@@ -105,10 +105,24 @@ export function HomePage() {
   const lbQ = useLeaderboard({ period: 'all-time', limit: 25 })
   const subjectsQ = useSubjects()
 
-  const activeSubject = useMemo(() => {
+  // Subject the user has TAPPED in the rail. When unset, we fall back to
+  // the "default" subject (first one with a due module, else first of all).
+  // This lets the rail behave like a tab switcher — clicking any subject
+  // swaps the ActiveSubjectCard + chapter preview IN PLACE, no navigation.
+  const [pickedSubjectId, setPickedSubjectId] = useState<string | null>(null)
+
+  const defaultSubject = useMemo(() => {
     const data = subjectsQ.data ?? []
     return data.find((s) => s.hasDueModule) ?? data[0] ?? null
   }, [subjectsQ.data])
+
+  const activeSubject = useMemo(() => {
+    const data = subjectsQ.data ?? []
+    if (pickedSubjectId) {
+      return data.find((s) => s.id === pickedSubjectId) ?? defaultSubject
+    }
+    return defaultSubject
+  }, [subjectsQ.data, pickedSubjectId, defaultSubject])
 
   const modulesQ = useSubjectModules(activeSubject?.id)
   const activeModule = useMemo(() => {
@@ -149,30 +163,54 @@ export function HomePage() {
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
       <TopBar pageTitle="Home" testCount={1} />
 
-      {/* Main content. The Figma uses x=120 px outer gutter. Sticking to it. */}
-      <main className="mx-auto" style={{ maxWidth: 1920, padding: '60px 120px 60px' }}>
-        <div className="flex" style={{ gap: 64 }}>
-          {/* LEFT COLUMN — 560 wide */}
-          <div className="flex flex-col" style={{ width: 560, gap: 64 }}>
-            <GreetingBlock
-              me={me}
-              progressPct={overallProgress}
-            />
-            <TrophyBanner
-              topUser={lbUsers[0]}
-              className={className}
-            />
+      {/*
+        Main content. Padding shrinks with viewport width via clamp() so the
+        Figma's 120px gutter stays on huge screens but tightens on laptops.
+        Layout breakpoints:
+          - ≥1280px (xl): 3 columns — left widgets / centre card stack / right rail
+          - 768–1280px: 2 columns — widgets stack with centre, rail stays right
+          - <768px: single column, rail becomes a horizontal scroller at bottom
+      */}
+      <main
+        className="mx-auto w-full"
+        style={{
+          maxWidth: 1920,
+          padding: 'clamp(24px, 3vw, 60px) clamp(16px, 4vw, 120px)',
+        }}
+      >
+        <div className="flex flex-col xl:flex-row" style={{ gap: 'clamp(24px, 3vw, 64px)' }}>
+          {/* LEFT COLUMN — greeting + trophy + small leaderboard preview.
+              Capped to 560px on huge screens, fluid below. */}
+          <div
+            className="flex flex-col min-w-0"
+            style={{
+              flex: '1 1 0',
+              maxWidth: 560,
+              gap: 'clamp(24px, 3vw, 64px)',
+            }}
+          >
+            <GreetingBlock me={me} progressPct={overallProgress} />
+            <TrophyBanner topUser={lbUsers[0]} className={className} />
             <LeaderboardWidget
               users={lbUsers}
               meId={me.id}
               className={className}
-              onSeeAll={() => navigate('/leaderboard')}
+              onSeeAll={() => navigate('/podium')}
             />
           </div>
 
-          {/* RIGHT COLUMN — 1056 = 920 (subject card stack) + 44 gap + 92 (rail) */}
-          <div className="flex flex-1" style={{ gap: 44 }}>
-            <div className="flex flex-col" style={{ width: 920, gap: 44 }}>
+          {/* RIGHT COLUMN — centre card stack + subject rail */}
+          <div
+            className="flex min-w-0"
+            style={{
+              flex: '2 1 0',
+              gap: 'clamp(16px, 2vw, 44px)',
+            }}
+          >
+            <div
+              className="flex flex-col min-w-0"
+              style={{ flex: '1 1 0', gap: 'clamp(24px, 3vw, 44px)' }}
+            >
               <MetricRow
                 streakDays={streakDays}
                 todayGoalPct={todayGoalPct}
@@ -195,7 +233,7 @@ export function HomePage() {
             <SubjectRail
               subjects={subjectsQ.data ?? []}
               activeId={activeSubject?.id ?? null}
-              onPick={(id) => navigate(`/subjects?expand=${id}`)}
+              onPick={setPickedSubjectId}
             />
           </div>
         </div>

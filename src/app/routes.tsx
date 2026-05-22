@@ -22,6 +22,7 @@ import { OnboardingPage } from '../features/onboarding/OnboardingPage'
 import { HomePage } from '../features/home/HomePage'
 import { ConfirmationPage } from '../features/confirmation/ConfirmationPage'
 import { LeaderboardPage } from '../features/leaderboard/LeaderboardPage'
+import { PodiumPage } from '../features/leaderboard/PodiumPage'
 import { ModuleLeaderboardPage } from '../features/leaderboard/ModuleLeaderboardPage'
 import { NotificationsPage } from '../features/notifications/NotificationsPage'
 import { CreditsPage } from '../features/credits/CreditsPage'
@@ -67,6 +68,7 @@ export const router = createBrowserRouter([
       { path: 'home', element: guarded(<HomePage />) },
       { path: 'confirmation', element: guarded(<ConfirmationPage />) },
       { path: 'leaderboard', element: guarded(<LeaderboardPage />) },
+      { path: 'podium', element: guarded(<PodiumPage />) },
       { path: 'notifications', element: guarded(<NotificationsPage />) },
       { path: 'credits', element: guarded(<CreditsPage />) },
 

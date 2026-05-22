@@ -89,7 +89,13 @@ export function TestListPage() {
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
       <TopBar pageTitle="My Tests" testCount={counts.upcoming + counts.skipped} />
 
-      <main className="mx-auto" style={{ maxWidth: 1920, padding: '50px 120px 60px' }}>
+      <main
+        className="mx-auto w-full"
+        style={{
+          maxWidth: 1920,
+          padding: 'clamp(24px, 3vw, 50px) clamp(16px, 4vw, 120px) clamp(40px, 5vw, 60px)',
+        }}
+      >
         {/* Header section */}
         <header className="flex items-center" style={{ gap: 32, marginBottom: 40 }}>
           <div

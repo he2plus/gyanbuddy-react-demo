@@ -22,7 +22,7 @@ const ITEMS = [
   { to: '/subjects',      label: 'Subjects',      icon: BookOpen },
   { to: '/missions',      label: 'Missions',      icon: Target },
   { to: '/tests',         label: 'Tests',         icon: ClipboardList },
-  { to: '/leaderboard',   label: 'Leaderboard',   icon: Trophy },
+  { to: '/podium',        label: 'Leaderboard',   icon: Trophy },
   { to: '/notifications', label: 'Notifications', icon: Bell },
   { to: '/profile',       label: 'Profile',       icon: User },
   { to: '/credits',       label: 'Credits',       icon: CreditCard },

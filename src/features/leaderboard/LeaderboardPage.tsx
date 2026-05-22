@@ -1,35 +1,35 @@
 /**
- * LeaderboardPage — STRICT div-by-div rebuild against Figma frame 49:2.
+ * LeaderboardPage — the flat, real-time "standings" view.
  *
- * Layout (matches the Figma frame container hierarchy):
+ * Where this is reached from:
+ *   - End of any chapter quiz → "Done" button navigates here so the
+ *     student immediately sees how their attempt moved them in the class.
+ *   - Direct URL `/leaderboard`.
  *
- *   <TopBar hideBack />                           // no back arrow on this frame
- *   <main>
- *     <h1>Leaderboard</h1>                        // compact, centred
- *     <Filters>                                   // class pill + period tabs
+ * Where the visual podium screen lives instead:
+ *   - `/podium` → PodiumPage.tsx (linked from the sidebar/drawer as
+ *     "Leaderboard" in the UI label).
  *
- *     <BodyRow>
- *       <MeCard />                                // left, ~366px
- *       <PodiumCard>                              // centre, single navy card
- *         <img src="leaderboard-podium.png" />   // hero illustration
- *         <FloatingRankList />                    // white panel overlapping
- *       </PodiumCard>
- *       <MostActiveWidget />                      // right, ~330px
- *     </BodyRow>
- *   </main>
+ * Layout:
+ *   - Compact header with class pill + period tabs.
+ *   - Full-width ranked list. Each row: rank → avatar → name +
+ *     streak subtitle → XP + weekly delta pill. Current user's row gets
+ *     a cyan highlight so they can find themselves in a long list.
+ *   - "Just updated" timestamp at the top so it reads as live.
+ *   - Optional "View podium" outbound link → /podium.
  *
- * Notes on intentional differences from the previous build:
- *  - Podium + ranked list are ONE unified card (Figma had them merged).
- *  - The hero podium illustration is the Figma asset itself — names baked in.
- *  - "TOP OF THE CLASS" pill header is removed (not in Figma).
- *  - Me card no longer shows the user's name above the class subtitle.
- *  - Top-right of each side card has an outbound-arrow "open" affordance.
+ * Responsiveness:
+ *   - Single column. Card max-width clamps to readable width on huge
+ *     screens, fills the viewport on laptops. Works 320px → 1920px
+ *     without any fixed pixel breakpoints needed beyond the typography
+ *     scale.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronDown, Flame, TrendingUp, TrendingDown, Minus, ArrowUpRight, Check,
+  ChevronDown, TrendingUp, TrendingDown, Minus, Trophy, ArrowUpRight, Check,
+  RefreshCw,
 } from 'lucide-react'
 
 import { TopBar } from '../../shell/TopBar'
@@ -42,95 +42,159 @@ import type { LeaderboardPeriod } from '../../api/leaderboard'
 import type { User } from '../../types/user'
 
 const NAVY = '#00167A'
-const NAVY_DEEP = '#001B7A' // podium card body
 const CYAN = '#1ABCFE'
 const TXT_DARK = '#121212'
 const TXT_MID = '#545454'
 const TXT_MUTED = '#989CA5'
-const CARD_STROKE = '#E7E7E7'
 const SURFACE_BG = '#FAFAFA'
 
-// Avatar colours for podium-list rows (cycled deterministically by rank).
-// Matches the Figma colour swatches at ranks 1..5.
-const AVATAR_COLOURS = ['#3A6FF8', '#FB923C', '#F5B400', '#22C55E', '#7C3AED']
+const AVATAR_COLOURS = ['#3A6FF8', '#FB923C', '#F5B400', '#22C55E', '#7C3AED', '#06B6D4', '#A855F7', '#FF3131']
 
 // ---------------------------------------------------------------------------
 export function LeaderboardPage() {
   const me = useAuthStore((s) => s.user)
+  const navigate = useNavigate()
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly')
   const lbQ = useLeaderboard({ period, limit: 100 })
-  const navigate = useNavigate()
 
   const users = lbQ.data?.users ?? []
   const className = lbQ.data?.className ?? '10-A'
-
-  const myIndex = users.findIndex((u) => u.id === me?.id)
+  const myIndex = me ? users.findIndex((u) => u.id === me.id) : -1
   const myRank = myIndex >= 0 ? myIndex + 1 : 0
-  const myXp = me?.totalExp ?? 0
-  const myStreak = 1
 
-  const aboveMe = myIndex > 0 ? users[myIndex - 1] : null
-  const xpToNext = aboveMe ? Math.max(0, aboveMe.totalExp - myXp) : 0
-  const nextRankPct = aboveMe && aboveMe.totalExp > 0
-    ? Math.round((myXp / aboveMe.totalExp) * 100)
-    : 100
+  const justNow = useMemo(() => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }), [lbQ.dataUpdatedAt])
 
   if (!me) return null
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Leaderboard" testCount={1} hideBack />
+      <TopBar pageTitle="Leaderboard" testCount={1} />
 
-      <main className="mx-auto" style={{ maxWidth: 1680, padding: '32px 64px 60px' }}>
-        {/* Header — compact title + filters, tight spacing */}
-        <div className="flex flex-col items-center" style={{ gap: 18, marginBottom: 28 }}>
+      {/* Wrap content in a sensible reading width; px-* + max-w-* keep it
+          comfortable on huge screens without ever overflowing narrow ones. */}
+      <main className="mx-auto w-full px-4 sm:px-8 lg:px-12 pt-8 pb-16" style={{ maxWidth: 960 }}>
+        {/* Header */}
+        <header className="flex flex-col items-center text-center" style={{ gap: 14, marginBottom: 24 }}>
           <h1
             className="font-body"
             style={{
-              fontSize: 40, fontWeight: 700, color: NAVY,
-              lineHeight: '52px', letterSpacing: '-0.5px', margin: 0,
+              fontSize: 36, fontWeight: 700, color: NAVY,
+              lineHeight: '46px', letterSpacing: '-0.5px', margin: 0,
             }}
           >
             Leaderboard
           </h1>
-          <div className="flex items-center" style={{ gap: 18 }}>
+          <p
+            className="font-body flex items-center"
+            style={{ fontSize: 14, fontWeight: 500, color: TXT_MID, gap: 6, margin: 0 }}
+          >
+            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.4} />
+            Live · class standings updated {justNow}
+          </p>
+          <div className="flex items-center flex-wrap justify-center" style={{ gap: 12, marginTop: 4 }}>
             <ClassPill name={`Class ${className}`} />
             <PeriodTabs active={period} onChange={setPeriod} />
+            <button
+              type="button"
+              onClick={() => navigate('/podium')}
+              className="flex items-center bg-white"
+              style={{
+                height: 42, borderRadius: 999, padding: '10px 18px', gap: 8,
+                border: '1px solid #EAEAEA', color: NAVY,
+                fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 700,
+              }}
+            >
+              <Trophy className="w-4 h-4" strokeWidth={2.4} />
+              View podium
+              <ArrowUpRight className="w-4 h-4" strokeWidth={2.4} />
+            </button>
           </div>
-        </div>
+        </header>
 
-        {/* Body row — 3 columns: Me / Podium / Most Active */}
-        <div
-          className="flex items-start justify-center"
-          style={{ gap: 28 }}
+        {/* "You" summary chip */}
+        {myRank > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex items-center bg-white"
+            style={{
+              padding: '14px 20px', borderRadius: 18, gap: 14,
+              border: `1px solid ${CYAN}40`,
+              boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+              marginBottom: 20,
+            }}
+          >
+            <div
+              className="grid place-items-center shrink-0"
+              style={{
+                width: 48, height: 48, borderRadius: 999,
+                background: `radial-gradient(circle at 32% 28%, #1F3DB8 0%, ${NAVY} 70%)`,
+                color: '#fff', fontFamily: 'var(--font-body)', fontSize: 20, fontWeight: 700,
+              }}
+            >
+              #{myRank}
+            </div>
+            <div className="flex flex-col flex-1 min-w-0 leading-tight">
+              <span
+                className="font-body"
+                style={{ fontSize: 16, fontWeight: 700, color: TXT_DARK, lineHeight: '22px' }}
+              >
+                You're #{myRank} in Class {className}
+              </span>
+              <span
+                className="font-body"
+                style={{ fontSize: 13, fontWeight: 500, color: TXT_MID, lineHeight: '18px' }}
+              >
+                {(me.totalExp ?? 0).toLocaleString()} XP this {period === 'weekly' ? 'week' : period === 'monthly' ? 'month' : 'period'}
+              </span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Flat ranked list */}
+        <section
+          className="bg-white"
+          style={{
+            borderRadius: 24,
+            boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+            border: '1px solid #E7E7E7',
+            overflow: 'hidden',
+          }}
         >
-          <MeCard
-            user={me}
-            rank={myRank}
-            xp={myXp}
-            streak={myStreak}
-            xpToNext={xpToNext}
-            nextRankPct={nextRankPct}
-            aboveMe={aboveMe}
-            className={className}
-            onOpen={() => navigate('/profile')}
-          />
-          <PodiumCard
-            users={users}
-            myId={me.id}
-            loading={lbQ.isLoading}
-          />
-          <MostActiveWidget users={users} meId={me.id} />
-        </div>
+          {lbQ.isLoading ? (
+            <div className="flex flex-col" style={{ padding: 12, gap: 6 }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="animate-pulse"
+                  style={{ height: 64, borderRadius: 14, background: '#F1F1F1' }}
+                />
+              ))}
+            </div>
+          ) : users.length === 0 ? (
+            <div className="grid place-items-center text-center" style={{ padding: 60, color: TXT_MUTED, fontSize: 16 }}>
+              No standings yet.
+            </div>
+          ) : (
+            <ul className="flex flex-col">
+              {users.map((u, i) => (
+                <LeaderRow
+                  key={u.id}
+                  user={u}
+                  rank={i + 1}
+                  isMe={u.id === me.id}
+                  isLast={i === users.length - 1}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Class pill — dropdown of sibling classes. Backend only exposes the
-// student's own class today; UI affordance with mock options until the API
-// catches up.
 // ---------------------------------------------------------------------------
 const CLASS_OPTIONS = ['10-A', '10-B', '10-C', '9-A', '9-B']
 
@@ -157,10 +221,7 @@ function ClassPill({ name }: { name: string }) {
         </span>
         <ChevronDown
           className="w-4 h-4 transition-transform"
-          style={{
-            color: TXT_DARK,
-            transform: open ? 'rotate(180deg)' : 'none',
-          }}
+          style={{ color: TXT_DARK, transform: open ? 'rotate(180deg)' : 'none' }}
           strokeWidth={2.5}
         />
       </button>
@@ -174,8 +235,7 @@ function ClassPill({ name }: { name: string }) {
             transition={{ duration: 0.18, ease: 'easeOut' }}
             className="absolute z-20 bg-white"
             style={{
-              top: 50, left: 0, minWidth: 180,
-              borderRadius: 16, padding: 6,
+              top: 50, left: 0, minWidth: 180, borderRadius: 16, padding: 6,
               border: '1px solid #EAEAEA',
               boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
             }}
@@ -222,7 +282,6 @@ function ClassPill({ name }: { name: string }) {
   )
 }
 
-// ---------------------------------------------------------------------------
 const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
   { id: 'weekly',   label: 'This Week' },
   { id: 'monthly',  label: 'This Month' },
@@ -237,7 +296,7 @@ function PeriodTabs({
   return (
     <div
       className="flex bg-white"
-      style={{ height: 42, borderRadius: 999, padding: 0, border: '1px solid #EAEAEA' }}
+      style={{ height: 42, borderRadius: 999, border: '1px solid #EAEAEA' }}
     >
       {PERIODS.map((p) => {
         const isActive = p.id === active
@@ -248,11 +307,10 @@ function PeriodTabs({
             onClick={() => onChange(p.id)}
             className="grid place-items-center"
             style={{
-              height: 42, borderRadius: 999, padding: '8px 24px',
+              height: 42, borderRadius: 999, padding: '8px 18px',
               background: isActive ? NAVY : 'transparent',
               color: isActive ? '#fff' : TXT_MUTED,
-              fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
-              lineHeight: '20px',
+              fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
               boxShadow: isActive ? '0 4px 12px rgba(0,22,122,0.18)' : 'none',
             }}
           >
@@ -265,306 +323,73 @@ function PeriodTabs({
 }
 
 // ---------------------------------------------------------------------------
-// MeCard — Figma left column. No big name above the class subtitle (the
-// Figma frame doesn't render one); just avatar + class line + 3 stat tiles +
-// progress to next rank, with a top-right "open" arrow affordance.
-// ---------------------------------------------------------------------------
-function MeCard({
-  user, rank, xp, streak, xpToNext, nextRankPct, aboveMe, className, onOpen,
+function LeaderRow({
+  user, rank, isMe, isLast,
 }: {
-  user: User
-  rank: number
-  xp: number
-  streak: number
-  xpToNext: number
-  nextRankPct: number
-  aboveMe: User | null
-  className: string
-  onOpen: () => void
-}) {
-  const initial = (user.firstName?.[0] ?? user.username?.[0] ?? 'U').toUpperCase()
-  return (
-    <motion.section
-      className="bg-white flex flex-col relative"
-      style={{
-        width: 366, borderRadius: 24, padding: 24, gap: 22,
-        boxShadow: '0 6px 22px rgba(0,0,0,0.06)',
-        flexShrink: 0,
-      }}
-      initial={{ opacity: 0, x: -12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {/* Top-right open-arrow */}
-      <button
-        type="button"
-        aria-label="Open profile"
-        onClick={onOpen}
-        className="absolute grid place-items-center"
-        style={{
-          top: 16, right: 16, width: 30, height: 30, borderRadius: 10,
-          background: '#F4F6FB', color: NAVY,
-        }}
-      >
-        <ArrowUpRight className="w-4 h-4" strokeWidth={2.4} />
-      </button>
-
-      {/* Avatar + class subtitle */}
-      <div className="flex items-center" style={{ gap: 12 }}>
-        <div
-          className="grid place-items-center shrink-0"
-          style={{
-            width: 58, height: 58, borderRadius: 999,
-            background: `radial-gradient(circle at 32% 28%, #1F3DB8 0%, ${NAVY} 65%, #000A4A 100%)`,
-            boxShadow: '0 8px 18px rgba(0,22,122,0.22)',
-          }}
-        >
-          <span
-            className="font-body"
-            style={{ fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: '32px' }}
-          >
-            {initial}
-          </span>
-        </div>
-        <div className="flex flex-col leading-tight" style={{ paddingRight: 36 }}>
-          <span
-            className="font-body"
-            style={{ fontSize: 14, fontWeight: 500, color: TXT_MID, lineHeight: '20px' }}
-          >
-            Class {className} · GyanBuddy Student
-          </span>
-        </div>
-      </div>
-
-      {/* 3 stat tiles */}
-      <div className="grid grid-cols-3" style={{ gap: 12 }}>
-        <StatTile label="Rank"   value={`#${rank}`} />
-        <StatTile label="XP"     value={`${xp}`} />
-        <StatTile
-          label="Streak"
-          value={`${streak}`}
-          icon={<Flame className="w-4 h-4" style={{ color: '#F97316' }} strokeWidth={2.5} />}
-        />
-      </div>
-
-      {/* Progress to next rank */}
-      <div className="flex flex-col" style={{ gap: 8 }}>
-        <div
-          style={{
-            height: 8, borderRadius: 14, background: '#F1F1F1', overflow: 'hidden',
-          }}
-        >
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${nextRankPct}%` }}
-            transition={{ duration: 0.9, ease: 'easeOut' }}
-            style={{ height: '100%', borderRadius: 14, background: CYAN }}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <span
-            className="font-body"
-            style={{ fontSize: 13, fontWeight: 500, color: TXT_MID, lineHeight: '18px' }}
-          >
-            {aboveMe
-              ? `Next rank: #${rank - 1} · ${aboveMe.firstName || aboveMe.username} (${aboveMe.totalExp} XP)`
-              : "You're at the top"}
-          </span>
-          {xpToNext > 0 && (
-            <span
-              className="font-body tabular-nums"
-              style={{ fontSize: 14, fontWeight: 700, color: NAVY, lineHeight: '18px' }}
-            >
-              {xpToNext} XP to go
-            </span>
-          )}
-        </div>
-      </div>
-    </motion.section>
-  )
-}
-
-function StatTile({
-  label, value, icon,
-}: {
-  label: string; value: string; icon?: React.ReactNode
-}) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center bg-white"
-      style={{
-        minHeight: 86, borderRadius: 16,
-        border: `1px solid ${CARD_STROKE}`,
-        padding: '10px 12px',
-      }}
-    >
-      <div className="flex items-center" style={{ gap: 4 }}>
-        {icon}
-        <span
-          className="font-body tabular-nums"
-          style={{ fontSize: 30, fontWeight: 800, color: NAVY, lineHeight: '36px' }}
-        >
-          {value}
-        </span>
-      </div>
-      <span
-        className="font-body"
-        style={{
-          fontSize: 11, fontWeight: 600, color: TXT_MUTED, lineHeight: '16px',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}
-      >
-        {label}
-      </span>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// PodiumCard — ONE unified container. Navy backdrop, hero illustration on
-// top half, floating white rank-list panel overlapping the bottom half.
-// ---------------------------------------------------------------------------
-function PodiumCard({
-  users, myId, loading,
-}: {
-  users: User[]; myId: string; loading: boolean
-}) {
-  const top5 = users.slice(0, 5)
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative shrink-0 overflow-hidden"
-      style={{
-        width: 600,
-        borderRadius: 24,
-        background: NAVY_DEEP,
-        boxShadow: '0 18px 36px rgba(0,22,122,0.18)',
-      }}
-    >
-      {/* Hero illustration — full-bleed top half */}
-      <div className="relative" style={{ aspectRatio: '600 / 380' }}>
-        <img
-          src="/images/figma/leaderboard-podium.png"
-          alt=""
-          className="block w-full h-full"
-          style={{ objectFit: 'cover', objectPosition: 'center top' }}
-        />
-      </div>
-
-      {/* Floating white panel — overlaps the navy at the bottom */}
-      <div
-        className="relative bg-white"
-        style={{
-          margin: '-44px 14px 14px',
-          borderRadius: 18,
-          padding: '12px 14px',
-          boxShadow: '0 18px 40px rgba(0,0,0,0.10)',
-        }}
-      >
-        {loading ? (
-          <div className="flex flex-col" style={{ gap: 6 }}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse"
-                style={{ height: 62, borderRadius: 14, background: '#F1F1F1' }}
-              />
-            ))}
-          </div>
-        ) : top5.length === 0 ? (
-          <div
-            className="grid place-items-center"
-            style={{ minHeight: 100, color: TXT_MUTED }}
-          >
-            No ranks yet.
-          </div>
-        ) : (
-          <ul className="flex flex-col" style={{ gap: 4 }}>
-            {top5.map((u, i) => (
-              <PodiumRow
-                key={u.id}
-                user={u}
-                rank={i + 1}
-                isMe={u.id === myId}
-                isLeader={i === 0}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
-    </motion.section>
-  )
-}
-
-function PodiumRow({
-  user, rank, isMe, isLeader,
-}: {
-  user: User; rank: number; isMe: boolean; isLeader: boolean
+  user: User; rank: number; isMe: boolean; isLast: boolean
 }) {
   const initial = (user.firstName?.[0] ?? user.username?.[0] ?? 'U').toUpperCase()
   const streak = deriveStreak(user.id)
   const delta = formatDelta(deriveWeeklyDelta(user.id))
   const avatarColour = AVATAR_COLOURS[(rank - 1) % AVATAR_COLOURS.length]
-  const highlight = isLeader || isMe
 
   return (
     <motion.li
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: (rank - 1) * 0.04 }}
+      transition={{ duration: 0.22, delay: Math.min(rank, 10) * 0.02 }}
       className="flex items-center"
       style={{
-        minHeight: 56, padding: '8px 12px', gap: 12,
-        borderRadius: 12,
-        background: highlight
-          ? `linear-gradient(90deg, ${CYAN} 0%, #5FD4FF 100%)`
-          : 'transparent',
+        padding: '14px 20px', gap: 14,
+        background: isMe ? 'rgba(26,188,254,0.08)' : 'transparent',
+        borderBottom: isLast ? 'none' : '1px solid #F1F1F1',
       }}
     >
       <span
         className="font-body tabular-nums text-center shrink-0"
         style={{
-          width: 22, fontSize: 16, fontWeight: 700, lineHeight: '22px',
-          color: highlight ? '#fff' : TXT_MID,
+          width: 32, fontSize: 18, fontWeight: 700, lineHeight: '24px',
+          color: rank <= 3 ? NAVY : TXT_MID,
         }}
       >
         {rank}
       </span>
       <div
         className="grid place-items-center shrink-0"
-        style={{
-          width: 38, height: 38, borderRadius: 999,
-          background: highlight ? '#fff' : avatarColour,
-        }}
+        style={{ width: 42, height: 42, borderRadius: 999, background: avatarColour }}
       >
         <span
           className="font-body"
-          style={{
-            fontSize: 16, fontWeight: 700, lineHeight: '22px',
-            color: highlight ? NAVY : '#fff',
-          }}
+          style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: '22px' }}
         >
           {initial}
         </span>
       </div>
       <div className="flex flex-col flex-1 min-w-0 leading-tight">
-        <span
-          className="font-body truncate"
-          style={{
-            fontSize: 15, fontWeight: 700, lineHeight: '20px',
-            color: highlight ? '#fff' : TXT_DARK,
-          }}
-        >
-          {user.fullName || user.username}
-        </span>
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <span
+            className="font-body truncate"
+            style={{ fontSize: 16, fontWeight: 700, color: TXT_DARK, lineHeight: '22px' }}
+          >
+            {user.fullName || user.username}
+          </span>
+          {isMe && (
+            <span
+              className="grid place-items-center shrink-0"
+              style={{
+                height: 22, borderRadius: 999, padding: '2px 10px',
+                background: CYAN, color: '#fff',
+                fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.04em', textTransform: 'uppercase',
+              }}
+            >
+              You
+            </span>
+          )}
+        </div>
         <span
           className="font-body"
-          style={{
-            fontSize: 12, fontWeight: 500, lineHeight: '16px',
-            color: highlight ? 'rgba(255,255,255,0.85)' : TXT_MID,
-          }}
+          style={{ fontSize: 12, fontWeight: 500, color: TXT_MID, lineHeight: '16px' }}
         >
           {streak} day{streak === 1 ? '' : 's'} streak
         </span>
@@ -572,180 +397,40 @@ function PodiumRow({
       <div className="flex flex-col items-end leading-tight shrink-0">
         <span
           className="font-body tabular-nums"
-          style={{
-            fontSize: 16, fontWeight: 800, lineHeight: '22px',
-            color: highlight ? '#fff' : TXT_DARK,
-          }}
+          style={{ fontSize: 17, fontWeight: 800, color: TXT_DARK, lineHeight: '22px' }}
         >
           {user.totalExp.toLocaleString()}{' '}
-          <span
-            style={{
-              fontSize: 11, fontWeight: 600,
-              color: highlight ? 'rgba(255,255,255,0.85)' : TXT_MID,
-            }}
-          >
-            XP
-          </span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: TXT_MID }}>XP</span>
         </span>
-        <DeltaPill tone={delta.tone} text={delta.text} onCyan={highlight} />
+        <DeltaPill tone={delta.tone} text={delta.text} />
       </div>
     </motion.li>
   )
 }
 
 function DeltaPill({
-  tone, text, onCyan,
+  tone, text,
 }: {
-  tone: 'up' | 'down' | 'flat'; text: string; onCyan: boolean
+  tone: 'up' | 'down' | 'flat'; text: string
 }) {
-  const palette = onCyan
-    ? {
-        up:   { fg: '#fff', strong: '#fff' },
-        down: { fg: '#fff', strong: '#FFD2D2' },
-        flat: { fg: 'rgba(255,255,255,0.85)', strong: 'rgba(255,255,255,0.85)' },
-      }
-    : {
-        up:   { fg: '#15803D', strong: '#15803D' },
-        down: { fg: '#B91C1C', strong: '#B91C1C' },
-        flat: { fg: TXT_MID,   strong: TXT_MID },
-      }
+  const palette = {
+    up:   { fg: '#15803D' },
+    down: { fg: '#B91C1C' },
+    flat: { fg: TXT_MID },
+  }
   const Icon = tone === 'up' ? TrendingUp : tone === 'down' ? TrendingDown : Minus
   const c = palette[tone]
   return (
     <span
       className="inline-flex items-center"
       style={{
-        marginTop: 2, gap: 3,
-        color: c.fg,
+        marginTop: 2, gap: 3, color: c.fg,
         fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
         lineHeight: '14px',
       }}
     >
-      <Icon className="w-3 h-3" strokeWidth={3} style={{ color: c.strong }} />
+      <Icon className="w-3 h-3" strokeWidth={3} />
       {text}
     </span>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// MostActiveWidget — Figma right column. Top 4 by total XP from the
-// leaderboard. Row 1 (leader) gets cyan highlight + "Rising fast" tag,
-// rows 2-4 get derived weekly delta in green.
-// ---------------------------------------------------------------------------
-function MostActiveWidget({ users, meId }: { users: User[]; meId: string }) {
-  const top4 = users.slice(0, 4)
-  if (top4.length === 0) return null
-  return (
-    <motion.aside
-      initial={{ opacity: 0, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="bg-white flex flex-col shrink-0 relative"
-      style={{
-        width: 330, borderRadius: 24, padding: '20px 18px', gap: 14,
-        boxShadow: '0 6px 22px rgba(0,0,0,0.06)',
-      }}
-    >
-      <button
-        type="button"
-        aria-label="Open full list"
-        className="absolute grid place-items-center"
-        style={{
-          top: 16, right: 16, width: 30, height: 30, borderRadius: 10,
-          background: '#F4F6FB', color: NAVY,
-        }}
-      >
-        <ArrowUpRight className="w-4 h-4" strokeWidth={2.4} />
-      </button>
-
-      <h3
-        className="font-body"
-        style={{ fontSize: 16, fontWeight: 700, color: TXT_DARK, lineHeight: '22px', margin: 0, paddingRight: 36 }}
-      >
-        Most Active This Week
-      </h3>
-
-      <ul className="flex flex-col" style={{ gap: 6 }}>
-        {top4.map((u, i) => {
-          const rank = i + 1
-          const isLeader = i === 0
-          const isMe = u.id === meId
-          const initial = (u.firstName?.[0] ?? u.username?.[0] ?? 'U').toUpperCase()
-          const streak = deriveStreak(u.id)
-          const delta = deriveWeeklyDelta(u.id)
-          const avatarColour = AVATAR_COLOURS[(rank - 1) % AVATAR_COLOURS.length]
-          return (
-            <li
-              key={u.id}
-              className="flex items-center"
-              style={{
-                gap: 10, padding: '8px 10px', borderRadius: 14,
-                background: isLeader
-                  ? `linear-gradient(90deg, ${CYAN} 0%, #5FD4FF 100%)`
-                  : 'transparent',
-              }}
-            >
-              <span
-                className="font-body tabular-nums text-center shrink-0"
-                style={{
-                  width: 18, fontSize: 13, fontWeight: 700,
-                  color: isLeader ? '#fff' : TXT_MID,
-                }}
-              >
-                {rank}
-              </span>
-              <div
-                className="grid place-items-center shrink-0"
-                style={{
-                  width: 32, height: 32, borderRadius: 999,
-                  background: isLeader ? '#fff' : avatarColour,
-                }}
-              >
-                <span
-                  className="font-body"
-                  style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: isLeader ? NAVY : '#fff',
-                  }}
-                >
-                  {initial}
-                </span>
-              </div>
-              <div className="flex flex-col flex-1 min-w-0 leading-tight">
-                <span
-                  className="font-body truncate"
-                  style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: isLeader ? '#fff' : TXT_DARK, lineHeight: '18px',
-                  }}
-                >
-                  {u.fullName || u.username}{isMe ? ' (You)' : ''}
-                </span>
-                <span
-                  className="font-body"
-                  style={{
-                    fontSize: 11, fontWeight: 500,
-                    color: isLeader ? 'rgba(255,255,255,0.85)' : TXT_MID,
-                    lineHeight: '15px',
-                  }}
-                >
-                  {isLeader ? 'Rising fast 🔥' : `${streak} day streak`}
-                </span>
-              </div>
-              {!isLeader && delta > 0 && (
-                <span
-                  className="font-body tabular-nums shrink-0"
-                  style={{
-                    fontSize: 13, fontWeight: 700, color: '#15803D',
-                  }}
-                >
-                  +{delta} XP
-                </span>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </motion.aside>
   )
 }

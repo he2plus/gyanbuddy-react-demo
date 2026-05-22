@@ -41,10 +41,11 @@ export function ChapterQuizPage() {
 
   const back = () =>
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}`)
-  // After the splash, go back to the journey page (not the chapter detail)
-  // so the user can see the whole path marked completed.
-  const backToJourney = () =>
-    navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters`)
+  // After a quiz finishes, take the student to the live class standings
+  // (flat ranked list) so they immediately see how their attempt moved them
+  // in the class. Their XP is computed server-side from the answers they
+  // just submitted, so the list will reflect the new total on next fetch.
+  const toStandings = () => navigate('/leaderboard')
 
   return (
     <div className="min-h-screen bg-white">
@@ -66,7 +67,7 @@ export function ChapterQuizPage() {
         ) : (
           <QuizFlow
             questions={quizQ.data ?? []}
-            onExit={isLastChapter ? backToJourney : back}
+            onExit={toStandings}
             celebration={
               isLastChapter && chapter
                 ? {

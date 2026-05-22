@@ -87,8 +87,17 @@ export function MissionListPage() {
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
       <TopBar pageTitle="Missions" testCount={1} />
 
-      <main className="mx-auto" style={{ maxWidth: 1920, padding: '50px 120px 60px' }}>
-        <div className="flex" style={{ gap: 64 }}>
+      <main
+        className="mx-auto w-full"
+        style={{
+          maxWidth: 1920,
+          padding: 'clamp(24px, 3vw, 50px) clamp(16px, 4vw, 120px) clamp(40px, 5vw, 60px)',
+        }}
+      >
+        <div
+          className="flex flex-col lg:flex-row"
+          style={{ gap: 'clamp(24px, 3vw, 64px)' }}
+        >
           <DailyMissionCard
             dateLabel={selectedLabel}
             missions={selectedMissions}
@@ -136,9 +145,9 @@ function DailyMissionCard({
 
   return (
     <motion.section
-      className="bg-white flex flex-col items-center text-center"
+      className="bg-white flex flex-col items-center text-center w-full lg:max-w-[500px] lg:flex-shrink-0"
       style={{
-        width: 500, borderRadius: 34, padding: 24, gap: 24,
+        borderRadius: 34, padding: 24, gap: 24,
         boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
       }}
       initial={{ opacity: 0, x: -12 }}

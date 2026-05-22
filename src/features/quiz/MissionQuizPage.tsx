@@ -16,6 +16,9 @@ export function MissionQuizPage() {
   const mission = missionsQ.data?.find((m) => m.id === missionId)
 
   const back = () => navigate(`/missions/${missionId}`)
+  // After finishing the mission quiz, show the live standings so the
+  // student sees the impact on their rank.
+  const toStandings = () => navigate('/leaderboard')
 
   return (
     <div className="min-h-screen bg-white">
@@ -41,7 +44,7 @@ export function MissionQuizPage() {
         ) : (
           <QuizFlow
             questions={mission.questions}
-            onExit={back}
+            onExit={toStandings}
           />
         )}
       </PageContainer>

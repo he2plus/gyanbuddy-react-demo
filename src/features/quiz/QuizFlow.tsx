@@ -24,7 +24,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Check, X, Lightbulb, ArrowRight, RotateCcw, AlertTriangle,
+  Check, X, Lightbulb, ArrowRight, AlertTriangle,
   ChevronUp, ChevronDown, HelpCircle, Sparkles,
 } from 'lucide-react'
 
@@ -119,11 +119,6 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
             } else {
               onExit()
             }
-          }}
-          onRestart={() => {
-            setIndex(0)
-            setTotalXp(0)
-            setFinished(false)
           }}
         />
         {showSplash && celebration?.enabled && (
@@ -923,9 +918,9 @@ function CorrectOverlay({ xp }: { xp: number }) {
 
 // ---------------------------------------------------------------------------
 function ResultsCard({
-  xpEarned, xpMax, onExit, onRestart,
+  xpEarned, xpMax, onExit,
 }: {
-  xpEarned: number; xpMax: number; onExit: () => void; onRestart: () => void
+  xpEarned: number; xpMax: number; onExit: () => void
 }) {
   const pct = xpMax > 0 ? Math.round((xpEarned / xpMax) * 100) : 0
   const tone = pct >= 70 ? '#22C55E' : pct >= 50 ? '#F59E0B' : '#FF3131'
@@ -978,30 +973,18 @@ function ResultsCard({
       >
         {message}
       </p>
-      <div className="flex justify-center" style={{ marginTop: 24, gap: 12 }}>
-        <button
-          type="button"
-          onClick={onRestart}
-          className="flex items-center font-body"
-          style={{
-            gap: 8, padding: '12px 20px', borderRadius: 999,
-            background: '#fff', border: `1px solid ${NAVY}`, color: NAVY,
-            fontSize: 16, fontWeight: 700,
-          }}
-        >
-          <RotateCcw className="w-4 h-4" strokeWidth={2.5} /> Try again
-        </button>
+      <div className="flex justify-center" style={{ marginTop: 24 }}>
         <button
           type="button"
           onClick={onExit}
-          className="font-body"
+          className="flex items-center font-body"
           style={{
-            padding: '12px 28px', borderRadius: 999,
+            gap: 8, padding: '14px 32px', borderRadius: 999,
             background: NAVY, color: '#fff',
             fontSize: 16, fontWeight: 700,
           }}
         >
-          Done
+          See standings <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
         </button>
       </div>
     </motion.div>

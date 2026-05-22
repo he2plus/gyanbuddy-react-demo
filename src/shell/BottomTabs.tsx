@@ -9,7 +9,7 @@ const tabs = [
   { to: '/home', label: 'Home', icon: Home },
   { to: '/subjects', label: 'Subjects', icon: BookOpen },
   { to: '/missions', label: 'Missions', icon: Target },
-  { to: '/leaderboard', label: 'Ranks', icon: Trophy },
+  { to: '/podium', label: 'Leaderboard', icon: Trophy },
   { to: '/profile', label: 'You', icon: User },
 ] as const
 

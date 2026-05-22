@@ -22,6 +22,7 @@ const HIDE_CHROME_EXACT = new Set([
   '/subjects',
   '/missions',
   '/leaderboard',
+  '/podium',
   '/tests',
   '/notifications',
   '/profile',
