@@ -112,10 +112,32 @@ export async function login(input: LoginInput): Promise<LoginSuccess> {
     return mockLogin(input)
   }
 
-  const { data: envelope } = await api.post<ApiEnvelope<LoginResponseData>>(
-    '/auth/login/',
-    input,
-  )
+  // The backend returns HTTP 400 with `{success: false, errors: {...}}` on
+  // bad credentials, which axios throws on. Catch the throw, peel the
+  // response body, and re-throw as a LoginFailedError carrying the
+  // human-readable message ("Invalid credentials") instead of axios's
+  // cryptic "Request failed with status code 400".
+  let envelope: ApiEnvelope<LoginResponseData>
+  try {
+    const resp = await api.post<ApiEnvelope<LoginResponseData>>(
+      '/auth/login/',
+      input,
+    )
+    envelope = resp.data
+  } catch (err) {
+    const axiosErr = err as { response?: { data?: ApiEnvelope<LoginResponseData> } }
+    const body = axiosErr.response?.data
+    if (body && body.success === false) {
+      throw new LoginFailedError(
+        formatBackendErrors(body.errors, body.message || 'Login failed.'),
+        body.errors,
+      )
+    }
+    // No structured body — fall through with a generic message.
+    throw new LoginFailedError(
+      err instanceof Error && err.message ? err.message : 'Login failed.',
+    )
+  }
 
   if (!envelope.success || !envelope.data) {
     throw new LoginFailedError(
