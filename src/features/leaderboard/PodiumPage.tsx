@@ -109,36 +109,53 @@ export function PodiumPage() {
         </div>
 
         {/*
-          Body — responsive 3-column grid.
-            <  900px : single column, Podium → Me → MostActive
-            900-1280 : 2 columns, Podium full-width on top, Me+MostActive
-                       side by side underneath
-            >= 1280  : 3 columns Me / Podium / MostActive
-          Each child is min-w-0 so it never forces its parent wider than the
-          viewport — that was the bug that hid ranks 2 & 3 inside the card.
+          Body — responsive layout:
+            < 1024px : single column, Podium → Me → MostActive (stacked)
+            >= 1024px: THREE columns side-by-side: Me | Podium | MostActive
+                       (everything visible above the fold on a normal laptop)
+          Each child is min-w-0 so children never force the parent wider
+          than its grid cell.
         */}
         <div
-          className="grid items-start justify-center mx-auto"
+          className="grid items-start mx-auto grid-cols-1 lg:grid-cols-[minmax(240px,1fr)_minmax(380px,1.6fr)_minmax(240px,1fr)]"
           style={{
-            gap: 'clamp(16px, 2vw, 28px)',
-            gridTemplateColumns: 'minmax(0, 1fr)',
+            gap: 'clamp(16px, 1.6vw, 24px)',
             maxWidth: 1500,
           }}
         >
-          <PodiumCard
-            users={users}
-            myId={me.id}
-            loading={lbQ.isLoading}
-          />
+          {/* On wide screens, Me is in the left column. On narrow screens,
+              the wrapper below the Podium hosts it. */}
+          <div className="hidden lg:block min-w-0">
+            <MeCard
+              user={me}
+              rank={myRank}
+              xp={myXp}
+              streak={myStreak}
+              xpToNext={xpToNext}
+              nextRankPct={nextRankPct}
+              aboveMe={aboveMe}
+              className={className}
+              onOpen={() => navigate('/profile')}
+            />
+          </div>
 
-          {/* Below the podium card, side widgets — they stack on narrow,
-              two-up on tablet+, and on desktop they live in the outer grid
-              instead. CSS handles that via the responsive grid container
-              that wraps both this and the podium above. */}
+          <div className="min-w-0">
+            <PodiumCard
+              users={users}
+              myId={me.id}
+              loading={lbQ.isLoading}
+            />
+          </div>
+
+          <div className="hidden lg:block min-w-0">
+            <MostActiveWidget users={users} meId={me.id} />
+          </div>
+
+          {/* Below-podium slot for narrow viewports only. */}
           <div
-            className="grid"
+            className="lg:hidden grid"
             style={{
-              gap: 'clamp(16px, 2vw, 28px)',
+              gap: 'clamp(16px, 2vw, 24px)',
               gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
             }}
           >
@@ -478,22 +495,26 @@ function PodiumCard({
         boxShadow: '0 18px 36px rgba(0,22,122,0.18)',
       }}
     >
-      {/* Hero illustration — full-bleed top half. aspect-ratio keeps the
-          trophy + ranks 2/3 visible no matter how wide the card gets. */}
-      <div className="relative w-full" style={{ aspectRatio: '600 / 380' }}>
+      {/* Hero illustration — natural aspect ratio of the PNG (~600x400,
+          all three pedestals + trophy + names visible). object-fit:
+          contain inside a flexible-height container lets the image scale
+          with the card width but never crop. */}
+      <div className="relative w-full grid place-items-center" style={{ padding: '12px 12px 0' }}>
         <img
           src="/images/figma/leaderboard-podium.png"
           alt=""
-          className="block w-full h-full"
-          style={{ objectFit: 'contain', objectPosition: 'center top' }}
+          className="block w-full h-auto select-none"
+          draggable={false}
+          style={{ maxWidth: 540 }}
         />
       </div>
 
-      {/* Floating white panel — overlaps the navy at the bottom */}
+      {/* Ranked-list panel — sits BELOW the image (no negative margin
+          overlap any more, that was hiding pedestals #2 and #3). */}
       <div
         className="relative bg-white"
         style={{
-          margin: '-44px 14px 14px',
+          margin: '12px 14px 14px',
           borderRadius: 18,
           padding: '12px 14px',
           boxShadow: '0 18px 40px rgba(0,0,0,0.10)',
