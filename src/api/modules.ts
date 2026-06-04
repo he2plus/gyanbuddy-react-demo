@@ -23,7 +23,11 @@ import {
   type ModuleChapterDTO,
 } from '../types/module'
 
-const MOCK_AUTH = import.meta.env.VITE_DEV_MOCK_AUTH === 'true'
+// Mock only ever runs in local `vite dev`. import.meta.env.DEV is hard-false in
+// any production build, so a Vercel deployment ALWAYS hits the real backend —
+// no dashboard env var (VITE_DEV_MOCK_AUTH) can flip the live demo back to fixtures.
+const MOCK_AUTH =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_MOCK_AUTH === 'true'
 const isMockSession = () =>
   MOCK_AUTH && tokenStorage.read()?.accessToken === 'mock_access_token'
 

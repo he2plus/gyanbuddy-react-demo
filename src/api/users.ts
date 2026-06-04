@@ -10,7 +10,10 @@ import { parseUser, type User, type UserDTO } from '../types/user'
 import { tokenStorage } from '../lib/storage'
 import type { ApiEnvelope } from '../types/api'
 
-const MOCK_AUTH = import.meta.env.VITE_DEV_MOCK_AUTH === 'true'
+// Mock only ever runs in local `vite dev` (import.meta.env.DEV is hard-false in
+// production builds), so the live Vercel demo always uses the real backend.
+const MOCK_AUTH =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_MOCK_AUTH === 'true'
 
 function mockMe(): User {
   // Same DTO as mockLogin() — kept in sync here intentionally.
