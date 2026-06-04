@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://gyanbuddy.ai/api/:path*" },
+    { "source": "/api/:path(.*)", "destination": "https://gyanbuddy.ai/api/:path" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }
