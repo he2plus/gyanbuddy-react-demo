@@ -54,6 +54,14 @@ body,
   height: 100%;
 }
 
+/* Guard against stray horizontal overflow (e.g. a wide flex child bleeding
+   past the viewport and adding a horizontal scrollbar). Clip — don't scroll. */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
