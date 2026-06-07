@@ -337,8 +337,8 @@ function TrophyBanner({
     <motion.section
       className="relative overflow-hidden"
       style={{
-        background: NAVY, borderRadius: 44, padding: 30,
-        height: 269,
+        background: NAVY, borderRadius: 44, padding: 'clamp(22px, 3vw, 30px)',
+        minHeight: 'clamp(232px, 28vw, 269px)',
       }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -353,7 +353,7 @@ function TrophyBanner({
           <span
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 44, fontWeight: 700, color: '#fff', lineHeight: '46px',
+              fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 700, color: '#fff', lineHeight: 1.05,
             }}
           >
             GyanBuddy
@@ -603,7 +603,7 @@ function MetricRow({
   streakDays: number; todayGoalPct: number; testScorePct: number
 }) {
   return (
-    <section className="flex" style={{ gap: 44 }}>
+    <section className="flex flex-wrap" style={{ gap: 'clamp(14px, 2vw, 44px)' }}>
       <MetricCard
         emoji="🔥"
         valueNum={streakDays}
@@ -642,7 +642,8 @@ function MetricCard({
     <motion.div
       className="flex flex-col items-center relative overflow-hidden cursor-default"
       style={{
-        flex: 1, height: 176, borderRadius: 34, padding: '20px 32px',
+        flex: '1 1 132px', minWidth: 132,
+        height: 'clamp(140px, 14vw, 176px)', borderRadius: 34, padding: '20px clamp(16px, 2vw, 32px)',
         background: NAVY,
       }}
       initial={{ opacity: 0, y: 16 }}
@@ -672,17 +673,17 @@ function MetricCard({
         className="relative"
         style={{
           fontFamily: 'var(--font-numeric)',
-          fontSize: 54, fontWeight: 900, color: '#fff',
-          lineHeight: '54px', marginTop: 8,
+          fontSize: 'clamp(36px, 4.6vw, 54px)', fontWeight: 900, color: '#fff',
+          lineHeight: 1, marginTop: 8,
         }}
       >
         <AnimatedNumber value={valueNum} suffix={suffix ?? ''} />
       </div>
       <div
-        className="font-body relative"
+        className="font-body relative text-center"
         style={{
-          fontSize: 18, fontWeight: 700, color: '#fff',
-          lineHeight: '19px', marginTop: 6,
+          fontSize: 'clamp(14px, 1.7vw, 18px)', fontWeight: 700, color: '#fff',
+          lineHeight: 1.1, marginTop: 6,
         }}
       >
         {label}
