@@ -63,14 +63,14 @@ export function TopBar({
     <NavDrawer open={drawerOpen} onClose={closeDrawer} />
     <header
       className="w-full bg-white border-b"
-      style={{ height: 117, borderColor: '#F3F3F3' }}
+      style={{ height: 'clamp(68px, 11vw, 117px)', borderColor: '#F3F3F3' }}
     >
       <div
         className="mx-auto flex items-center"
-        style={{ maxWidth: 1920, padding: '24px clamp(16px, 4vw, 120px)', gap: 34, height: '100%' }}
+        style={{ maxWidth: 1920, padding: 'clamp(12px, 2vw, 24px) clamp(16px, 4vw, 120px)', gap: 'clamp(10px, 2vw, 34px)', height: '100%' }}
       >
         {/* Left lockup: burger + [back] + G + title/subtitle */}
-        <div className="flex items-center" style={{ gap: 16 }}>
+        <div className="flex items-center min-w-0" style={{ gap: 'clamp(8px, 1.5vw, 16px)' }}>
           <button
             type="button"
             aria-label="Open menu"
@@ -105,28 +105,28 @@ export function TopBar({
             </button>
           )}
           <div
-            className="grid place-items-center bg-white shadow-sm"
-            style={{ width: 65, height: 68, borderRadius: 14 }}
+            className="grid place-items-center bg-white shadow-sm shrink-0"
+            style={{ width: 'clamp(44px, 5vw, 65px)', height: 'clamp(46px, 5vw, 68px)', borderRadius: 14 }}
           >
             <div
               className="font-display"
-              style={{ fontSize: 36, fontWeight: 800, color: NAVY, lineHeight: 1 }}
+              style={{ fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 800, color: NAVY, lineHeight: 1 }}
             >
               G
             </div>
           </div>
-          <div className="flex flex-col leading-none">
+          <div className="flex flex-col leading-none min-w-0">
             <div
-              className="font-body"
-              style={{ fontSize: 32, fontWeight: 600, color: '#000', lineHeight: '38px' }}
+              className="font-body truncate"
+              style={{ fontSize: 'clamp(18px, 3.2vw, 32px)', fontWeight: 600, color: '#000', lineHeight: 1.18 }}
             >
               {pageTitle}
             </div>
             <div
-              className="font-body"
+              className="font-body truncate"
               style={{
-                fontSize: 22, fontWeight: 600, color: TXT_MUTED,
-                lineHeight: '30px', marginTop: 0,
+                fontSize: 'clamp(13px, 2.2vw, 22px)', fontWeight: 600, color: TXT_MUTED,
+                lineHeight: 1.35, marginTop: 0,
               }}
             >
               Gyanbuddy
@@ -137,19 +137,19 @@ export function TopBar({
         <div className="flex-1" />
 
         {/* Right cluster: XP pill / bell / Tests / Logout */}
-        <div className="flex items-center" style={{ gap: 24 }}>
+        <div className="flex items-center shrink-0" style={{ gap: 'clamp(6px, 1.4vw, 24px)' }}>
           <div
-            className="flex items-center bg-white"
-            style={{ height: 58, borderRadius: 50, padding: '12px 26px', gap: 10 }}
+            className="flex items-center bg-white shrink-0"
+            style={{ height: 'clamp(40px, 5vw, 58px)', borderRadius: 50, padding: '0 clamp(12px, 2vw, 26px)', gap: 8 }}
           >
             <Sparkles className="w-7 h-7" style={{ color: CYAN }} strokeWidth={2.2} />
             <span
               className="font-body tabular-nums"
               style={{
-                fontSize: 24, fontWeight: 600, color: TXT_MUTED, lineHeight: '33px',
+                fontSize: 'clamp(14px, 2vw, 24px)', fontWeight: 600, color: TXT_MUTED, lineHeight: 1,
               }}
             >
-              {xp} XP
+              {xp}<span className="hidden sm:inline"> XP</span>
             </span>
           </div>
 
@@ -157,8 +157,8 @@ export function TopBar({
             type="button"
             aria-label="Notifications"
             onClick={() => navigate('/notifications')}
-            className="relative grid place-items-center bg-white"
-            style={{ width: 62, height: 58, borderRadius: 50 }}
+            className="relative grid place-items-center bg-white shrink-0"
+            style={{ width: 'clamp(44px, 5vw, 62px)', height: 'clamp(40px, 5vw, 58px)', borderRadius: 50 }}
           >
             <Bell className="w-7 h-7" style={{ color: TXT_MID }} strokeWidth={2} />
             <span
@@ -174,16 +174,16 @@ export function TopBar({
           <button
             type="button"
             onClick={() => navigate('/tests')}
-            className="flex items-center bg-white"
-            style={{ height: 58, borderRadius: 50, padding: '12px 26px', gap: 10 }}
+            className="flex items-center bg-white shrink-0"
+            style={{ height: 'clamp(40px, 5vw, 58px)', borderRadius: 50, padding: '0 clamp(12px, 2vw, 26px)', gap: 8 }}
           >
             <ClipboardList
               className="w-6 h-6" style={{ color: CYAN }} strokeWidth={2.2}
             />
             <span
-              className="font-body"
+              className="font-body hidden md:inline"
               style={{
-                fontSize: 24, fontWeight: 600, color: NAVY, lineHeight: '33px',
+                fontSize: 'clamp(16px, 2vw, 24px)', fontWeight: 600, color: NAVY, lineHeight: 1,
               }}
             >
               Tests
@@ -209,14 +209,14 @@ export function TopBar({
               await logout()
               navigate('/login', { replace: true })
             }}
-            className="flex items-center"
+            className="flex items-center shrink-0"
             style={{ gap: 10 }}
           >
             <LogOut className="w-6 h-6" style={{ color: TXT_MID }} strokeWidth={2} />
             <span
-              className="font-body"
+              className="font-body hidden md:inline"
               style={{
-                fontSize: 24, fontWeight: 600, color: TXT_MID, lineHeight: '33px',
+                fontSize: 'clamp(16px, 2vw, 24px)', fontWeight: 600, color: TXT_MID, lineHeight: 1,
               }}
             >
               Logout
