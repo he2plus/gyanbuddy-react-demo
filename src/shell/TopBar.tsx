@@ -67,7 +67,7 @@ export function TopBar({
     >
       <div
         className="mx-auto flex items-center"
-        style={{ maxWidth: 1920, padding: '24px 120px', gap: 34, height: '100%' }}
+        style={{ maxWidth: 1920, padding: '24px clamp(16px, 4vw, 120px)', gap: 34, height: '100%' }}
       >
         {/* Left lockup: burger + [back] + G + title/subtitle */}
         <div className="flex items-center" style={{ gap: 16 }}>

@@ -96,8 +96,9 @@ export function ChapterPlatform({
           position: 'absolute',
           top: '100%', left: '50%', transform: 'translateX(-50%)',
           marginTop: 6,
-          width: 'max-content', maxWidth: 180,
-          fontSize: 14, fontWeight: 700, lineHeight: '18px',
+          width: 'max-content', maxWidth: 132,
+          fontSize: 13, fontWeight: 700, lineHeight: '17px',
+          overflowWrap: 'break-word', wordBreak: 'break-word', hyphens: 'auto',
           color: chapter.isCompleted ? '#22D3A0'
                : chapter.isInProgress ? '#00167A'
                : '#989CA5',

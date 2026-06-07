@@ -57,7 +57,7 @@ export function ChapterTheoryPage() {
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
       <TopBar pageTitle={chapter?.name ?? 'Chapter'} testCount={1} />
 
-      <main className="mx-auto" style={{ maxWidth: 1920, padding: '40px 120px 60px' }}>
+      <main className="mx-auto" style={{ maxWidth: 1920, padding: 'clamp(20px, 3vw, 40px) clamp(16px, 4vw, 120px) clamp(32px, 5vw, 60px)' }}>
         {/* Back button */}
         <button
           type="button"

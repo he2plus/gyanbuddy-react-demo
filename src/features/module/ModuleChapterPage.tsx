@@ -131,10 +131,10 @@ export function ModuleChapterPage() {
 
           {/* RIGHT CARD — Learning Journey */}
           <section
-            className="bg-white flex flex-col"
+            className="bg-white flex flex-col min-w-0 overflow-hidden"
             style={{
-              flex: 1, borderRadius: 34, padding: 34, gap: 24,
-              minHeight: 806,
+              flex: 1, borderRadius: 34, padding: 'clamp(20px, 2.5vw, 34px)', gap: 24,
+              minHeight: 'clamp(560px, 70vh, 806px)',
               boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
             }}
           >
@@ -157,7 +157,7 @@ export function ModuleChapterPage() {
                 height so the absolutely-positioned platforms (including
                 the FINISH-flag last platform with its name label) always
                 fit without overlapping the bottom CTA. */}
-            <div className="flex-1 relative" style={{ minHeight: 620 }}>
+            <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'clamp(440px, 56vh, 620px)' }}>
               {isLoading && <LoadingPath />}
               {isError && (
                 <ErrorState
@@ -435,7 +435,10 @@ function SnakePath({
     if (N === 1) return [{ x: 0.5, y: 0.5 }]
     const Y_TOP = 0.06
     const Y_BOTTOM = 0.80
-    const amplitude = N <= 3 ? 0.28 : N <= 5 ? 0.30 : 0.34
+    // Keep nodes inset from the container edges so the pedestal image AND its
+    // name label (which can be wider than the image) stay inside the panel
+    // instead of bleeding past the right/left edge on narrower viewports.
+    const amplitude = N <= 3 ? 0.24 : N <= 5 ? 0.26 : 0.28
     return chapters.map((_, i) => {
       const yFrac = i / (N - 1)
       const y = Y_TOP + yFrac * (Y_BOTTOM - Y_TOP)
@@ -500,8 +503,8 @@ function SnakePath({
               // snake appears to weave through the pedestals.
               transform: 'translate(-50%, -50%)',
               width: `${w}%`,
-              maxWidth: 200,
-              minWidth: 110,
+              maxWidth: 168,
+              minWidth: 84,
             }}
             initial={{ opacity: 0, y: 10, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
