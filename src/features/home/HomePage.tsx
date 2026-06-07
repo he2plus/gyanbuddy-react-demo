@@ -201,7 +201,7 @@ export function HomePage() {
 
           {/* RIGHT COLUMN — centre card stack + subject rail */}
           <div
-            className="flex min-w-0"
+            className="flex flex-col lg:flex-row min-w-0"
             style={{
               flex: '2 1 0',
               gap: 'clamp(16px, 2vw, 44px)',
@@ -251,8 +251,8 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
   const initial = (me.firstName?.[0] ?? me.username?.[0] ?? 'U').toUpperCase()
   return (
     <motion.section
-      className="flex"
-      style={{ gap: 30 }}
+      className="flex min-w-0"
+      style={{ gap: 'clamp(14px, 3vw, 30px)' }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -261,7 +261,7 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
       <div
         className="shrink-0 grid place-items-center relative"
         style={{
-          width: 84, height: 84, borderRadius: 999,
+          width: 'clamp(56px, 10vw, 84px)', height: 'clamp(56px, 10vw, 84px)', borderRadius: 999,
           background: `radial-gradient(circle at 32% 28%, #1F3DB8 0%, ${NAVY} 65%, #000A4A 100%)`,
           boxShadow: '0 8px 20px rgba(0,22,122,0.25)',
         }}
@@ -269,7 +269,7 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
         <span
           className="font-body"
           style={{
-            color: '#fff', fontSize: 54, fontWeight: 600, lineHeight: 1,
+            color: '#fff', fontSize: 'clamp(30px, 6vw, 54px)', fontWeight: 600, lineHeight: 1,
           }}
         >
           {initial}
@@ -277,23 +277,23 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
       </div>
 
       {/* Stack */}
-      <div className="flex flex-col" style={{ gap: 8, flex: 1 }}>
+      <div className="flex flex-col min-w-0" style={{ gap: 8, flex: 1 }}>
         <h1
           className="font-body"
           style={{
-            fontSize: 44, fontWeight: 600, color: TXT_DARK,
-            lineHeight: '52px', letterSpacing: '-0.44px',
+            fontSize: 'clamp(26px, 5vw, 44px)', fontWeight: 600, color: TXT_DARK,
+            lineHeight: 1.14, letterSpacing: '-0.44px',
             margin: 0,
           }}
         >
           Hello, <span className="capitalize">{me.firstName || me.username}</span>
         </h1>
-        <div className="flex items-center" style={{ gap: 10, marginTop: 6 }}>
-          <Sparkles className="w-6 h-6" style={{ color: CYAN }} strokeWidth={2.2} />
+        <div className="flex items-center min-w-0" style={{ gap: 10, marginTop: 6 }}>
+          <Sparkles className="w-6 h-6 shrink-0" style={{ color: CYAN }} strokeWidth={2.2} />
           <span
-            className="font-body"
+            className="font-body truncate"
             style={{
-              fontSize: 22, fontWeight: 600, color: TXT_MUTED, lineHeight: '30px',
+              fontSize: 'clamp(15px, 2.6vw, 22px)', fontWeight: 600, color: TXT_MUTED, lineHeight: 1.3,
             }}
           >
             Progress this week {progressPct}%
@@ -347,9 +347,9 @@ function TrophyBanner({
       {/* Decorative bg circles — drift slowly, give the navy slab some life */}
       <TrophyDecor />
 
-      <div className="relative z-10 flex flex-col" style={{ gap: 24, width: 336 }}>
+      <div className="relative z-10 flex flex-col min-w-0" style={{ gap: 24, width: '100%', maxWidth: 336 }}>
         {/* Wordmark */}
-        <div className="flex flex-col" style={{ width: 230 }}>
+        <div className="flex flex-col" style={{ maxWidth: 230 }}>
           <span
             style={{
               fontFamily: 'var(--font-body)',
@@ -935,7 +935,7 @@ function SubjectRail({
   onPick: (id: string) => void
 }) {
   return (
-    <aside className="flex flex-col" style={{ width: 96, gap: 20 }}>
+    <aside className="flex flex-row lg:flex-col w-full lg:w-24 overflow-x-auto lg:overflow-visible" style={{ gap: 16 }}>
       {subjects.map((s, i) => {
         const Icon = iconFor(s)
         const active = s.id === activeId
@@ -947,7 +947,7 @@ function SubjectRail({
             aria-label={s.name}
             title={s.name}
             onClick={() => onPick(s.id)}
-            className="grid place-items-center bg-white"
+            className="grid place-items-center bg-white shrink-0"
             style={{
               width: 96, height: 80, borderRadius: 28,
               padding: 12,
