@@ -178,7 +178,7 @@ export function HomePage() {
           padding: 'clamp(24px, 3vw, 60px) clamp(16px, 4vw, 120px)',
         }}
       >
-        <div className="flex flex-col lg:flex-row" style={{ gap: 'clamp(24px, 3vw, 64px)' }}>
+        <div className="flex flex-col lg:flex-row min-w-0" style={{ gap: 'clamp(24px, 3vw, 64px)' }}>
           {/* LEFT COLUMN — greeting + trophy + small leaderboard preview.
               Capped to 560px on huge screens, fluid below. */}
           <div
