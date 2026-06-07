@@ -434,7 +434,7 @@ function TrophyBanner({
         aria-hidden="true"
         draggable={false}
         className="absolute pointer-events-none select-none"
-        style={{ right: 30, bottom: 30, width: 135, height: 'auto', opacity: 0.95 }}
+        style={{ right: 40, bottom: 46, width: 'clamp(104px, 22%, 124px)', maxWidth: '40%', height: 'auto', opacity: 0.95 }}
         animate={{ y: [0, -6, 0], rotate: [0, 2, 0, -2, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
         onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/home_trophy.png' }}
