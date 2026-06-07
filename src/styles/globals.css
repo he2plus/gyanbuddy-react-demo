@@ -143,6 +143,31 @@ body {
   }
 }
 
+/* -------------------------------------------------------------------------
+ * Hard mobile/tablet guard (the comprehensive overflow fix).
+ *
+ * Every page is pixel-built for a 1920px Figma frame, so individual elements
+ * carry fixed pixel widths that can push the layout wider than a phone screen.
+ * At <=1024px we cap EVERY layout element to its container's width, so the
+ * width chain (viewport -> #root -> page -> card -> ...) can never be broken by
+ * a stray fixed width: nothing is ever wider than the screen.
+ *
+ * :where() keeps specificity at 0, so this only ever sets an upper bound —
+ * component styles still win for everything else. SVGs are excluded so icon
+ * sizing (w-6 h-6 etc.) is untouched.
+ * --------------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  #root :where(div, section, header, footer, aside, nav, article, main,
+               ul, ol, li, p, h1, h2, h3, h4, h5, span, a, button, input,
+               textarea, label, img, picture, table) {
+    max-width: 100%;
+  }
+  #root img,
+  #root picture {
+    height: auto;
+  }
+}
+
 /* Subtle desktop scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
