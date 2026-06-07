@@ -44,7 +44,7 @@ export function AppShell() {
   const sidebarWidth = collapsed ? 64 : 240
 
   return (
-    <div className="min-h-screen w-full bg-white">
+    <div className="min-h-screen w-full overflow-x-hidden bg-white">
       <div className="mx-auto flex w-full max-w-[1920px]">
         {showChrome && (
           <aside
@@ -55,7 +55,7 @@ export function AppShell() {
           </aside>
         )}
 
-        <main className="relative min-h-screen flex-1">
+        <main className="relative min-h-screen min-w-0 flex-1">
           <Outlet />
 
           {showChrome && (
