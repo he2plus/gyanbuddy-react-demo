@@ -24,7 +24,11 @@ export function LoginPage() {
   const status = useAuthStore((s) => s.status)
   const message = useAuthStore((s) => s.message)
   const login = useLogin()
-  const mockOn = import.meta.env.VITE_DEV_MOCK_AUTH === 'true'
+  // Mock only runs in local `vite dev` (see src/api/*). import.meta.env.DEV is
+  // hard-false in production builds, so this banner never shows on the live
+  // demo even if a Vercel dashboard sets VITE_DEV_MOCK_AUTH=true.
+  const mockOn =
+    import.meta.env.DEV && import.meta.env.VITE_DEV_MOCK_AUTH === 'true'
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),

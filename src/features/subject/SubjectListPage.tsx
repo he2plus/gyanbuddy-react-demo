@@ -402,7 +402,7 @@ function SubjectRow({
             <div
               className="grid"
               style={{
-                gridTemplateColumns: 'repeat(auto-fill, minmax(224px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(224px, 100%), 1fr))',
                 gap: 24,
                 marginTop: 44,
                 maxWidth: 5 * 224 + 4 * 24, // hard cap so we never exceed 5 per row
