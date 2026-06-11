@@ -2,7 +2,6 @@
  * Responsive shell. Sidebar width depends on the persisted collapsed state
  * from useUIStore.
  */
-import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import { BottomTabs } from './BottomTabs'
@@ -37,72 +36,16 @@ function isChromeless(path: string): boolean {
   return HIDE_CHROME_PREFIX.some((p) => path.startsWith(p))
 }
 
-// ---------------------------------------------------------------------------
-// Viewport-fit scaling.
-//
-// The whole UI was ported pixel-for-pixel from a 1920px-wide Figma frame, so
-// every font/size/gap is an absolute px value tuned for that canvas. On a
-// smaller laptop the design therefore renders at its FIXED size and feels
-// oversized — it doesn't scale to the screen, it just overflows.
-//
-// Rather than re-tune hundreds of inline px values page by page, we scale the
-// entire app uniformly with `zoom`, proportional to how much narrower the
-// viewport is than the design canvas. `zoom` (unlike transform: scale) also
-// shrinks the layout box, so a 1920 design at 0.8 genuinely occupies 1536px
-// and fits — no leftover whitespace, no horizontal scroll.
-//
-// Only applied on >=1024px (desktop/laptop). Phones & tablets keep zoom 1 and
-// rely on the existing fluid flex layout + clamp() type, which already stacks.
-const DESIGN_WIDTH = 1920 // the Figma canvas width; at/above this, scale = 1
-const MIN_SCALE = 0.66    // never shrink below this (keeps tiny laptops legible)
-
-function computeFitScale(width: number): number {
-  if (width < 1024) return 1
-  const raw = width / DESIGN_WIDTH
-  return Math.min(1, Math.max(MIN_SCALE, raw))
-}
-
-function useFitScale(): number {
-  const [scale, setScale] = useState(() =>
-    typeof window === 'undefined' ? 1 : computeFitScale(window.innerWidth),
-  )
-  useEffect(() => {
-    let frame = 0
-    const onResize = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => setScale(computeFitScale(window.innerWidth)))
-    }
-    window.addEventListener('resize', onResize)
-    onResize()
-    return () => {
-      cancelAnimationFrame(frame)
-      window.removeEventListener('resize', onResize)
-    }
-  }, [])
-  return scale
-}
-
 export function AppShell() {
   const { pathname } = useLocation()
   const showChrome = !isChromeless(pathname)
   const collapsed = useUIStore((s) => s.sidenavCollapsed)
-  const fitScale = useFitScale()
 
   const sidebarWidth = collapsed ? 64 : 240
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-white">
-      {/* `zoom` scales the whole app to fit the viewport (see useFitScale).
-          `width: 100 / scale %` keeps the unscaled box filling the viewport so
-          the centered max-width container still uses the full width. */}
-      <div
-        className="mx-auto flex w-full max-w-[1920px]"
-        style={
-          fitScale < 1
-            ? ({ zoom: fitScale, width: `${100 / fitScale}%`, maxWidth: `${1920 / fitScale}px` } as React.CSSProperties)
-            : undefined
-        }
-      >
+      <div className="mx-auto flex w-full max-w-[1920px]">
         {showChrome && (
           <aside
             className="hidden shrink-0 transition-[width] duration-200 ease-out lg:block"
