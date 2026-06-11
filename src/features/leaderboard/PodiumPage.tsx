@@ -480,7 +480,7 @@ function PodiumCard({
 }: {
   users: User[]; myId: string; loading: boolean
 }) {
-  const top5 = users.slice(0, 5)
+  const ranked = users  // show the whole class, not just the top 5
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
@@ -526,7 +526,7 @@ function PodiumCard({
               />
             ))}
           </div>
-        ) : top5.length === 0 ? (
+        ) : ranked.length === 0 ? (
           <div
             className="grid place-items-center"
             style={{ minHeight: 100, color: TXT_MUTED }}
@@ -534,8 +534,11 @@ function PodiumCard({
             No ranks yet.
           </div>
         ) : (
-          <ul className="flex flex-col" style={{ gap: 4 }}>
-            {top5.map((u, i) => (
+          <ul
+            className="flex flex-col"
+            style={{ gap: 4, maxHeight: 'min(60vh, 460px)', overflowY: 'auto' }}
+          >
+            {ranked.map((u, i) => (
               <PodiumRow
                 key={u.id}
                 user={u}
