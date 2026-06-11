@@ -15,7 +15,7 @@ const TXT_MUTED = '#989CA5'
 const SURFACE_BG = '#FAFAFA'
 
 const TEAM = [
-  { name: 'Prakhar Tripathi', role: 'Engineering & integration', email: 'dptmywork@gmail.com' },
+  { name: 'GyanBuddy Engineering', role: 'Engineering & integration', email: null },
   { name: 'GyanBuddy Design', role: 'UI / UX', email: null },
   { name: 'The teachers',     role: 'Subject content and curriculum guidance', email: null },
 ]
