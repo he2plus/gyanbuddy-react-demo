@@ -108,16 +108,6 @@ export function SideNav() {
         {!collapsed && (
           <div className="space-y-0.5">
             <div>© Gyaan Buddy</div>
-            <div>
-              Built by{' '}
-              <a
-                href="mailto:dptmywork@gmail.com"
-                className="font-semibold text-[#365DEA] hover:underline"
-                title="dptmywork@gmail.com"
-              >
-                Prakhar Tripathi
-              </a>
-            </div>
           </div>
         )}
       </div>
