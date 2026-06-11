@@ -174,19 +174,19 @@ export function HomePage() {
       <main
         className="mx-auto w-full"
         style={{
-          maxWidth: 1920,
-          padding: 'clamp(24px, 3vw, 60px) clamp(16px, 4vw, 120px)',
+          maxWidth: 1440,
+          padding: 'clamp(20px, 2.4vw, 44px) clamp(16px, 3vw, 72px)',
         }}
       >
-        <div className="flex flex-col lg:flex-row min-w-0" style={{ gap: 'clamp(24px, 3vw, 64px)' }}>
+        <div className="flex flex-col lg:flex-row min-w-0" style={{ gap: 'clamp(20px, 2.4vw, 44px)' }}>
           {/* LEFT COLUMN — greeting + trophy + small leaderboard preview.
               Capped to 560px on huge screens, fluid below. */}
           <div
             className="flex flex-col min-w-0"
             style={{
               flex: '1 1 0',
-              maxWidth: 560,
-              gap: 'clamp(24px, 3vw, 64px)',
+              maxWidth: 480,
+              gap: 'clamp(18px, 2vw, 32px)',
             }}
           >
             <GreetingBlock me={me} progressPct={overallProgress} />
@@ -204,12 +204,12 @@ export function HomePage() {
             className="flex flex-col lg:flex-row min-w-0"
             style={{
               flex: '2 1 0',
-              gap: 'clamp(16px, 2vw, 44px)',
+              gap: 'clamp(14px, 1.6vw, 28px)',
             }}
           >
             <div
               className="flex flex-col min-w-0"
-              style={{ flex: '1 1 0', gap: 'clamp(24px, 3vw, 44px)' }}
+              style={{ flex: '1 1 0', gap: 'clamp(18px, 2vw, 28px)' }}
             >
               <MetricRow
                 streakDays={streakDays}
@@ -257,11 +257,11 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* Avatar 84x84 navy circle — radial highlight gives it depth */}
+      {/* Avatar navy circle — radial highlight gives it depth */}
       <div
         className="shrink-0 grid place-items-center relative"
         style={{
-          width: 'clamp(56px, 10vw, 84px)', height: 'clamp(56px, 10vw, 84px)', borderRadius: 999,
+          width: 'clamp(48px, 7vw, 64px)', height: 'clamp(48px, 7vw, 64px)', borderRadius: 999,
           background: `radial-gradient(circle at 32% 28%, #1F3DB8 0%, ${NAVY} 65%, #000A4A 100%)`,
           boxShadow: '0 8px 20px rgba(0,22,122,0.25)',
         }}
@@ -269,7 +269,7 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
         <span
           className="font-body"
           style={{
-            color: '#fff', fontSize: 'clamp(30px, 6vw, 54px)', fontWeight: 600, lineHeight: 1,
+            color: '#fff', fontSize: 'clamp(26px, 4.5vw, 36px)', fontWeight: 600, lineHeight: 1,
           }}
         >
           {initial}
@@ -277,41 +277,44 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
       </div>
 
       {/* Stack */}
-      <div className="flex flex-col min-w-0" style={{ gap: 8, flex: 1 }}>
+      <div className="flex flex-col min-w-0" style={{ gap: 6, flex: 1 }}>
         <h1
           className="font-body"
           style={{
-            fontSize: 'clamp(26px, 5vw, 44px)', fontWeight: 600, color: TXT_DARK,
-            lineHeight: 1.14, letterSpacing: '-0.44px',
+            fontSize: 'clamp(24px, 3.6vw, 34px)', fontWeight: 600, color: TXT_DARK,
+            lineHeight: 1.12, letterSpacing: '-0.4px',
             margin: 0,
           }}
         >
           Hello, <span className="capitalize">{me.firstName || me.username}</span>
         </h1>
-        <div className="flex items-center min-w-0" style={{ gap: 10, marginTop: 6 }}>
-          <Sparkles className="w-6 h-6 shrink-0" style={{ color: CYAN }} strokeWidth={2.2} />
+        <div className="flex items-center min-w-0" style={{ gap: 8, marginTop: 4 }}>
+          <Sparkles className="w-5 h-5 shrink-0" style={{ color: CYAN }} strokeWidth={2.2} />
           <span
             className="font-body truncate"
             style={{
-              fontSize: 'clamp(15px, 2.6vw, 22px)', fontWeight: 600, color: TXT_MUTED, lineHeight: 1.3,
+              fontSize: 'clamp(13px, 1.8vw, 16px)', fontWeight: 600, color: TXT_MUTED, lineHeight: 1.3,
             }}
           >
             Progress this week {progressPct}%
           </span>
         </div>
-        {/* Progress bar 446 x 14 */}
+        {/* Progress bar — slimmer track with an inset, gradient fill + soft glow */}
         <div
           style={{
-            height: 14, borderRadius: 14, background: TRACK_BG,
-            width: '100%', marginTop: 14, overflow: 'hidden',
+            height: 10, borderRadius: 999, background: '#ECEEF2',
+            width: '100%', marginTop: 12, overflow: 'hidden',
+            boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)',
           }}
         >
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${progressPct}%` }}
+            animate={{ width: `${Math.max(progressPct, 4)}%` }}
             transition={{ duration: 0.9, ease: 'easeOut' }}
             style={{
-              height: '100%', borderRadius: 14, background: CYAN,
+              height: '100%', borderRadius: 999,
+              background: `linear-gradient(90deg, ${NAVY} 0%, ${CYAN} 100%)`,
+              boxShadow: '0 1px 6px rgba(26,188,254,0.45)',
             }}
           />
         </div>
@@ -335,10 +338,10 @@ function TrophyBanner({
   const xp = topUser?.totalExp ?? 0
   return (
     <motion.section
-      className="relative overflow-hidden"
+      className="relative overflow-hidden flex items-end"
       style={{
-        background: NAVY, borderRadius: 44, padding: 'clamp(22px, 3vw, 30px)',
-        minHeight: 'clamp(232px, 28vw, 269px)',
+        background: NAVY, borderRadius: 36, padding: 'clamp(20px, 2.4vw, 26px)',
+        minHeight: 'clamp(196px, 22vw, 228px)', gap: 12,
       }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -347,13 +350,15 @@ function TrophyBanner({
       {/* Decorative bg circles — drift slowly, give the navy slab some life */}
       <TrophyDecor />
 
-      <div className="relative z-10 flex flex-col min-w-0" style={{ gap: 24, width: '100%', maxWidth: 336 }}>
+      {/* Text column — flex:1 so it owns the left space; the trophy is a
+          sibling flex item (below), so they can never overlap. */}
+      <div className="relative z-10 flex flex-col min-w-0" style={{ gap: 18, flex: 1 }}>
         {/* Wordmark */}
-        <div className="flex flex-col" style={{ maxWidth: 230 }}>
+        <div className="flex flex-col min-w-0">
           <span
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 700, color: '#fff', lineHeight: 1.05,
+              fontSize: 'clamp(26px, 3vw, 34px)', fontWeight: 700, color: '#fff', lineHeight: 1.05,
             }}
           >
             GyanBuddy
@@ -361,64 +366,64 @@ function TrophyBanner({
           <span
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 18, fontWeight: 700, color: '#fff',
-              lineHeight: '19px', marginLeft: 24,
+              fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)',
+              lineHeight: '18px', marginLeft: 20,
             }}
           >
             A smarter way to learn
           </span>
         </div>
 
-        {/* King pill + Rehan row */}
-        <div className="flex flex-col" style={{ gap: 16 }}>
+        {/* King pill + winner row */}
+        <div className="flex flex-col min-w-0" style={{ gap: 12 }}>
           <motion.div
             className="flex items-center"
             style={{
               background: CYAN, borderRadius: 42,
-              padding: '12px 24px', height: 49,
-              alignSelf: 'flex-start',
+              padding: '8px 16px',
+              alignSelf: 'flex-start', maxWidth: '100%',
             }}
             animate={{
               boxShadow: [
                 '0 0 0 0 rgba(26,188,254,0.55)',
-                '0 0 0 12px rgba(26,188,254,0)',
+                '0 0 0 10px rgba(26,188,254,0)',
                 '0 0 0 0 rgba(26,188,254,0)',
               ],
             }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
           >
             <span
-              className="font-body"
-              style={{ fontSize: 18, fontWeight: 600, color: '#fff', lineHeight: '25px' }}
+              className="font-body truncate"
+              style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: '20px' }}
             >
               The week King of Leaderboard
             </span>
           </motion.div>
-          <div className="flex items-center" style={{ gap: 14 }}>
+          <div className="flex items-center min-w-0" style={{ gap: 12 }}>
             <div
-              className="grid place-items-center"
+              className="grid place-items-center shrink-0"
               style={{
-                width: 54, height: 54, borderRadius: 999,
+                width: 44, height: 44, borderRadius: 999,
                 border: '2px solid #fff',
               }}
             >
               <span
                 className="font-body"
-                style={{ fontSize: 30, fontWeight: 600, color: '#fff', lineHeight: 1 }}
+                style={{ fontSize: 24, fontWeight: 600, color: '#fff', lineHeight: 1 }}
               >
                 {initial}
               </span>
             </div>
-            <div className="flex flex-col leading-tight">
+            <div className="flex flex-col leading-tight min-w-0">
               <span
-                className="font-body"
-                style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: '28px' }}
+                className="font-body truncate"
+                style={{ fontSize: 17, fontWeight: 600, color: '#fff', lineHeight: '24px' }}
               >
                 {topUser?.fullName || firstName}
               </span>
               <span
                 className="font-body"
-                style={{ fontSize: 14, fontWeight: 400, color: '#fff', lineHeight: '19px' }}
+                style={{ fontSize: 13, fontWeight: 400, color: 'rgba(255,255,255,0.8)', lineHeight: '18px' }}
               >
                 {xp} Xp
               </span>
@@ -427,14 +432,15 @@ function TrophyBanner({
         </div>
       </div>
 
-      {/* Trophy decoration on the right — Figma-rendered PNG, gentle float */}
+      {/* Trophy — a real flex sibling pinned to the bottom-right, so it sits
+          BESIDE the text column instead of floating on top of it. */}
       <motion.img
         src="/images/figma/trophy-decoration.png"
         alt=""
         aria-hidden="true"
         draggable={false}
-        className="absolute pointer-events-none select-none"
-        style={{ right: 40, bottom: 46, width: 'clamp(104px, 22%, 124px)', maxWidth: '40%', height: 'auto', opacity: 0.95 }}
+        className="relative z-10 shrink-0 pointer-events-none select-none self-end"
+        style={{ width: 'clamp(72px, 16%, 104px)', height: 'auto', opacity: 0.95 }}
         animate={{ y: [0, -6, 0], rotate: [0, 2, 0, -2, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
         onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/home_trophy.png' }}
@@ -467,23 +473,23 @@ function LeaderboardWidget({
       className="bg-white relative"
       style={{
         border: `1px solid ${CARD_STROKE}`,
-        borderRadius: 24, padding: 30,
+        borderRadius: 24, padding: 24,
         // Height is intentionally not fixed — content drives it so the YOU
         // row never gets clipped if there are very few users.
       }}
     >
       {/* Header */}
-      <div className="flex items-start" style={{ gap: 24 }}>
-        <div className="flex flex-col flex-1 leading-tight">
+      <div className="flex items-start" style={{ gap: 20 }}>
+        <div className="flex flex-col flex-1 leading-tight min-w-0">
           <span
             className="font-body"
-            style={{ fontSize: 22, fontWeight: 700, color: '#000', lineHeight: '30px' }}
+            style={{ fontSize: 19, fontWeight: 700, color: '#000', lineHeight: '26px' }}
           >
             Leader board
           </span>
           <span
             className="font-body"
-            style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px' }}
+            style={{ fontSize: 14, fontWeight: 400, color: TXT_MID, lineHeight: '20px' }}
           >
             Class {className} - This week
           </span>
@@ -525,17 +531,17 @@ function LeaderRow({
     <div
       className="flex items-center"
       style={{
-        height: 72, borderRadius: 24,
-        padding: '12px 24px', gap: 24,
+        height: 60, borderRadius: 20,
+        padding: '10px 18px', gap: 16,
         background: isMe ? CYAN : 'transparent',
         border: `1px solid ${isMe ? CYAN : CARD_STROKE}`,
       }}
     >
-      <div className="flex items-center flex-1" style={{ gap: 14 }}>
+      <div className="flex items-center flex-1 min-w-0" style={{ gap: 12 }}>
         <span
           className="font-body shrink-0 text-center tabular-nums"
           style={{
-            width: 24, fontSize: 20, fontWeight: 600, color: TXT_DARK, lineHeight: '28px',
+            width: 20, fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px',
           }}
         >
           {rank}
@@ -543,14 +549,14 @@ function LeaderRow({
         <div
           className="grid place-items-center shrink-0"
           style={{
-            width: 43, height: 44, borderRadius: 999,
+            width: 38, height: 38, borderRadius: 999,
             background: isMe ? '#fff' : NAVY,
           }}
         >
           <span
             className="font-body"
             style={{
-              fontSize: 20, fontWeight: 700, lineHeight: '28px',
+              fontSize: 17, fontWeight: 700, lineHeight: '24px',
               color: isMe ? NAVY : '#fff',
             }}
           >
@@ -559,7 +565,7 @@ function LeaderRow({
         </div>
         <span
           className="font-body truncate"
-          style={{ fontSize: 20, fontWeight: 600, color: TXT_DARK, lineHeight: '28px' }}
+          style={{ fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px' }}
         >
           {user.fullName || user.username}
         </span>
@@ -576,10 +582,10 @@ function LeaderRow({
           </span>
         )}
       </div>
-      <div className="flex flex-col items-end leading-none">
+      <div className="flex flex-col items-end leading-none shrink-0">
         <span
           className="font-body tabular-nums"
-          style={{ fontSize: 20, fontWeight: 600, color: TXT_DARK, lineHeight: '28px' }}
+          style={{ fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px' }}
         >
           {user.totalExp.toLocaleString()}
         </span>
@@ -603,7 +609,7 @@ function MetricRow({
   streakDays: number; todayGoalPct: number; testScorePct: number
 }) {
   return (
-    <section className="flex flex-wrap" style={{ gap: 'clamp(14px, 2vw, 44px)' }}>
+    <section className="flex flex-wrap" style={{ gap: 'clamp(12px, 1.6vw, 24px)' }}>
       <MetricCard
         emoji="🔥"
         valueNum={streakDays}
@@ -611,14 +617,14 @@ function MetricRow({
         delay={0}
       />
       <MetricCard
-        icon={<Target className="w-12 h-12" style={{ color: '#fff' }} strokeWidth={2.2} />}
+        icon={<Target className="w-8 h-8" style={{ color: '#fff' }} strokeWidth={2.2} />}
         valueNum={todayGoalPct}
         suffix="%"
         label="Today's Goal"
         delay={0.08}
       />
       <MetricCard
-        icon={<Trophy className="w-12 h-12" style={{ color: '#fff' }} strokeWidth={2.2} />}
+        icon={<Trophy className="w-8 h-8" style={{ color: '#fff' }} strokeWidth={2.2} />}
         valueNum={testScorePct}
         suffix="%"
         label="Test Score"
@@ -642,8 +648,8 @@ function MetricCard({
     <motion.div
       className="flex flex-col items-center relative overflow-hidden cursor-default"
       style={{
-        flex: '1 1 132px', minWidth: 132,
-        height: 'clamp(140px, 14vw, 176px)', borderRadius: 34, padding: '20px clamp(16px, 2vw, 32px)',
+        flex: '1 1 120px', minWidth: 120,
+        height: 'clamp(118px, 11vw, 146px)', borderRadius: 28, padding: '16px clamp(14px, 1.6vw, 24px)',
         background: NAVY,
       }}
       initial={{ opacity: 0, y: 16 }}
@@ -662,8 +668,8 @@ function MetricCard({
         className="relative"
         style={{
           fontFamily: 'var(--font-numeric)',
-          fontSize: 40, fontWeight: 900, color: '#fff',
-          lineHeight: '52px', height: 52,
+          fontSize: 30, fontWeight: 900, color: '#fff',
+          lineHeight: '40px', height: 40,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
@@ -673,8 +679,8 @@ function MetricCard({
         className="relative"
         style={{
           fontFamily: 'var(--font-numeric)',
-          fontSize: 'clamp(36px, 4.6vw, 54px)', fontWeight: 900, color: '#fff',
-          lineHeight: 1, marginTop: 8,
+          fontSize: 'clamp(30px, 3.6vw, 42px)', fontWeight: 900, color: '#fff',
+          lineHeight: 1, marginTop: 6,
         }}
       >
         <AnimatedNumber value={valueNum} suffix={suffix ?? ''} />
@@ -682,8 +688,8 @@ function MetricCard({
       <div
         className="font-body relative text-center"
         style={{
-          fontSize: 'clamp(14px, 1.7vw, 18px)', fontWeight: 700, color: '#fff',
-          lineHeight: 1.1, marginTop: 6,
+          fontSize: 'clamp(12px, 1.4vw, 15px)', fontWeight: 700, color: '#fff',
+          lineHeight: 1.1, marginTop: 5,
         }}
       >
         {label}
@@ -710,7 +716,7 @@ function ActiveSubjectCard({
         className="bg-white"
         style={{
           border: `1px solid ${CARD_STROKE}`,
-          borderRadius: 24, padding: 30, minHeight: 480,
+          borderRadius: 24, padding: 24, minHeight: 480,
         }}
       >
         <div className="animate-pulse" style={{ height: 24, width: 120, background: TRACK_BG, borderRadius: 6 }} />
@@ -725,7 +731,7 @@ function ActiveSubjectCard({
         className="grid place-items-center bg-white"
         style={{
           border: `1px solid ${CARD_STROKE}`,
-          borderRadius: 24, padding: 30, minHeight: 480,
+          borderRadius: 24, padding: 24, minHeight: 480,
           color: TXT_MID,
         }}
       >
@@ -741,21 +747,21 @@ function ActiveSubjectCard({
       className="bg-white relative overflow-hidden"
       style={{
         border: `1px solid ${CARD_STROKE}`,
-        borderRadius: 24, padding: 30,
+        borderRadius: 24, padding: 24,
       }}
     >
       {/* Header row: level + name + meta + Due chip */}
-      <div className="flex items-start" style={{ gap: 24 }}>
-        <div className="flex flex-col flex-1 leading-tight">
+      <div className="flex items-start" style={{ gap: 20 }}>
+        <div className="flex flex-col flex-1 leading-tight min-w-0">
           <span
             className="font-body"
-            style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ fontSize: 14, fontWeight: 400, color: TXT_MID, lineHeight: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             Level 1
           </span>
           <span
             className="font-body"
-            style={{ fontSize: 26, fontWeight: 700, color: '#000', lineHeight: '36px' }}
+            style={{ fontSize: 22, fontWeight: 700, color: '#000', lineHeight: '30px' }}
           >
             {subject.name}
           </span>
@@ -800,7 +806,7 @@ function ActiveSubjectCard({
       <div
         className="relative overflow-hidden grid place-items-center"
         style={{
-          marginTop: 24, height: 237, borderRadius: 16,
+          marginTop: 20, height: 196, borderRadius: 16,
           background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%)',
         }}
         aria-hidden="true"
@@ -811,7 +817,7 @@ function ActiveSubjectCard({
           draggable={false}
           className="select-none"
           style={{
-            maxHeight: 220, width: 'auto', height: 'auto',
+            maxHeight: 178, width: 'auto', height: 'auto',
             filter: 'drop-shadow(0 12px 28px rgba(124,58,237,0.22))',
           }}
           animate={{ y: [0, -8, 0], rotate: [0, 2, 0, -2, 0] }}
@@ -820,7 +826,7 @@ function ActiveSubjectCard({
       </div>
 
       {/* Chapter list */}
-      <div className="flex flex-col" style={{ gap: 34, marginTop: 44 }}>
+      <div className="flex flex-col" style={{ gap: 22, marginTop: 28 }}>
         {visible.map((c, idx) => (
           <ChapterRow key={c.id} chapter={c} index={idx} />
         ))}
@@ -840,7 +846,7 @@ function ActiveSubjectCard({
         onClick={onStart}
         className="w-full grid place-items-center"
         style={{
-          marginTop: 44, height: 57, borderRadius: 42, background: NAVY,
+          marginTop: 28, height: 50, borderRadius: 42, background: NAVY,
           fontFamily: 'var(--font-body)', color: '#fff',
         }}
       >
@@ -895,7 +901,7 @@ function ChapterRow({ chapter, index }: { chapter: ModuleChapter; index: number 
       <div className="flex flex-col flex-1" style={{ gap: 6 }}>
         <span
           className="font-body"
-          style={{ fontSize: 20, fontWeight: 600, color: TXT_DARK, lineHeight: '28px' }}
+          style={{ fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px' }}
         >
           {chapter.name}
         </span>
