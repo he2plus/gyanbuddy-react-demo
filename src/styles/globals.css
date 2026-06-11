@@ -162,6 +162,14 @@ body {
                textarea, label, img, picture, table) {
     max-width: 100%;
   }
+  /* Flex/grid items default to min-width:auto (their content's min size),
+     which OVERRIDES max-width and can still force a row wider than the screen.
+     Letting layout containers shrink to 0 lets rows wrap/shrink instead of
+     overflowing. Scoped to containers so button/input/img content is untouched. */
+  #root :where(div, section, header, footer, aside, nav, article, main,
+               ul, ol, li) {
+    min-width: 0;
+  }
   #root img,
   #root picture {
     height: auto;
