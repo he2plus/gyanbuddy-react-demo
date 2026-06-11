@@ -41,11 +41,15 @@ export function ChapterQuizPage() {
 
   const back = () =>
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}`)
-  // After a quiz finishes, take the student to the live class standings
-  // (flat ranked list) so they immediately see how their attempt moved them
-  // in the class. Their XP is computed server-side from the answers they
-  // just submitted, so the list will reflect the new total on next fetch.
-  const toStandings = () => navigate('/leaderboard')
+  // After a quiz finishes, take the student to the live class standings (the
+  // podium) so they immediately see how their attempt moved them in the class.
+  // We pass the journey URL as `returnTo` so the podium can offer a "Continue
+  // learning" button that drops them back on the journey — now on the next
+  // podium, since the chapter they just finished is complete.
+  const toStandings = () =>
+    navigate('/podium', {
+      state: { returnTo: `/subjects/${subjectId}/modules/${moduleId}/chapters` },
+    })
 
   return (
     <div className="min-h-screen bg-white">
