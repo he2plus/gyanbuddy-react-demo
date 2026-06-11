@@ -29,10 +29,11 @@
  *  - Top-right of each side card has an outbound-arrow "open" affordance.
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronDown, Flame, TrendingUp, TrendingDown, Minus, ArrowUpRight, Check,
+  ArrowRight,
 } from 'lucide-react'
 
 import { TopBar } from '../../shell/TopBar'
@@ -63,6 +64,11 @@ export function PodiumPage() {
   const [period, setPeriod] = useState<LeaderboardPeriod>('weekly')
   const lbQ = useLeaderboard({ period, limit: 100 })
   const navigate = useNavigate()
+  const location = useLocation()
+  // When the student lands here straight after finishing a quiz, the quiz page
+  // passes the journey URL so we can offer a "Continue learning" button that
+  // drops them back on the journey path — now sitting on the next podium.
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo ?? null
 
   const users = lbQ.data?.users ?? []
   const className = lbQ.data?.className ?? '10-A'
@@ -91,6 +97,26 @@ export function PodiumPage() {
           padding: 'clamp(20px, 3vw, 32px) clamp(16px, 4vw, 64px) clamp(40px, 5vw, 60px)',
         }}
       >
+        {/* Post-quiz banner — return to the journey on the next podium. */}
+        {returnTo && (
+          <motion.button
+            type="button"
+            onClick={() => navigate(returnTo)}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center justify-center w-full font-body"
+            style={{
+              gap: 10, marginBottom: 20, padding: '14px 24px', borderRadius: 999,
+              background: NAVY, color: '#fff', fontSize: 16, fontWeight: 700,
+              boxShadow: '0 8px 22px rgba(0,22,122,0.22)',
+            }}
+          >
+            Continue learning — next topic
+            <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
+          </motion.button>
+        )}
+
         {/* Header — compact title + filters, tight spacing */}
         <div className="flex flex-col items-center" style={{ gap: 18, marginBottom: 28 }}>
           <h1
