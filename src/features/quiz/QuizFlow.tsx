@@ -192,6 +192,11 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
       if (nextAttempts === 1 && question.hint) {
         setShowHint(true)
       }
+      // After the 2nd miss the question is spent — surface the explanation so
+      // the student sees why before moving to the next question.
+      if (nextAttempts >= 2 && question.explanation) {
+        setRevealedExplanation(true)
+      }
     }
   }
 
@@ -200,10 +205,13 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
     else setIndex((i) => i + 1)
   }
 
-  const isIdle = feedback.kind === 'idle'
   const isChecking = feedback.kind === 'checking'
   const isCorrect = feedback.kind === 'correct'
   const isIncorrect = feedback.kind === 'incorrect'
+  // After 2 failed attempts the question is spent (0 XP): reveal the answer and
+  // let the student move on instead of trapping them on "Try again".
+  const exhausted = isIncorrect && attempts >= 2
+  const resolved = isCorrect || exhausted
 
   // Show the Why-button after 2 failed attempts (docx #16).
   const showWhyButton =
@@ -363,9 +371,9 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
                     disabled={isLocked}
                     multiSelect={question.type === 'mcq_multiple'}
                     feedback={
-                      isCorrect && o.isCorrect
+                      resolved && o.isCorrect
                         ? 'correct'
-                        : isIncorrect && selectedIds.includes(o.id)
+                        : isIncorrect && selectedIds.includes(o.id) && !o.isCorrect
                           ? 'incorrect'
                           : 'none'
                     }
@@ -487,6 +495,7 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
                 attempts={feedback.attempts}
                 hasExplanation={!!question.explanation}
                 explanationRevealed={revealedExplanation}
+                exhausted={exhausted}
               />
             )}
           </AnimatePresence>
@@ -518,7 +527,7 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
         >
           Exit
         </button>
-        {isIdle || isChecking || isIncorrect ? (
+        {!resolved ? (
           <motion.button
             type="button"
             onClick={submit}
@@ -769,17 +778,20 @@ function CorrectBanner({ xp }: { xp: number }) {
 }
 
 function IncorrectBanner({
-  attempts, hasExplanation, explanationRevealed,
+  attempts, hasExplanation, explanationRevealed, exhausted,
 }: {
   attempts: number
   hasExplanation: boolean
   explanationRevealed: boolean
+  exhausted: boolean
 }) {
   // Pick copy that always lines up with the UI the user can actually see:
   // never tell them to hit Why? if there is no explanation OR they've
   // already revealed it.
   let copy: string
-  if (attempts === 1) {
+  if (exhausted) {
+    copy = "That's 2 tries — the correct answer is highlighted in green. Tap Next to keep going."
+  } else if (attempts === 1) {
     copy = hasExplanation
       ? 'Not quite — the hint just opened. Take another look and try again.'
       : 'Not quite — take another look and try again.'
