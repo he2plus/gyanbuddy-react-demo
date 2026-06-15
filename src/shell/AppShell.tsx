@@ -51,6 +51,15 @@ function isChromeless(path: string): boolean {
 // shrinks the layout box, so a 1920 design at 0.8 genuinely occupies 1536px
 // and fits — no leftover whitespace, no horizontal scroll.
 //
+// IMPORTANT: apply `zoom` ALONE. An earlier version also inflated the box with
+// `width: 100/scale%` + `maxWidth: 1920/scale` to "refill" the viewport, on the
+// assumption that zoom shrinks paint but leaves the layout box at viewport
+// width. Current Chrome's `zoom` already shrinks the layout box *and* the box
+// keeps filling its container, so that inflation double-applied: the shell grew
+// to 1920px on a 1440px viewport, overflowed to the right, and shoved every
+// centered (chromeless) page off-center. Just zoom; let `w-full max-w-[1920px]`
+// size and center the box.
+//
 // Only applied on >=1024px (desktop/laptop). Phones & tablets keep zoom 1 and
 // rely on the existing fluid flex layout + clamp() type, which already stacks.
 const DESIGN_WIDTH = 1920 // the Figma canvas width; at/above this, scale = 1
@@ -93,13 +102,15 @@ export function AppShell() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-white">
       {/* `zoom` scales the whole app to fit the viewport (see useFitScale).
-          `width: 100 / scale %` keeps the unscaled box filling the viewport so
-          the centered max-width container still uses the full width. */}
+          Apply zoom only — `w-full max-w-[1920px] mx-auto` already sizes and
+          centers the box. Inflating width here overflows and breaks centering.
+          `--fit-scale` lets full-height (`min-h-screen`) pages counter-scale
+          `vh` so they still reach the viewport bottom (see globals.css). */}
       <div
         className="mx-auto flex w-full max-w-[1920px]"
         style={
           fitScale < 1
-            ? ({ zoom: fitScale, width: `${100 / fitScale}%`, maxWidth: `${1920 / fitScale}px` } as React.CSSProperties)
+            ? ({ zoom: fitScale, '--fit-scale': fitScale } as React.CSSProperties)
             : undefined
         }
       >

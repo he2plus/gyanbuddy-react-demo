@@ -134,7 +134,7 @@ export function ModuleChapterPage() {
             className="bg-white flex flex-col min-w-0 overflow-hidden"
             style={{
               flex: 1, borderRadius: 34, padding: 'clamp(20px, 2.5vw, 34px)', gap: 24,
-              minHeight: 'clamp(560px, 70vh, 806px)',
+              minHeight: 'clamp(680px, 92vh, 1000px)',
               boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
             }}
           >
@@ -157,7 +157,7 @@ export function ModuleChapterPage() {
                 height so the absolutely-positioned platforms (including
                 the FINISH-flag last platform with its name label) always
                 fit without overlapping the bottom CTA. */}
-            <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'clamp(440px, 56vh, 620px)' }}>
+            <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'clamp(560px, 74vh, 820px)' }}>
               {isLoading && <LoadingPath />}
               {isError && (
                 <ErrorState
@@ -433,8 +433,12 @@ function SnakePath({
   const positions = useMemo(() => {
     if (N === 0) return [] as Array<{ x: number; y: number }>
     if (N === 1) return [{ x: 0.5, y: 0.5 }]
-    const Y_TOP = 0.06
-    const Y_BOTTOM = 0.80
+    // Reserve headroom: the first/active podiums bake a flag or a standing
+    // character that rises well ABOVE the slab anchor point, so y must start
+    // low enough that art isn't clipped by the container top. The bottom keeps
+    // room for the last podium's slab + its name label.
+    const Y_TOP = 0.12
+    const Y_BOTTOM = 0.85
     // Keep nodes inset from the container edges so the pedestal image AND its
     // name label (which can be wider than the image) stay inside the panel
     // instead of bleeding past the right/left edge on narrower viewports.
@@ -466,7 +470,7 @@ function SnakePath({
   }, [positions])
 
   return (
-    <div className="relative w-full" style={{ height: 600 }}>
+    <div className="relative w-full h-full" style={{ minHeight: 560 }}>
       <svg
         className="absolute inset-0 w-full h-full pointer-events-none"
         viewBox="0 0 988 600" preserveAspectRatio="none"
@@ -476,6 +480,7 @@ function SnakePath({
           d={pathD}
           stroke="#94A3B8" strokeWidth={3} strokeDasharray="6 10"
           strokeLinecap="round" fill="none" opacity={0.45}
+          vectorEffect="non-scaling-stroke"
         />
       </svg>
 
@@ -486,8 +491,9 @@ function SnakePath({
         const isCurrent = c.id === currentChapterId
         // Character on the active chapter, or on the first when nothing is in-progress
         const hasChar = isCurrent || (!currentChapterId && isFirst)
-        // Wider for first/last (has flag), normal otherwise
-        const w = isFirst || isLast ? 16 : 13
+        // Wider for first/last (has flag), normal otherwise. Kept modest so the
+        // tall flag/character art doesn't ride up into the previous node's label.
+        const w = isFirst || isLast ? 13.5 : 11.5
         return (
           <motion.div
             key={c.id}
@@ -503,8 +509,8 @@ function SnakePath({
               // snake appears to weave through the pedestals.
               transform: 'translate(-50%, -50%)',
               width: `${w}%`,
-              maxWidth: 168,
-              minWidth: 84,
+              maxWidth: 140,
+              minWidth: 74,
             }}
             initial={{ opacity: 0, y: 10, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

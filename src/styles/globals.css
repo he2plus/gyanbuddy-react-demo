@@ -54,6 +54,24 @@ body,
   height: 100%;
 }
 
+/* -------------------------------------------------------------------------
+ * Viewport-fit scaling counter for vh units.
+ *
+ * AppShell zoom-scales the whole app to fit narrow viewports (see useFitScale).
+ * `zoom` also scales `vh` units, so a `min-h-screen` (100vh) page paints at
+ * only `scale * 100vh` and leaves a gap at the bottom of the window. The shell
+ * publishes its fit scale as `--fit-scale` on the zoomed container; counter-
+ * scaling viewport-height by its inverse makes full-height pages paint to the
+ * true viewport edge again. Default 1 = exact no-op for unscaled contexts.
+ * (Unlayered, so it overrides Tailwind's layered `.min-h-screen` utility.)
+ * --------------------------------------------------------------------- */
+:root {
+  --fit-scale: 1;
+}
+.min-h-screen {
+  min-height: calc(100vh / var(--fit-scale));
+}
+
 /* Guard against stray horizontal overflow (e.g. a wide flex child bleeding
    past the viewport and adding a horizontal scrollbar). Clip — don't scroll. */
 html,
