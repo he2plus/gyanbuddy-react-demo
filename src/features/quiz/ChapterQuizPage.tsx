@@ -72,6 +72,7 @@ export function ChapterQuizPage() {
           <QuizFlow
             questions={quizQ.data ?? []}
             onExit={toStandings}
+            onEmpty={back}
             celebration={
               isLastChapter && chapter
                 ? {

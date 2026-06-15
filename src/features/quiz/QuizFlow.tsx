@@ -48,6 +48,12 @@ type Props = {
   questions: Question[]
   onExit: () => void
   /**
+   * Where the empty-state "Back" button goes. Defaults to onExit. Chapter
+   * quizzes pass their journey-back handler so an unseeded topic returns the
+   * student to the path they came from instead of the post-quiz standings.
+   */
+  onEmpty?: () => void
+  /**
    * Optional celebratory interstitial title/subtitle. When the caller is a
    * chapter quiz, pass the chapter + module names — the ResultsCard then
    * triggers the ChapterCompletedSplash on Done instead of just exiting.
@@ -60,7 +66,7 @@ type Props = {
   }
 }
 
-export function QuizFlow({ questions, onExit, celebration }: Props) {
+export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
   const [showSplash, setShowSplash] = useState(false)
   const [index, setIndex] = useState(0)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -97,12 +103,53 @@ export function QuizFlow({ questions, onExit, celebration }: Props) {
 
   if (!question && !finished) {
     return (
-      <div
-        className="grid place-items-center font-body"
-        style={{ padding: '80px 0', color: TXT_MID }}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="bg-white text-center mx-auto"
+        style={{
+          maxWidth: 460, padding: 48, borderRadius: 34,
+          border: '1px solid #E7E7E7', boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+        }}
       >
-        No questions in this quiz.
-      </div>
+        <div
+          className="grid place-items-center mx-auto"
+          style={{
+            width: 88, height: 88, borderRadius: 24, marginBottom: 24,
+            background: '#F4F6FC', border: `1px solid ${NAVY}22`,
+          }}
+        >
+          <HelpCircle className="w-11 h-11" style={{ color: NAVY }} strokeWidth={1.5} />
+        </div>
+        <h2
+          className="font-body"
+          style={{ fontSize: 24, fontWeight: 700, color: TXT_DARK, lineHeight: '32px', margin: 0 }}
+        >
+          No quiz here yet
+        </h2>
+        <p
+          className="font-body mx-auto"
+          style={{ maxWidth: 360, marginTop: 10, fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '24px' }}
+        >
+          Questions for this topic haven&rsquo;t been added yet. Check back soon —
+          new quizzes are added regularly.
+        </p>
+        <div className="flex justify-center" style={{ marginTop: 24 }}>
+          <button
+            type="button"
+            onClick={onEmpty ?? onExit}
+            className="flex items-center font-body"
+            style={{
+              gap: 8, padding: '14px 32px', borderRadius: 999,
+              background: NAVY, color: '#fff', fontSize: 16, fontWeight: 700,
+            }}
+          >
+            <ArrowRight className="w-4 h-4 rotate-180" strokeWidth={2.5} />
+            Back
+          </button>
+        </div>
+      </motion.div>
     )
   }
 
