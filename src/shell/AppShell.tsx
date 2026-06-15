@@ -60,15 +60,23 @@ function isChromeless(path: string): boolean {
 // centered (chromeless) page off-center. Just zoom; let `w-full max-w-[1920px]`
 // size and center the box.
 //
-// Only applied on >=1024px (desktop/laptop). Phones & tablets keep zoom 1 and
-// rely on the existing fluid flex layout + clamp() type, which already stacks.
-const DESIGN_WIDTH = 1920 // the Figma canvas width; at/above this, scale = 1
+// Scaling is proportional to the viewport so the design fills the screen at
+// EVERY desktop size, not just shrinks:
+//   - 1024-1920px (laptop): scale 0.66-1.0, the 1920 canvas shrinks to fit.
+//   - exactly 1920px: scale 1.0 (native).
+//   - >1920px (large desktop / TV): scale UP so the canvas fills the monitor
+//     instead of sitting at 1920 in a sea of whitespace. Capped at MAX_SCALE so
+//     a 4K panel doesn't blow the type up absurdly.
+// Phones & tablets (<1024px) keep zoom 1 and use the fluid flex + clamp() layout,
+// which already stacks/reflows natively (verified iPhone & iPad widths).
+const DESIGN_WIDTH = 1920 // the Figma canvas width; at this width scale = 1
 const MIN_SCALE = 0.66    // never shrink below this (keeps tiny laptops legible)
+const MAX_SCALE = 1.5     // fill large monitors/TVs; cap so 4K type isn't huge
 
 function computeFitScale(width: number): number {
   if (width < 1024) return 1
   const raw = width / DESIGN_WIDTH
-  return Math.min(1, Math.max(MIN_SCALE, raw))
+  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, raw))
 }
 
 function useFitScale(): number {
@@ -109,7 +117,7 @@ export function AppShell() {
       <div
         className="mx-auto flex w-full max-w-[1920px]"
         style={
-          fitScale < 1
+          fitScale !== 1
             ? ({ zoom: fitScale, '--fit-scale': fitScale } as React.CSSProperties)
             : undefined
         }
