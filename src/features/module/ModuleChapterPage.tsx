@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query'
 import { TopBar } from '../../shell/TopBar'
 import { useModuleChapters, useSubjectModules } from './useModuleChapters'
 import { getSubjectById } from '../../api/subjects'
+import { JourneyPath } from './JourneyPath'
 import type { Subject } from '../../types/subject'
 import type { Module, ModuleChapter } from '../../types/module'
 
@@ -121,66 +122,48 @@ export function ModuleChapterPage() {
             onStart={() => currentChapter && goToChapter(currentChapter.id)}
           />
 
-          {/* RIGHT CARD — Learning Journey */}
+          {/* RIGHT CARD — Learning Journey path */}
           <section
             className="bg-white flex flex-col min-w-0 overflow-hidden"
             style={{
-              flex: 1, borderRadius: 34, padding: 'clamp(20px, 2.5vw, 34px)', gap: 24,
-              minHeight: 'clamp(480px, 60vh, 700px)',
+              flex: 1, borderRadius: 34, padding: 'clamp(20px, 2.5vw, 34px)', gap: 18,
+              minHeight: 'clamp(560px, 82vh, 940px)',
               boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
             }}
           >
-            {/* Current chapter — minimal, mirrors the original app: the active
-                topic and a Start CTA, no decorative path. */}
-            <div
-              className="flex-1 flex flex-col items-center justify-center text-center"
-              style={{ gap: 20, minHeight: 'clamp(360px, 50vh, 560px)' }}
-            >
-              {isLoading && (
+            <header className="flex flex-col" style={{ gap: 4 }}>
+              <h1 className="font-body" style={{ fontSize: 24, fontWeight: 700, color: NAVY, lineHeight: '32px', margin: 0 }}>
+                Learning Journey
+              </h1>
+              <p className="font-body" style={{ fontSize: 15, fontWeight: 600, color: TXT_MID, lineHeight: '20px', margin: 0 }}>
+                Follow the path to master {module?.name ?? 'this topic'}
+              </p>
+            </header>
+
+            {isLoading && (
+              <div className="flex-1 grid place-items-center">
                 <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#E7E7E7] border-t-[#365DEA]" />
-              )}
-              {!isLoading && isError && (
+              </div>
+            )}
+            {!isLoading && isError && (
+              <div className="flex-1 grid place-items-center">
                 <ErrorState
-                  message={
-                    chaptersQ.error instanceof Error
-                      ? chaptersQ.error.message
-                      : 'Failed to load chapters'
-                  }
+                  message={chaptersQ.error instanceof Error ? chaptersQ.error.message : 'Failed to load chapters'}
                   onRetry={() => chaptersQ.refetch()}
                 />
-              )}
-              {!isLoading && !isError && chapters.length === 0 && <EmptyState />}
-              {!isLoading && !isError && currentChapter && (
-                <>
-                  <span
-                    className="font-body"
-                    style={{
-                      border: `1px solid ${CYAN}`, color: NAVY, borderRadius: 999,
-                      padding: '6px 18px', fontSize: 14, fontWeight: 700,
-                      letterSpacing: '0.08em', textTransform: 'uppercase',
-                    }}
-                  >
-                    Topic {currentChapter.order}
-                  </span>
-                  <h2
-                    className="font-body"
-                    style={{ fontSize: 30, fontWeight: 700, color: TXT_DARK, lineHeight: '40px', margin: 0, maxWidth: 640 }}
-                  >
-                    {currentChapter.name}
-                  </h2>
-                </>
-              )}
-              {!isLoading && !isError && !currentChapter && chapters.length > 0 && (
-                <div className="flex flex-col items-center" style={{ gap: 8 }}>
-                  <h2 className="font-body" style={{ fontSize: 26, fontWeight: 700, color: TXT_DARK, margin: 0 }}>
-                    All topics complete
-                  </h2>
-                  <p className="font-body" style={{ fontSize: 16, color: TXT_MID, margin: 0 }}>
-                    You&rsquo;ve finished every topic in {module?.name ?? 'this module'}.
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
+            {!isLoading && !isError && chapters.length === 0 && (
+              <div className="flex-1 grid place-items-center"><EmptyState /></div>
+            )}
+            {!isLoading && !isError && chapters.length > 0 && (
+              <JourneyPath
+                chapters={chapters}
+                currentChapterId={currentChapter?.id ?? null}
+                onChapterClick={goToChapter}
+                subjectColor={subjectQ.data?.color ?? null}
+              />
+            )}
 
             {/* Bottom CTA bar */}
             {currentChapter && !isLoading && !isError && (
