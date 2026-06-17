@@ -22,7 +22,7 @@
  * radius 34, Open Sans body, navy primary, cyan accent.
  */
 import { useEffect, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion'
 import {
   Check, X, Lightbulb, ArrowRight, AlertTriangle,
   ChevronUp, ChevronDown, HelpCircle, Sparkles,
@@ -30,6 +30,8 @@ import {
 
 import { checkAnswer } from '../../api/quiz'
 import { ChapterCompletedSplash } from '../module/ChapterCompletedSplash'
+import { Confetti } from '../../components/Confetti'
+import { playSound } from '../../lib/sound'
 import type { Question, QuestionOption } from '../../types/question'
 
 const NAVY = '#00167A'
@@ -78,12 +80,21 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
   const [attempts, setAttempts] = useState(0)
   const [totalXp, setTotalXp] = useState(0)
   const [finished, setFinished] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+
+  const cardControls = useAnimationControls()
+  const triggerShake = () =>
+    cardControls.start({
+      x: [0, -10, 10, -8, 8, -4, 4, 0],
+      transition: { duration: 0.45, ease: 'easeInOut' },
+    })
 
   const question = questions[index]
   const total = questions.length
   const progress = total ? ((index + 1) / total) * 100 : 0
 
-  // Reset per-question state when the index changes.
+  // Reset per-question state + replay the slide-in entrance when the index
+  // changes (mirrors the original's question whoosh / staggered entrance).
   useEffect(() => {
     setSelectedIds([])
     setShortAnswer('')
@@ -92,6 +103,10 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
     setShowHint(false)
     setRevealedExplanation(false)
     setAttempts(0)
+    setShowConfetti(false)
+    cardControls.set({ opacity: 0, x: 24 })
+    cardControls.start({ opacity: 1, x: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, question?.id])
 
   const hasAnswered = useMemo(() => {
@@ -189,6 +204,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
 
   const toggleOption = (id: string) => {
     if (isLocked) return
+    playSound('select')
     if (question.type === 'mcq_single') {
       setSelectedIds([id])
     } else {
@@ -231,11 +247,15 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
     if (result.isCorrect) {
       setTotalXp((x) => x + result.expAwarded)
       setFeedback({ kind: 'correct', xp: result.expAwarded })
+      setShowConfetti(true)
+      playSound('correct')
     } else {
       const nextAttempts = attempts + 1
       setAttempts(nextAttempts)
       setFeedback({ kind: 'incorrect', attempts: nextAttempts })
-      // Auto-open the hint on the first wrong attempt (docx #16).
+      playSound('incorrect')
+      triggerShake()
+      // Auto-open the hint on the first wrong attempt (mirrors the original).
       if (nextAttempts === 1 && question.hint) {
         setShowHint(true)
       }
@@ -266,6 +286,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
+      <Confetti play={showConfetti} />
       {/* Progress + counter */}
       <div>
         <div className="flex items-center justify-between font-body">
@@ -291,23 +312,20 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
         </div>
       </div>
 
-      {/* Question card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={question.id}
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="bg-white relative overflow-hidden"
-          style={{
-            borderRadius: 34, padding: '34px 34px 24px',
-            boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
-            border: '1px solid #E7E7E7',
-          }}
-        >
-          {/* Question type tag */}
-          <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
+      {/* Question card — controls drive both the slide-in entrance and the
+          shake on a wrong answer. */}
+      <motion.div
+        initial={{ opacity: 0, x: 24 }}
+        animate={cardControls}
+        className="bg-white relative overflow-hidden"
+        style={{
+          borderRadius: 34, padding: '34px 34px 24px',
+          boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
+          border: '1px solid #E7E7E7',
+        }}
+      >
+          {/* Question type tag + hint lamp */}
+          <div className="flex items-center justify-between" style={{ gap: 8 }}>
             <span
               className="grid place-items-center"
               style={{
@@ -320,6 +338,28 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
             >
               {labelFor(question.type)}
             </span>
+            {question.hint && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (attempts === 0) return
+                  setShowHint((s) => !s)
+                  playSound('hint')
+                }}
+                disabled={attempts === 0}
+                aria-label="Show hint"
+                title={attempts === 0 ? 'Hint unlocks after your first try' : 'Hint'}
+                className="grid place-items-center shrink-0"
+                style={{
+                  width: 40, height: 40, borderRadius: 999,
+                  background: '#FFF4D6', border: '1px solid #FFE48B',
+                  opacity: attempts === 0 ? 0.45 : 1,
+                  cursor: attempts === 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <img src="/images/lamp.png" alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+              </button>
+            )}
           </div>
 
           {/* Question text */}
@@ -513,8 +553,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
             {isCorrect && <CorrectBanner xp={feedback.xp} />}
             {isIncorrect && <IncorrectBanner exhausted={exhausted} />}
           </AnimatePresence>
-        </motion.div>
-      </AnimatePresence>
+      </motion.div>
 
       {/* Action bar */}
       <div
