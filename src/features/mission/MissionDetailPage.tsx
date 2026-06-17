@@ -69,6 +69,7 @@ export function MissionDetailPage() {
 
   const accent = mission.subject.color || BRAND_PRIMARY
   const completed = mission.userCompleted || mission.status === 'completed'
+  const xpAvailable = mission.questions.reduce((sum, q) => sum + q.expPoints, 0)
 
   return (
     <div className="min-h-screen bg-white">
@@ -114,13 +115,7 @@ export function MissionDetailPage() {
           )}
           <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
             <Stat label="Questions" value={mission.questionCount} />
-            <Stat
-              label="XP available"
-              value={
-                mission.questions.reduce((sum, q) => sum + q.expPoints, 0) ||
-                mission.questionCount * 10
-              }
-            />
+            {xpAvailable > 0 && <Stat label="XP available" value={xpAvailable} />}
             <Stat label="Date" value={mission.missionDate} />
           </div>
         </motion.section>
