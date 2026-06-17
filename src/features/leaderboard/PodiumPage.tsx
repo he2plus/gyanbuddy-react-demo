@@ -32,7 +32,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronDown, Flame, TrendingUp, TrendingDown, Minus, ArrowUpRight, Check,
+  ChevronDown, TrendingUp, TrendingDown, Minus, Check,
   ArrowRight,
 } from 'lucide-react'
 
@@ -42,7 +42,6 @@ import { useAuthStore } from '../../state/auth'
 import {
   deriveStreak, deriveWeeklyDelta, formatDelta,
 } from '../../lib/derived-metrics'
-import type { LeaderboardPeriod } from '../../api/leaderboard'
 import type { User } from '../../types/user'
 
 const NAVY = '#00167A'
@@ -51,7 +50,6 @@ const CYAN = '#1ABCFE'
 const TXT_DARK = '#121212'
 const TXT_MID = '#545454'
 const TXT_MUTED = '#989CA5'
-const CARD_STROKE = '#E7E7E7'
 const SURFACE_BG = '#FAFAFA'
 
 // Avatar colours for podium-list rows (cycled deterministically by rank).
@@ -61,8 +59,7 @@ const AVATAR_COLOURS = ['#3A6FF8', '#FB923C', '#F5B400', '#22C55E', '#7C3AED']
 // ---------------------------------------------------------------------------
 export function PodiumPage() {
   const me = useAuthStore((s) => s.user)
-  const [period, setPeriod] = useState<LeaderboardPeriod>('weekly')
-  const lbQ = useLeaderboard({ period, limit: 100 })
+  const lbQ = useLeaderboard({ period: 'weekly', limit: 100 })
   const navigate = useNavigate()
   const location = useLocation()
   // When the student lands here straight after finishing a quiz, the quiz page
@@ -72,17 +69,6 @@ export function PodiumPage() {
 
   const users = lbQ.data?.users ?? []
   const className = lbQ.data?.className ?? '10-A'
-
-  const myIndex = users.findIndex((u) => u.id === me?.id)
-  const myRank = myIndex >= 0 ? myIndex + 1 : 0
-  const myXp = me?.totalExp ?? 0
-  const myStreak = 1
-
-  const aboveMe = myIndex > 0 ? users[myIndex - 1] : null
-  const xpToNext = aboveMe ? Math.max(0, aboveMe.totalExp - myXp) : 0
-  const nextRankPct = aboveMe && aboveMe.totalExp > 0
-    ? Math.round((myXp / aboveMe.totalExp) * 100)
-    : 100
 
   if (!me) return null
 
@@ -128,76 +114,12 @@ export function PodiumPage() {
           >
             Leaderboard
           </h1>
-          <div className="flex items-center flex-wrap justify-center" style={{ gap: 12 }}>
-            <ClassPill name={`Class ${className}`} />
-            <PeriodTabs active={period} onChange={setPeriod} />
-          </div>
+          <ClassPill name={`Class ${className}`} />
         </div>
 
-        {/*
-          Body — responsive layout:
-            < 1024px : single column, Podium → Me → MostActive (stacked)
-            >= 1024px: THREE columns side-by-side: Me | Podium | MostActive
-                       (everything visible above the fold on a normal laptop)
-          Each child is min-w-0 so children never force the parent wider
-          than its grid cell.
-        */}
-        <div
-          className="grid items-start mx-auto grid-cols-1 lg:grid-cols-[minmax(240px,1fr)_minmax(380px,1.6fr)_minmax(240px,1fr)]"
-          style={{
-            gap: 'clamp(16px, 1.6vw, 24px)',
-            maxWidth: 1500,
-          }}
-        >
-          {/* On wide screens, Me is in the left column. On narrow screens,
-              the wrapper below the Podium hosts it. */}
-          <div className="hidden lg:block min-w-0">
-            <MeCard
-              user={me}
-              rank={myRank}
-              xp={myXp}
-              streak={myStreak}
-              xpToNext={xpToNext}
-              nextRankPct={nextRankPct}
-              aboveMe={aboveMe}
-              className={className}
-              onOpen={() => navigate('/profile')}
-            />
-          </div>
-
-          <div className="min-w-0">
-            <PodiumCard
-              users={users}
-              myId={me.id}
-              loading={lbQ.isLoading}
-            />
-          </div>
-
-          <div className="hidden lg:block min-w-0">
-            <MostActiveWidget users={users} meId={me.id} />
-          </div>
-
-          {/* Below-podium slot for narrow viewports only. */}
-          <div
-            className="lg:hidden grid"
-            style={{
-              gap: 'clamp(16px, 2vw, 24px)',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            }}
-          >
-            <MeCard
-              user={me}
-              rank={myRank}
-              xp={myXp}
-              streak={myStreak}
-              xpToNext={xpToNext}
-              nextRankPct={nextRankPct}
-              aboveMe={aboveMe}
-              className={className}
-              onOpen={() => navigate('/profile')}
-            />
-            <MostActiveWidget users={users} meId={me.id} />
-          </div>
+        {/* Podium + ranked list, centred — matches the original leaderboard. */}
+        <div className="mx-auto min-w-0" style={{ maxWidth: 760 }}>
+          <PodiumCard users={users} myId={me.id} loading={lbQ.isLoading} />
         </div>
       </main>
     </div>
@@ -295,204 +217,6 @@ function ClassPill({ name }: { name: string }) {
           aria-hidden="true"
         />
       )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-const PERIODS: { id: LeaderboardPeriod; label: string }[] = [
-  { id: 'weekly',   label: 'This Week' },
-  { id: 'monthly',  label: 'This Month' },
-  { id: 'all-time', label: 'All Time' },
-]
-
-function PeriodTabs({
-  active, onChange,
-}: {
-  active: LeaderboardPeriod; onChange: (p: LeaderboardPeriod) => void
-}) {
-  return (
-    <div
-      className="flex bg-white"
-      style={{ height: 42, borderRadius: 999, padding: 0, border: '1px solid #EAEAEA' }}
-    >
-      {PERIODS.map((p) => {
-        const isActive = p.id === active
-        return (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => onChange(p.id)}
-            className="grid place-items-center"
-            style={{
-              height: 42, borderRadius: 999, padding: '8px 24px',
-              background: isActive ? NAVY : 'transparent',
-              color: isActive ? '#fff' : TXT_MUTED,
-              fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 600,
-              lineHeight: '20px',
-              boxShadow: isActive ? '0 4px 12px rgba(0,22,122,0.18)' : 'none',
-            }}
-          >
-            {p.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// MeCard — Figma left column. No big name above the class subtitle (the
-// Figma frame doesn't render one); just avatar + class line + 3 stat tiles +
-// progress to next rank, with a top-right "open" arrow affordance.
-// ---------------------------------------------------------------------------
-function MeCard({
-  user, rank, xp, streak, xpToNext, nextRankPct, aboveMe, className, onOpen,
-}: {
-  user: User
-  rank: number
-  xp: number
-  streak: number
-  xpToNext: number
-  nextRankPct: number
-  aboveMe: User | null
-  className: string
-  onOpen: () => void
-}) {
-  const initial = (user.firstName?.[0] ?? user.username?.[0] ?? 'U').toUpperCase()
-  return (
-    <motion.section
-      className="bg-white flex flex-col relative w-full"
-      style={{
-        borderRadius: 24, padding: 24, gap: 22,
-        boxShadow: '0 6px 22px rgba(0,0,0,0.06)',
-        minWidth: 0,
-      }}
-      initial={{ opacity: 0, x: -12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {/* Top-right open-arrow */}
-      <button
-        type="button"
-        aria-label="Open profile"
-        onClick={onOpen}
-        className="absolute grid place-items-center"
-        style={{
-          top: 16, right: 16, width: 30, height: 30, borderRadius: 10,
-          background: '#F4F6FB', color: NAVY,
-        }}
-      >
-        <ArrowUpRight className="w-4 h-4" strokeWidth={2.4} />
-      </button>
-
-      {/* Avatar + class subtitle */}
-      <div className="flex items-center" style={{ gap: 12 }}>
-        <div
-          className="grid place-items-center shrink-0"
-          style={{
-            width: 58, height: 58, borderRadius: 999,
-            background: `radial-gradient(circle at 32% 28%, #1F3DB8 0%, ${NAVY} 65%, #000A4A 100%)`,
-            boxShadow: '0 8px 18px rgba(0,22,122,0.22)',
-          }}
-        >
-          <span
-            className="font-body"
-            style={{ fontSize: 28, fontWeight: 700, color: '#fff', lineHeight: '32px' }}
-          >
-            {initial}
-          </span>
-        </div>
-        <div className="flex flex-col leading-tight" style={{ paddingRight: 36 }}>
-          <span
-            className="font-body"
-            style={{ fontSize: 14, fontWeight: 500, color: TXT_MID, lineHeight: '20px' }}
-          >
-            Class {className} · GyanBuddy Student
-          </span>
-        </div>
-      </div>
-
-      {/* 3 stat tiles */}
-      <div className="grid grid-cols-3" style={{ gap: 12 }}>
-        <StatTile label="Rank"   value={`#${rank}`} />
-        <StatTile label="XP"     value={`${xp}`} />
-        <StatTile
-          label="Streak"
-          value={`${streak}`}
-          icon={<Flame className="w-4 h-4" style={{ color: '#F97316' }} strokeWidth={2.5} />}
-        />
-      </div>
-
-      {/* Progress to next rank */}
-      <div className="flex flex-col" style={{ gap: 8 }}>
-        <div
-          style={{
-            height: 8, borderRadius: 14, background: '#F1F1F1', overflow: 'hidden',
-          }}
-        >
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${nextRankPct}%` }}
-            transition={{ duration: 0.9, ease: 'easeOut' }}
-            style={{ height: '100%', borderRadius: 14, background: CYAN }}
-          />
-        </div>
-        <div className="flex items-center justify-between">
-          <span
-            className="font-body"
-            style={{ fontSize: 13, fontWeight: 500, color: TXT_MID, lineHeight: '18px' }}
-          >
-            {aboveMe
-              ? `Next rank: #${rank - 1} · ${aboveMe.firstName || aboveMe.username} (${aboveMe.totalExp} XP)`
-              : "You're at the top"}
-          </span>
-          {xpToNext > 0 && (
-            <span
-              className="font-body tabular-nums"
-              style={{ fontSize: 14, fontWeight: 700, color: NAVY, lineHeight: '18px' }}
-            >
-              {xpToNext} XP to go
-            </span>
-          )}
-        </div>
-      </div>
-    </motion.section>
-  )
-}
-
-function StatTile({
-  label, value, icon,
-}: {
-  label: string; value: string; icon?: React.ReactNode
-}) {
-  return (
-    <div
-      className="flex flex-col items-center justify-center bg-white"
-      style={{
-        minHeight: 86, borderRadius: 16,
-        border: `1px solid ${CARD_STROKE}`,
-        padding: '10px 12px',
-      }}
-    >
-      <div className="flex items-center" style={{ gap: 4 }}>
-        {icon}
-        <span
-          className="font-body tabular-nums"
-          style={{ fontSize: 30, fontWeight: 800, color: NAVY, lineHeight: '36px' }}
-        >
-          {value}
-        </span>
-      </div>
-      <span
-        className="font-body"
-        style={{
-          fontSize: 11, fontWeight: 600, color: TXT_MUTED, lineHeight: '16px',
-          letterSpacing: '0.06em', textTransform: 'uppercase',
-        }}
-      >
-        {label}
-      </span>
     </div>
   )
 }
@@ -865,125 +589,3 @@ function DeltaPill({
   )
 }
 
-// ---------------------------------------------------------------------------
-// MostActiveWidget — Figma right column. Top 4 by total XP from the
-// leaderboard. Row 1 (leader) gets cyan highlight + "Rising fast" tag,
-// rows 2-4 get derived weekly delta in green.
-// ---------------------------------------------------------------------------
-function MostActiveWidget({ users, meId }: { users: User[]; meId: string }) {
-  const top4 = users.slice(0, 4)
-  if (top4.length === 0) return null
-  return (
-    <motion.aside
-      initial={{ opacity: 0, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="bg-white flex flex-col relative w-full"
-      style={{
-        minWidth: 0, borderRadius: 24, padding: '20px 18px', gap: 14,
-        boxShadow: '0 6px 22px rgba(0,0,0,0.06)',
-      }}
-    >
-      <button
-        type="button"
-        aria-label="Open full list"
-        className="absolute grid place-items-center"
-        style={{
-          top: 16, right: 16, width: 30, height: 30, borderRadius: 10,
-          background: '#F4F6FB', color: NAVY,
-        }}
-      >
-        <ArrowUpRight className="w-4 h-4" strokeWidth={2.4} />
-      </button>
-
-      <h3
-        className="font-body"
-        style={{ fontSize: 16, fontWeight: 700, color: TXT_DARK, lineHeight: '22px', margin: 0, paddingRight: 36 }}
-      >
-        Most Active This Week
-      </h3>
-
-      <ul className="flex flex-col" style={{ gap: 6 }}>
-        {top4.map((u, i) => {
-          const rank = i + 1
-          const isLeader = i === 0
-          const isMe = u.id === meId
-          const initial = (u.firstName?.[0] ?? u.username?.[0] ?? 'U').toUpperCase()
-          const streak = deriveStreak(u.id)
-          const delta = deriveWeeklyDelta(u.id)
-          const avatarColour = AVATAR_COLOURS[(rank - 1) % AVATAR_COLOURS.length]
-          return (
-            <li
-              key={u.id}
-              className="flex items-center"
-              style={{
-                gap: 10, padding: '8px 10px', borderRadius: 14,
-                background: isLeader
-                  ? `linear-gradient(90deg, ${CYAN} 0%, #5FD4FF 100%)`
-                  : 'transparent',
-              }}
-            >
-              <span
-                className="font-body tabular-nums text-center shrink-0"
-                style={{
-                  width: 18, fontSize: 13, fontWeight: 700,
-                  color: isLeader ? '#fff' : TXT_MID,
-                }}
-              >
-                {rank}
-              </span>
-              <div
-                className="grid place-items-center shrink-0"
-                style={{
-                  width: 32, height: 32, borderRadius: 999,
-                  background: isLeader ? '#fff' : avatarColour,
-                }}
-              >
-                <span
-                  className="font-body"
-                  style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: isLeader ? NAVY : '#fff',
-                  }}
-                >
-                  {initial}
-                </span>
-              </div>
-              <div className="flex flex-col flex-1 min-w-0 leading-tight">
-                <span
-                  className="font-body truncate"
-                  style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: isLeader ? '#fff' : TXT_DARK, lineHeight: '18px',
-                  }}
-                >
-                  {u.fullName || u.username}{isMe ? ' (You)' : ''}
-                </span>
-                <span
-                  className="font-body"
-                  style={{
-                    fontSize: 11, fontWeight: 500,
-                    color: isLeader ? 'rgba(255,255,255,0.85)' : TXT_MID,
-                    lineHeight: '15px',
-                  }}
-                >
-                  {isLeader ? 'Rising fast 🔥' : `${streak} day streak`}
-                </span>
-              </div>
-              {!isLeader && delta > 0 && (
-                <span
-                  className="font-body tabular-nums shrink-0"
-                  style={{
-                    fontSize: 13, fontWeight: 700, color: '#15803D',
-                  }}
-                >
-                  +{delta} XP
-                </span>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </motion.aside>
-  )
-}

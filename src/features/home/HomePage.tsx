@@ -167,7 +167,7 @@ export function HomePage() {
             left widgets (≤540) · centre stack (fills) · rail (its width). */}
         <div
           className="grid grid-cols-1 lg:grid-cols-[minmax(0,540px)_minmax(0,1fr)_auto] min-w-0"
-          style={{ gap: 'clamp(20px, 2.4vw, 44px)', alignItems: 'start' }}
+          style={{ gap: 'clamp(20px, 2.4vw, 44px)', alignItems: 'stretch' }}
         >
           {/* LEFT — greeting + trophy + leaderboard preview */}
           <div className="flex flex-col min-w-0" style={{ gap: 'clamp(18px, 2vw, 32px)' }}>
@@ -614,7 +614,7 @@ function ActiveSubjectCard({
 
   return (
     <section
-      className="bg-white relative overflow-hidden"
+      className="bg-white relative overflow-hidden flex flex-col flex-1 min-w-0"
       style={{
         border: `1px solid ${CARD_STROKE}`,
         borderRadius: 24, padding: 24,
@@ -670,7 +670,7 @@ function ActiveSubjectCard({
       <div
         className="relative overflow-hidden grid place-items-center"
         style={{
-          marginTop: 18, height: 132, borderRadius: 16,
+          marginTop: 18, flex: '1 1 auto', minHeight: 150, borderRadius: 16,
           background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%)',
         }}
         aria-hidden="true"
@@ -682,7 +682,7 @@ function ActiveSubjectCard({
           draggable={false}
           className="select-none"
           style={{
-            maxHeight: 104, width: 'auto', height: 'auto', objectFit: 'contain',
+            maxHeight: 168, width: 'auto', height: 'auto', objectFit: 'contain',
             filter: 'drop-shadow(0 10px 22px rgba(0,22,122,0.18))',
           }}
           animate={{ y: [0, -8, 0], rotate: [0, 2, 0, -2, 0] }}

@@ -231,7 +231,9 @@ function SubjectRow({
 }) {
   const Icon = iconFor(subject)
   const accent = subject.color || NAVY
-  const subjectPng = subjectPngFor(subject)
+  // Prefer the real backend logo (present for every subject); the bundled
+  // figma art is a fallback for the few codes it covers.
+  const subjectPng = subject.logo || subjectPngFor(subject)
 
   // Fetch modules for the expanded row only — avoids loading every subject's
   // chapter data when most rows are collapsed.
@@ -431,6 +433,7 @@ function SubjectRow({
                   key={m.id}
                   module={m}
                   subjectCode={subject.code}
+                  subjectLogo={subject.logo}
                   orderIndex={i}
                   delay={i * 0.04}
                   onClick={() => onChapterClick(m.id)}
@@ -469,10 +472,11 @@ function illustrationFor(subjectCode: string, orderIndex: number): string | null
 // ChapterChip — Figma Frame 37/38/39/40 (224 × 261, white bg, radius 34)
 // ---------------------------------------------------------------------------
 function ChapterChip({
-  module: m, subjectCode, orderIndex, delay, onClick,
+  module: m, subjectCode, subjectLogo, orderIndex, delay, onClick,
 }: {
   module: Module
   subjectCode: string
+  subjectLogo: string | null
   orderIndex: number
   delay: number
   onClick: () => void
@@ -480,7 +484,9 @@ function ChapterChip({
   const status = chapterStatus(m)
   const chip = STATUS_CHIP[status]
   const locked = status === 'locked'
-  const chapterIllustration = illustrationFor(subjectCode, orderIndex)
+  // Prefer per-chapter figma art, then the subject's real backend logo, so the
+  // thumbnail is the actual subject icon instead of a generic leaf.
+  const chapterIllustration = illustrationFor(subjectCode, orderIndex) || subjectLogo
 
   return (
     <motion.button
