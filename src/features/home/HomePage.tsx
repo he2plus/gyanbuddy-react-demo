@@ -161,7 +161,7 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Home" testCount={1} />
+      <TopBar pageTitle="Home" />
 
       {/*
         Main content. Padding shrinks with viewport width via clamp() so the

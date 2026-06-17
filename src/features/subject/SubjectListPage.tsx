@@ -119,7 +119,7 @@ export function SubjectListPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Subject" testCount={1} />
+      <TopBar pageTitle="Subject" />
 
       <main
         className="mx-auto w-full"

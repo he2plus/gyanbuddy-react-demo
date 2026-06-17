@@ -104,7 +104,7 @@ export function ModuleChapterPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle={module?.name ?? 'Topic'} testCount={1} />
+      <TopBar pageTitle={module?.name ?? 'Topic'} />
 
       <main
         className="mx-auto w-full"

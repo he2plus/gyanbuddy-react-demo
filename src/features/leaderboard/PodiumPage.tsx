@@ -88,7 +88,7 @@ export function PodiumPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Leaderboard" testCount={1} hideBack />
+      <TopBar pageTitle="Leaderboard" hideBack />
 
       <main
         className="mx-auto w-full"

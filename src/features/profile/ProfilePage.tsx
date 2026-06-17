@@ -53,7 +53,7 @@ export function ProfilePage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Profile" testCount={1} />
+      <TopBar pageTitle="Profile" />
 
       <main
         className="mx-auto flex flex-col"

@@ -306,7 +306,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
             border: '1px solid #E7E7E7',
           }}
         >
-          {/* Tags */}
+          {/* Question type tag */}
           <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
             <span
               className="grid place-items-center"
@@ -320,32 +320,6 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
             >
               {labelFor(question.type)}
             </span>
-            <span
-              className="grid place-items-center"
-              style={{
-                background: '#F1F1F1', color: TXT_MID, borderRadius: 999,
-                padding: '4px 12px',
-                fontFamily: 'var(--font-body)',
-                fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Up to 2 XP
-            </span>
-            {question.isHots && (
-              <span
-                className="grid place-items-center"
-                style={{
-                  background: '#F5D0FE', color: '#86198F', borderRadius: 999,
-                  padding: '4px 12px',
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 12, fontWeight: 700, letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                HOTS
-              </span>
-            )}
           </div>
 
           {/* Question text */}
@@ -537,19 +511,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
           {/* Feedback banner — correct or incorrect */}
           <AnimatePresence>
             {isCorrect && <CorrectBanner xp={feedback.xp} />}
-            {isIncorrect && (
-              <IncorrectBanner
-                attempts={feedback.attempts}
-                hasExplanation={!!question.explanation}
-                explanationRevealed={revealedExplanation}
-                exhausted={exhausted}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Correct-answer overlay celebration */}
-          <AnimatePresence>
-            {isCorrect && <CorrectOverlay xp={feedback.xp} />}
+            {isIncorrect && <IncorrectBanner exhausted={exhausted} />}
           </AnimatePresence>
         </motion.div>
       </AnimatePresence>
@@ -806,49 +768,20 @@ function CorrectBanner({ xp }: { xp: number }) {
       >
         <Check className="w-5 h-5" strokeWidth={3} />
       </span>
-      <div>
-        <div
-          className="font-body"
-          style={{ fontSize: 18, fontWeight: 700, color: '#15803D', lineHeight: '24px' }}
-        >
-          Correct! +{xp} XP
-        </div>
-        <div
-          className="font-body"
-          style={{ fontSize: 14, fontWeight: 400, color: '#166534', lineHeight: '20px' }}
-        >
-          {xp === 2 ? 'Nice — first try!' : xp === 1 ? 'Got it on the second try.' : 'Already answered before.'}
-        </div>
+      <div
+        className="font-body"
+        style={{ fontSize: 18, fontWeight: 700, color: '#15803D', lineHeight: '32px' }}
+      >
+        Correct! +{xp} XP
       </div>
     </motion.div>
   )
 }
 
-function IncorrectBanner({
-  attempts, hasExplanation, explanationRevealed, exhausted,
-}: {
-  attempts: number
-  hasExplanation: boolean
-  explanationRevealed: boolean
-  exhausted: boolean
-}) {
-  // Pick copy that always lines up with the UI the user can actually see:
-  // never tell them to hit Why? if there is no explanation OR they've
-  // already revealed it.
-  let copy: string
-  if (exhausted) {
-    copy = "That's 2 tries — the correct answer is highlighted in green. Tap Next to keep going."
-  } else if (attempts === 1) {
-    copy = hasExplanation
-      ? 'Not quite — the hint just opened. Take another look and try again.'
-      : 'Not quite — take another look and try again.'
-  } else if (explanationRevealed) {
-    copy = 'Still off. Re-read the explanation above and give it one more go.'
-  } else if (hasExplanation) {
-    copy = 'Still off. Hit "Why?" below to see the explanation.'
-  } else {
-    copy = 'Still off. Re-read the chapter and give it another try.'
-  }
+function IncorrectBanner({ exhausted }: { exhausted: boolean }) {
+  const copy = exhausted
+    ? 'The correct answer is highlighted in green.'
+    : 'Not quite — try again.'
 
   return (
     <motion.div
@@ -879,98 +812,6 @@ function IncorrectBanner({
           {copy}
         </div>
       </div>
-    </motion.div>
-  )
-}
-
-// Confetti particle burst — 24 colored shards that fly outward and fade.
-const CONFETTI = Array.from({ length: 24 }, (_, i) => {
-  const angle = (i / 24) * Math.PI * 2
-  const dist = 140 + (i % 4) * 40
-  return {
-    color: ['#22C55E', '#1ABCFE', '#00167A', '#F59E0B', '#7C3AED', '#FF3131'][i % 6],
-    dx: Math.cos(angle) * dist,
-    dy: Math.sin(angle) * dist,
-    delay: (i % 6) * 0.02,
-    rot: (i * 47) % 360,
-  }
-})
-
-// Full-card celebration overlay on a correct answer — green check + XP bump
-// + radiating confetti shards so it actually feels like a win.
-function CorrectOverlay({ xp }: { xp: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="pointer-events-none absolute inset-0 grid place-items-center overflow-hidden"
-      style={{ background: 'radial-gradient(circle at 50% 40%, rgba(34,197,94,0.16), transparent 70%)' }}
-    >
-      {/* Confetti burst */}
-      {CONFETTI.map((c, i) => (
-        <motion.span
-          key={i}
-          className="absolute"
-          style={{
-            left: '50%', top: '45%',
-            width: 10, height: 14, borderRadius: 2,
-            background: c.color,
-            transformOrigin: 'center',
-          }}
-          initial={{ x: 0, y: 0, opacity: 0, rotate: 0, scale: 0.6 }}
-          animate={{
-            x: c.dx, y: c.dy,
-            opacity: [0, 1, 1, 0],
-            rotate: c.rot,
-            scale: [0.6, 1, 1, 0.8],
-          }}
-          transition={{ duration: 1.4, delay: c.delay, ease: 'easeOut' }}
-        />
-      ))}
-
-      {/* Pulse ring behind the check */}
-      <motion.span
-        className="absolute"
-        style={{
-          width: 120, height: 120, borderRadius: 999,
-          border: '4px solid rgba(34,197,94,0.55)',
-        }}
-        initial={{ scale: 0.4, opacity: 0.9 }}
-        animate={{ scale: 1.9, opacity: 0 }}
-        transition={{ duration: 1.0, ease: 'easeOut' }}
-      />
-
-      {/* Green check medallion */}
-      <motion.div
-        initial={{ scale: 0.4, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 240, damping: 14 }}
-        className="grid place-items-center"
-        style={{
-          width: 120, height: 120, borderRadius: 999,
-          background: 'radial-gradient(circle at 32% 28%, #4ADE80 0%, #16A34A 70%)',
-          boxShadow: '0 18px 40px rgba(22,163,74,0.4)',
-        }}
-      >
-        <Check className="w-16 h-16" style={{ color: '#fff' }} strokeWidth={3} />
-      </motion.div>
-
-      {/* Floating XP number */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: [0, 1, 1, 0], y: [-8, -28, -36, -52] }}
-        transition={{ delay: 0.2, duration: 1.4 }}
-        className="absolute font-body"
-        style={{
-          top: 'calc(50% + 60px)',
-          fontFamily: 'var(--font-numeric)',
-          fontSize: 28, fontWeight: 900, color: '#15803D',
-          textShadow: '0 2px 6px rgba(34,197,94,0.4)',
-        }}
-      >
-        +{xp} XP
-      </motion.div>
     </motion.div>
   )
 }

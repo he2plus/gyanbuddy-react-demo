@@ -56,7 +56,7 @@ export function NotificationsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Notifications" testCount={1} />
+      <TopBar pageTitle="Notifications" />
 
       <main
         className="mx-auto flex flex-col"

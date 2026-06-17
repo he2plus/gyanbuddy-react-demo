@@ -25,7 +25,7 @@ export function CreditsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Credits" testCount={1} />
+      <TopBar pageTitle="Credits" />
 
       <main
         className="mx-auto flex flex-col"

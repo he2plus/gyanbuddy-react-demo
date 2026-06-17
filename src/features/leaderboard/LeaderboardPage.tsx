@@ -68,7 +68,7 @@ export function LeaderboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Leaderboard" testCount={1} />
+      <TopBar pageTitle="Leaderboard" />
 
       {/* Wrap content in a sensible reading width; px-* + max-w-* keep it
           comfortable on huge screens without ever overflowing narrow ones. */}

@@ -85,7 +85,7 @@ export function MissionListPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Missions" testCount={1} />
+      <TopBar pageTitle="Missions" />
 
       <main
         className="mx-auto w-full"
