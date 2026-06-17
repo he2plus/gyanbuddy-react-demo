@@ -168,10 +168,9 @@ export function ChapterTheoryPage() {
               </div>
             </motion.section>
 
-            {/* Optional illustration zone — CSS gradient placeholder, can be
-                swapped for a real raster image when chapter.logo or similar
-                is populated. */}
-            {chapter.logo ? (
+            {/* Illustration zone — the real subject art (chapter logo if the
+                backend ships one, else the subject's icon). No dummy ball. */}
+            {(chapter.logo || subjectQ.data?.logo) && (
               <motion.section
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -179,37 +178,18 @@ export function ChapterTheoryPage() {
                 className="grid place-items-center overflow-hidden bg-white"
                 style={{
                   padding: 24, borderRadius: 34, border: '1px solid #E7E7E7',
-                  minHeight: 280,
+                  minHeight: 240,
                   background: 'radial-gradient(circle at 50% 40%, rgba(26,188,254,0.12), transparent 70%), #fff',
                 }}
               >
-                <img
-                  src={chapter.logo}
+                <motion.img
+                  src={chapter.logo || subjectQ.data?.logo || ''}
                   alt=""
-                  className="max-h-72 w-auto"
-                  style={{ objectFit: 'contain' }}
+                  className="max-h-56 w-auto select-none"
+                  style={{ objectFit: 'contain', filter: 'drop-shadow(0 14px 30px rgba(0,22,122,0.18))' }}
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              </motion.section>
-            ) : (
-              <motion.section
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-                className="grid place-items-center overflow-hidden relative"
-                style={{
-                  padding: 24, borderRadius: 34, border: '1px solid #E7E7E7',
-                  minHeight: 200, background: '#fff',
-                }}
-              >
-                <motion.div
-                  style={{
-                    width: 120, height: 120, borderRadius: 999,
-                    background: `radial-gradient(circle at 32% 28%, ${CYAN} 0%, ${NAVY} 100%)`,
-                    boxShadow: `0 18px 40px ${CYAN}55`,
-                  }}
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                 />
               </motion.section>
             )}

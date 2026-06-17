@@ -119,6 +119,7 @@ export function ModuleChapterPage() {
             currentChapter={currentChapter}
             isLoading={isLoading}
             subjectCode={subjectQ.data?.code ?? null}
+            subjectLogo={subjectQ.data?.logo ?? null}
             onStart={() => currentChapter && goToChapter(currentChapter.id)}
           />
 
@@ -219,7 +220,7 @@ export function ModuleChapterPage() {
 // Start button. Mirrors Figma Frame 37 (500 × 622).
 // ---------------------------------------------------------------------------
 function TopicPreviewCard({
-  module, chapters, completedCount, overallPct, currentChapter, isLoading, subjectCode, onStart,
+  module, chapters, completedCount, overallPct, currentChapter, isLoading, subjectCode, subjectLogo, onStart,
 }: {
   module: Module | null
   chapters: ModuleChapter[]
@@ -228,6 +229,7 @@ function TopicPreviewCard({
   currentChapter: ModuleChapter | null
   isLoading: boolean
   subjectCode: string | null
+  subjectLogo: string | null
   onStart: () => void
 }) {
   if (isLoading || !module) {
@@ -242,7 +244,7 @@ function TopicPreviewCard({
   // Topic 1 index — currentChapter's order is 1-based
   const topicNum = currentChapter?.order ?? 1
   const overdueText = formatOverdue(currentChapter)
-  const illustration = subjectPngForCode(subjectCode)
+  const illustration = subjectLogo || subjectPngForCode(subjectCode)
 
   return (
     <motion.section
