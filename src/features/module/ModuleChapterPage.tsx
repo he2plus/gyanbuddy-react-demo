@@ -1,29 +1,21 @@
 /**
- * ModuleChapterPage — Learning Journey page, pixel-faithful rebuild of
- * Figma frame 10:4377 ("Life Processes 1", 1920 × 1006).
+ * ModuleChapterPage — module overview page.
  *
- * Two-column layout:
- *   - LEFT (500 wide): topic preview card. Subject/module illustration up
- *     top, "Life Processes" + "7 Topics" header, overall progress bar,
- *     active topic preview (cyan-stroked card) with "Topic N / <name> /
- *     Overdue Date" and a navy Start button.
- *   - RIGHT (1116 wide): Learning Journey card. Header "Learning Journey /
- *     Follow the path to master <X>", the snake path of podiums, and a
- *     bottom CTA bar "Let's start with <next topic>" with a Start button.
- *
- * Podiums are laid out along a sine snake. Their assets are PNGs in
- * /images/podium/ — see ChapterPlatform.tsx for the state matrix.
+ * Two-column layout, kept deliberately minimal to mirror the original app:
+ *   - LEFT: topic preview card — illustration, module name + topic count,
+ *     overall progress bar, the active topic chip, and a Start button.
+ *   - RIGHT: the current topic ("Topic N / <name>") centred, with a
+ *     "Let's start with <next topic>" Start CTA. No decorative path.
  */
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, AlertTriangle, Play } from 'lucide-react'
+import { AlertTriangle, Play } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 
 import { TopBar } from '../../shell/TopBar'
 import { useModuleChapters, useSubjectModules } from './useModuleChapters'
 import { getSubjectById } from '../../api/subjects'
-import { ChapterPlatform } from './ChapterPlatform'
 import type { Subject } from '../../types/subject'
 import type { Module, ModuleChapter } from '../../types/module'
 
@@ -134,32 +126,20 @@ export function ModuleChapterPage() {
             className="bg-white flex flex-col min-w-0 overflow-hidden"
             style={{
               flex: 1, borderRadius: 34, padding: 'clamp(20px, 2.5vw, 34px)', gap: 24,
-              minHeight: 'clamp(680px, 92vh, 1000px)',
+              minHeight: 'clamp(480px, 60vh, 700px)',
               boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
             }}
           >
-            <header className="flex flex-col" style={{ gap: 6 }}>
-              <h1
-                className="font-body"
-                style={{ fontSize: 26, fontWeight: 700, color: NAVY, lineHeight: '36px', margin: 0 }}
-              >
-                Learning Journey
-              </h1>
-              <p
-                className="font-body"
-                style={{ fontSize: 16, fontWeight: 600, color: TXT_MID, lineHeight: '22px', margin: 0 }}
-              >
-                Follow the path to master {module?.name ?? 'this topic'}
-              </p>
-            </header>
-
-            {/* Path zone — minHeight matches the snake-path's intrinsic
-                height so the absolutely-positioned platforms (including
-                the FINISH-flag last platform with its name label) always
-                fit without overlapping the bottom CTA. */}
-            <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'clamp(560px, 74vh, 820px)' }}>
-              {isLoading && <LoadingPath />}
-              {isError && (
+            {/* Current chapter — minimal, mirrors the original app: the active
+                topic and a Start CTA, no decorative path. */}
+            <div
+              className="flex-1 flex flex-col items-center justify-center text-center"
+              style={{ gap: 20, minHeight: 'clamp(360px, 50vh, 560px)' }}
+            >
+              {isLoading && (
+                <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#E7E7E7] border-t-[#365DEA]" />
+              )}
+              {!isLoading && isError && (
                 <ErrorState
                   message={
                     chaptersQ.error instanceof Error
@@ -170,12 +150,35 @@ export function ModuleChapterPage() {
                 />
               )}
               {!isLoading && !isError && chapters.length === 0 && <EmptyState />}
-              {!isLoading && !isError && chapters.length > 0 && (
-                <SnakePath
-                  chapters={chapters}
-                  currentChapterId={currentChapter?.id ?? null}
-                  onChapterClick={goToChapter}
-                />
+              {!isLoading && !isError && currentChapter && (
+                <>
+                  <span
+                    className="font-body"
+                    style={{
+                      border: `1px solid ${CYAN}`, color: NAVY, borderRadius: 999,
+                      padding: '6px 18px', fontSize: 14, fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                    }}
+                  >
+                    Topic {currentChapter.order}
+                  </span>
+                  <h2
+                    className="font-body"
+                    style={{ fontSize: 30, fontWeight: 700, color: TXT_DARK, lineHeight: '40px', margin: 0, maxWidth: 640 }}
+                  >
+                    {currentChapter.name}
+                  </h2>
+                </>
+              )}
+              {!isLoading && !isError && !currentChapter && chapters.length > 0 && (
+                <div className="flex flex-col items-center" style={{ gap: 8 }}>
+                  <h2 className="font-body" style={{ fontSize: 26, fontWeight: 700, color: TXT_DARK, margin: 0 }}>
+                    All topics complete
+                  </h2>
+                  <p className="font-body" style={{ fontSize: 16, color: TXT_MID, margin: 0 }}>
+                    You&rsquo;ve finished every topic in {module?.name ?? 'this module'}.
+                  </p>
+                </div>
               )}
             </div>
 
@@ -404,146 +407,6 @@ function formatOverdue(c: ModuleChapter | null): string | null {
   return null
 }
 
-// ---------------------------------------------------------------------------
-// Snake path — lays podiums out along a sine curve so the journey feels
-// like a board game. Uses absolute positioning inside a fixed-aspect-ratio
-// container so the curve scales with the available width.
-// ---------------------------------------------------------------------------
-function SnakePath({
-  chapters, currentChapterId, onChapterClick,
-}: {
-  chapters: ModuleChapter[]
-  currentChapterId: string | null
-  onChapterClick: (id: string) => void
-}) {
-  const N = chapters.length
-
-  // Position each podium on a normalised 0..1 coordinate space.
-  //
-  // Goals:
-  //   - Always alternate sides so adjacent stages never stack vertically.
-  //   - Keep y inside [0.06, 0.80] so the FIRST stage doesn't get clipped
-  //     by the journey header and the LAST stage (FINISH flag + name
-  //     label below it) doesn't extend past the container bottom and
-  //     overlap the "Let's start with X" CTA bar. The old 0.08-0.88
-  //     range left only ~12% headroom which a 150-180px tall platform
-  //     could blow through. 0.80 leaves a full 100px+ of breathing room.
-  //   - Work for N = 1, 2, 3, 4, 5+. Previous version assumed N ≥ 5 and
-  //     collapsed both stages to x=0.5 when N=2 (sin(0) = sin(2π) = 0).
-  const positions = useMemo(() => {
-    if (N === 0) return [] as Array<{ x: number; y: number }>
-    if (N === 1) return [{ x: 0.5, y: 0.5 }]
-    // Reserve headroom: the first/active podiums bake a flag or a standing
-    // character that rises well ABOVE the slab anchor point, so y must start
-    // low enough that art isn't clipped by the container top. The bottom keeps
-    // room for the last podium's slab + its name label.
-    const Y_TOP = 0.12
-    const Y_BOTTOM = 0.85
-    // Keep nodes inset from the container edges so the pedestal image AND its
-    // name label (which can be wider than the image) stay inside the panel
-    // instead of bleeding past the right/left edge on narrower viewports.
-    const amplitude = N <= 3 ? 0.24 : N <= 5 ? 0.26 : 0.28
-    return chapters.map((_, i) => {
-      const yFrac = i / (N - 1)
-      const y = Y_TOP + yFrac * (Y_BOTTOM - Y_TOP)
-      // Alternate left / right with a smooth cosine so the connecting
-      // bezier path reads as a real snake instead of zig-zag teeth.
-      const x = 0.5 + amplitude * Math.cos(i * Math.PI)
-      return { x, y }
-    })
-  }, [chapters, N])
-
-  // Build SVG path connecting podium centres. Height matches the
-  // container below so the curve scales with viewBox preservation.
-  const pathD = useMemo(() => {
-    if (positions.length < 2) return ''
-    const w = 988
-    const h = 600
-    const pts = positions.map((p) => ({ x: p.x * w, y: p.y * h }))
-    let d = `M ${pts[0].x} ${pts[0].y}`
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1]
-      const midY = (a.y + b.y) / 2
-      d += ` C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`
-    }
-    return d
-  }, [positions])
-
-  return (
-    <div className="relative w-full h-full" style={{ minHeight: 560 }}>
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        viewBox="0 0 988 600" preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        <path
-          d={pathD}
-          stroke="#94A3B8" strokeWidth={3} strokeDasharray="6 10"
-          strokeLinecap="round" fill="none" opacity={0.45}
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-
-      {chapters.map((c, i) => {
-        const p = positions[i]
-        const isFirst = i === 0
-        const isLast = i === N - 1
-        const isCurrent = c.id === currentChapterId
-        // Character on the active chapter, or on the first when nothing is in-progress
-        const hasChar = isCurrent || (!currentChapterId && isFirst)
-        // Wider for first/last (has flag), normal otherwise. Kept modest so the
-        // tall flag/character art doesn't ride up into the previous node's label.
-        const w = isFirst || isLast ? 13.5 : 11.5
-        return (
-          <motion.div
-            key={c.id}
-            className="absolute"
-            style={{
-              left: `${p.x * 100}%`,
-              top:  `${p.y * 100}%`,
-              // translate(-50%, -50%) on a wrapper whose HEIGHT equals
-              // the platform IMAGE (the name label is absolutely-
-              // positioned in ChapterPlatform, so it doesn't inflate
-              // the wrapper's bounding box). Result: the image's
-              // visual centre lands on the path point, and the dashed
-              // snake appears to weave through the pedestals.
-              transform: 'translate(-50%, -50%)',
-              width: `${w}%`,
-              maxWidth: 140,
-              minWidth: 74,
-            }}
-            initial={{ opacity: 0, y: 10, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.05 + i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <ChapterPlatform
-              chapter={c}
-              isFirst={isFirst}
-              isLast={isLast}
-              hasCharacter={hasChar}
-              onClick={() => onChapterClick(c.id)}
-            />
-          </motion.div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-function LoadingPath() {
-  return (
-    <div className="flex flex-wrap" style={{ gap: 24, justifyContent: 'space-between' }}>
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div
-          key={i}
-          className="animate-pulse"
-          style={{ width: 130, height: 90, borderRadius: 16, background: '#F1F1F1' }}
-        />
-      ))}
-    </div>
-  )
-}
 
 function EmptyState() {
   return (
@@ -575,5 +438,3 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   )
 }
 
-// Suppress unused-import lint
-void ArrowRight
