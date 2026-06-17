@@ -124,7 +124,7 @@ export function SubjectListPage() {
       <main
         className="mx-auto w-full"
         style={{
-          maxWidth: 1920,
+          maxWidth: 1680,
           padding: 'clamp(24px, 3vw, 50px) clamp(16px, 4vw, 120px) clamp(40px, 5vw, 80px)',
         }}
       >

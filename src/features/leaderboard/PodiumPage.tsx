@@ -118,7 +118,7 @@ export function PodiumPage() {
         </div>
 
         {/* Podium + ranked list, centred — matches the original leaderboard. */}
-        <div className="mx-auto min-w-0" style={{ maxWidth: 760 }}>
+        <div className="mx-auto min-w-0" style={{ maxWidth: 1100 }}>
           <PodiumCard users={users} myId={me.id} loading={lbQ.isLoading} />
         </div>
       </main>
@@ -238,7 +238,7 @@ function PodiumCard({
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className="relative overflow-hidden w-full mx-auto"
       style={{
-        maxWidth: 720,
+        maxWidth: 1040,
         minWidth: 0,
         borderRadius: 24,
         background: NAVY_DEEP,

@@ -57,7 +57,7 @@ function isChromeless(path: string): boolean {
 // width. Current Chrome's `zoom` already shrinks the layout box *and* the box
 // keeps filling its container, so that inflation double-applied: the shell grew
 // to 1920px on a 1440px viewport, overflowed to the right, and shoved every
-// centered (chromeless) page off-center. Just zoom; let `w-full max-w-[1920px]`
+// centered (chromeless) page off-center. Just zoom; let `w-full max-w-[1680px]`
 // size and center the box.
 //
 // Scaling is proportional to the viewport so the design fills the screen at
@@ -69,8 +69,12 @@ function isChromeless(path: string): boolean {
 //     a 4K panel doesn't blow the type up absurdly.
 // Phones & tablets (<1024px) keep zoom 1 and use the fluid flex + clamp() layout,
 // which already stacks/reflows natively (verified iPhone & iPad widths).
-const DESIGN_WIDTH = 1920 // the Figma canvas width; at this width scale = 1
-const MIN_SCALE = 0.66    // never shrink below this (keeps tiny laptops legible)
+// Treat 1680 as the reference width (not the raw 1920 canvas): the layouts are
+// responsive enough to fit 1680, and basing the scale here means a 1512 laptop
+// renders at ~0.9 instead of ~0.79 — noticeably larger, more legible type — and
+// wide monitors fill sooner. Page containers are capped to 1680 to match.
+const DESIGN_WIDTH = 1680
+const MIN_SCALE = 0.7     // never shrink below this (keeps tiny laptops legible)
 const MAX_SCALE = 1.5     // fill large monitors/TVs; cap so 4K type isn't huge
 
 function computeFitScale(width: number): number {
@@ -110,12 +114,12 @@ export function AppShell() {
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-white">
       {/* `zoom` scales the whole app to fit the viewport (see useFitScale).
-          Apply zoom only — `w-full max-w-[1920px] mx-auto` already sizes and
+          Apply zoom only — `w-full max-w-[1680px] mx-auto` already sizes and
           centers the box. Inflating width here overflows and breaks centering.
           `--fit-scale` lets full-height (`min-h-screen`) pages counter-scale
           `vh` so they still reach the viewport bottom (see globals.css). */}
       <div
-        className="mx-auto flex w-full max-w-[1920px]"
+        className="mx-auto flex w-full max-w-[1680px]"
         style={
           fitScale !== 1
             ? ({ zoom: fitScale, '--fit-scale': fitScale } as React.CSSProperties)

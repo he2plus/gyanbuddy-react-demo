@@ -158,7 +158,7 @@ export function HomePage() {
       <main
         className="mx-auto w-full"
         style={{
-          maxWidth: 1760,
+          maxWidth: 1680,
           padding: 'clamp(20px, 2.4vw, 44px) clamp(16px, 3vw, 72px)',
         }}
       >
