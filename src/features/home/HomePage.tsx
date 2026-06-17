@@ -174,21 +174,19 @@ export function HomePage() {
       <main
         className="mx-auto w-full"
         style={{
-          maxWidth: 1440,
+          maxWidth: 1760,
           padding: 'clamp(20px, 2.4vw, 44px) clamp(16px, 3vw, 72px)',
         }}
       >
-        <div className="flex flex-col lg:flex-row min-w-0" style={{ gap: 'clamp(20px, 2.4vw, 44px)' }}>
-          {/* LEFT COLUMN — greeting + trophy + small leaderboard preview.
-              Capped to 560px on huge screens, fluid below. */}
-          <div
-            className="flex flex-col min-w-0"
-            style={{
-              flex: '1 1 0',
-              maxWidth: 480,
-              gap: 'clamp(18px, 2vw, 32px)',
-            }}
-          >
+        {/* Three columns on lg+ via grid so the centre always fills the space
+            between the left widgets and the subject rail (no floating gap):
+            left widgets (≤540) · centre stack (fills) · rail (its width). */}
+        <div
+          className="grid grid-cols-1 lg:grid-cols-[minmax(0,540px)_minmax(0,1fr)_auto] min-w-0"
+          style={{ gap: 'clamp(20px, 2.4vw, 44px)', alignItems: 'start' }}
+        >
+          {/* LEFT — greeting + trophy + leaderboard preview */}
+          <div className="flex flex-col min-w-0" style={{ gap: 'clamp(18px, 2vw, 32px)' }}>
             <GreetingBlock me={me} progressPct={overallProgress} />
             <TrophyBanner topUser={lbUsers[0]} className={className} />
             <LeaderboardWidget
@@ -199,43 +197,34 @@ export function HomePage() {
             />
           </div>
 
-          {/* RIGHT COLUMN — centre card stack + subject rail */}
-          <div
-            className="flex flex-col lg:flex-row min-w-0"
-            style={{
-              flex: '2 1 0',
-              gap: 'clamp(14px, 1.6vw, 28px)',
-            }}
-          >
-            <div
-              className="flex flex-col min-w-0"
-              style={{ flex: '1 1 0', gap: 'clamp(18px, 2vw, 28px)' }}
-            >
-              <MetricRow
-                streakDays={streakDays}
-                todayGoalPct={todayGoalPct}
-                testScorePct={testScorePct}
-              />
-              <ActiveSubjectCard
-                subject={activeSubject}
-                moduleName={activeModule?.name ?? null}
-                chapters={chaptersQ.data ?? []}
-                loading={subjectsQ.isLoading || modulesQ.isLoading}
-                onStart={() => {
-                  if (activeSubject && activeModule) {
-                    navigate(
-                      `/subjects/${activeSubject.id}/modules/${activeModule.id}/chapters`,
-                    )
-                  }
-                }}
-              />
-            </div>
-            <SubjectRail
-              subjects={subjectsQ.data ?? []}
-              activeId={activeSubject?.id ?? null}
-              onPick={setPickedSubjectId}
+          {/* CENTRE — metric cards + active subject card (fills width) */}
+          <div className="flex flex-col min-w-0" style={{ gap: 'clamp(18px, 2vw, 28px)' }}>
+            <MetricRow
+              streakDays={streakDays}
+              todayGoalPct={todayGoalPct}
+              testScorePct={testScorePct}
+            />
+            <ActiveSubjectCard
+              subject={activeSubject}
+              moduleName={activeModule?.name ?? null}
+              chapters={chaptersQ.data ?? []}
+              loading={subjectsQ.isLoading || modulesQ.isLoading}
+              onStart={() => {
+                if (activeSubject && activeModule) {
+                  navigate(
+                    `/subjects/${activeSubject.id}/modules/${activeModule.id}/chapters`,
+                  )
+                }
+              }}
             />
           </div>
+
+          {/* RIGHT — subject rail */}
+          <SubjectRail
+            subjects={subjectsQ.data ?? []}
+            activeId={activeSubject?.id ?? null}
+            onPick={setPickedSubjectId}
+          />
         </div>
       </main>
     </div>
