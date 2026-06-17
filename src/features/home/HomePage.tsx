@@ -20,13 +20,11 @@
  *   - Test score : avg of completed tests when present; falls back to "—%".
  *   The Figma values 4 / 35% / 78% are the demo defaults if data is missing.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Sparkles,
-  Target,
-  Trophy,
   ArrowRight,
   Check,
   ChevronRight,
@@ -48,9 +46,6 @@ import { useLeaderboard } from '../leaderboard/useLeaderboard'
 import { useSubjects } from '../subject/useSubjects'
 import { useSubjectModules, useModuleChapters } from '../module/useModuleChapters'
 import { TopBar } from '../../shell/TopBar'
-import {
-  deriveDayStreak, deriveTodayGoal, deriveTestScore,
-} from '../../lib/derived-metrics'
 import type { Subject } from '../../types/subject'
 import type { ModuleChapter } from '../../types/module'
 import type { User } from '../../types/user'
@@ -131,30 +126,19 @@ export function HomePage() {
   }, [modulesQ.data])
   const chaptersQ = useModuleChapters(activeModule?.id)
 
-  // Progress this week — computed against current level range. Same logic
-  // the old HomePage used; Figma label says "Progress this week 11%".
+  // Real overall progress = chapters completed / total chapters across the
+  // subjects the student has touched (from the backend's subject_progress).
+  // The old level-based math read 100% because the API ships `level: 1` (a bare
+  // number → maxExp 99), far below the user's XP.
   const overallProgress = useMemo(() => {
-    if (!me) return 0
-    if (me.level && me.level.maxExp > 0) {
-      const inLevel = Math.max(0, me.totalExp - me.level.minExp)
-      const range = Math.max(1, me.level.maxExp - me.level.minExp)
-      return Math.round(Math.min(100, (inLevel / range) * 100))
-    }
-    return Math.min(100, me.totalExp % 100)
+    const sp = me?.subjectProgress ?? []
+    if (sp.length === 0) return 0
+    const done = sp.reduce((a, s) => a + s.chaptersCompleted, 0)
+    const total = sp.reduce((a, s) => a + s.totalChapters, 0)
+    return total > 0 ? Math.round((done / total) * 100) : 0
   }, [me])
 
   if (!me) return null
-
-  // Derived client-side from the user's identity + their actual XP/level.
-  // Backend has no streak/goal/test-score fields; these are deterministic
-  // per user so they stay stable across reloads.
-  const streakDays = deriveDayStreak(me.id)
-  const todayGoalPct = deriveTodayGoal({
-    userId: me.id,
-    totalExp: me.totalExp,
-    level: me.level,
-  })
-  const testScorePct = deriveTestScore({ userId: me.id, totalExp: me.totalExp })
 
   const lbUsers = lbQ.data?.users ?? []
   const className = lbQ.data?.className ?? '10-A'
@@ -197,13 +181,8 @@ export function HomePage() {
             />
           </div>
 
-          {/* CENTRE — metric cards + active subject card (fills width) */}
+          {/* CENTRE — active subject card (fills width) */}
           <div className="flex flex-col min-w-0" style={{ gap: 'clamp(18px, 2vw, 28px)' }}>
-            <MetricRow
-              streakDays={streakDays}
-              todayGoalPct={todayGoalPct}
-              testScorePct={testScorePct}
-            />
             <ActiveSubjectCard
               subject={activeSubject}
               moduleName={activeModule?.name ?? null}
@@ -285,7 +264,7 @@ function GreetingBlock({ me, progressPct }: { me: User; progressPct: number }) {
               fontSize: 'clamp(13px, 1.8vw, 16px)', fontWeight: 600, color: TXT_MUTED, lineHeight: 1.3,
             }}
           >
-            Progress this week {progressPct}%
+            Progress {progressPct}%
           </span>
         </div>
         {/* Progress bar — slimmer track with an inset, gradient fill + soft glow */}
@@ -590,104 +569,6 @@ function LeaderRow({
 }
 
 // ---------------------------------------------------------------------------
-// Metric cards row — Figma Frame 40 (920 x 176, 3 cards each 277 x 176)
-// ---------------------------------------------------------------------------
-function MetricRow({
-  streakDays, todayGoalPct, testScorePct,
-}: {
-  streakDays: number; todayGoalPct: number; testScorePct: number
-}) {
-  return (
-    <section className="flex flex-wrap" style={{ gap: 'clamp(12px, 1.6vw, 24px)' }}>
-      <MetricCard
-        emoji="🔥"
-        valueNum={streakDays}
-        label="Day Streak!"
-        delay={0}
-      />
-      <MetricCard
-        icon={<Target className="w-8 h-8" style={{ color: '#fff' }} strokeWidth={2.2} />}
-        valueNum={todayGoalPct}
-        suffix="%"
-        label="Today's Goal"
-        delay={0.08}
-      />
-      <MetricCard
-        icon={<Trophy className="w-8 h-8" style={{ color: '#fff' }} strokeWidth={2.2} />}
-        valueNum={testScorePct}
-        suffix="%"
-        label="Test Score"
-        delay={0.16}
-      />
-    </section>
-  )
-}
-
-function MetricCard({
-  emoji, icon, valueNum, suffix, label, delay = 0,
-}: {
-  emoji?: string
-  icon?: React.ReactNode
-  valueNum: number
-  suffix?: string
-  label: string
-  delay?: number
-}) {
-  return (
-    <motion.div
-      className="flex flex-col items-center relative overflow-hidden cursor-default"
-      style={{
-        flex: '1 1 120px', minWidth: 120,
-        height: 'clamp(118px, 11vw, 146px)', borderRadius: 28, padding: '16px clamp(14px, 1.6vw, 24px)',
-        background: NAVY,
-      }}
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -3, transition: { duration: 0.2 } }}
-    >
-      {/* Subtle radial highlight from top-left for depth */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle at 25% 0%, rgba(26,188,254,0.18), transparent 55%)',
-        }}
-      />
-      <div
-        className="relative"
-        style={{
-          fontFamily: 'var(--font-numeric)',
-          fontSize: 30, fontWeight: 900, color: '#fff',
-          lineHeight: '40px', height: 40,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {emoji ?? icon}
-      </div>
-      <div
-        className="relative"
-        style={{
-          fontFamily: 'var(--font-numeric)',
-          fontSize: 'clamp(30px, 3.6vw, 42px)', fontWeight: 900, color: '#fff',
-          lineHeight: 1, marginTop: 6,
-        }}
-      >
-        <AnimatedNumber value={valueNum} suffix={suffix ?? ''} />
-      </div>
-      <div
-        className="font-body relative text-center"
-        style={{
-          fontSize: 'clamp(12px, 1.4vw, 15px)', fontWeight: 700, color: '#fff',
-          lineHeight: 1.1, marginTop: 5,
-        }}
-      >
-        {label}
-      </div>
-    </motion.div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Active subject card — Figma Frame 42 (920 x 726)
 // ---------------------------------------------------------------------------
 function ActiveSubjectCard({
@@ -729,7 +610,7 @@ function ActiveSubjectCard({
     )
   }
 
-  const visible = chapters.slice(0, 4)
+  const visible = chapters.slice(0, 2)
 
   return (
     <section
@@ -739,15 +620,9 @@ function ActiveSubjectCard({
         borderRadius: 24, padding: 24,
       }}
     >
-      {/* Header row: level + name + meta + Due chip */}
+      {/* Header row: name + chapter count + Due chip */}
       <div className="flex items-start" style={{ gap: 20 }}>
         <div className="flex flex-col flex-1 leading-tight min-w-0">
-          <span
-            className="font-body"
-            style={{ fontSize: 14, fontWeight: 400, color: TXT_MID, lineHeight: '20px', letterSpacing: '0.04em', textTransform: 'uppercase' }}
-          >
-            Level 1
-          </span>
           <span
             className="font-body"
             style={{ fontSize: 22, fontWeight: 700, color: '#000', lineHeight: '30px' }}
@@ -759,7 +634,7 @@ function ActiveSubjectCard({
               className="font-body"
               style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px' }}
             >
-              {chapters.length} chapter{chapters.length === 1 ? '' : 's'} · ~2 hours to complete
+              {chapters.length} chapter{chapters.length === 1 ? '' : 's'}
             </span>
           )}
         </div>
@@ -795,22 +670,27 @@ function ActiveSubjectCard({
       <div
         className="relative overflow-hidden grid place-items-center"
         style={{
-          marginTop: 20, height: 196, borderRadius: 16,
+          marginTop: 18, height: 132, borderRadius: 16,
           background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2FF 100%)',
         }}
         aria-hidden="true"
       >
         <motion.img
-          src="/images/figma/molecule.png"
+          key={subject.id}
+          src={pngFor(subject) || subject.logo || '/images/figma/molecule.png'}
           alt=""
           draggable={false}
           className="select-none"
           style={{
-            maxHeight: 178, width: 'auto', height: 'auto',
-            filter: 'drop-shadow(0 12px 28px rgba(124,58,237,0.22))',
+            maxHeight: 104, width: 'auto', height: 'auto', objectFit: 'contain',
+            filter: 'drop-shadow(0 10px 22px rgba(0,22,122,0.18))',
           }}
           animate={{ y: [0, -8, 0], rotate: [0, 2, 0, -2, 0] }}
           transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement
+            img.src = subject.logo || '/images/figma/molecule.png'
+          }}
         />
       </div>
 
@@ -930,7 +810,10 @@ function SubjectRail({
   onPick: (id: string) => void
 }) {
   return (
-    <aside className="flex flex-row lg:flex-col w-full lg:w-24 overflow-x-auto lg:overflow-visible" style={{ gap: 16 }}>
+    <aside
+      className="flex flex-row lg:flex-col w-full lg:w-24 overflow-x-auto lg:overflow-y-auto lg:overflow-x-visible no-scrollbar"
+      style={{ gap: 16, maxHeight: 'min(66vh, 720px)', paddingBottom: 4 }}
+    >
       {subjects.map((s, i) => {
         const Icon = iconFor(s)
         const active = s.id === activeId
@@ -996,31 +879,6 @@ function SubjectRail({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Animated number counter — counts up from 0 → target over ~1.2s on mount.
-// ---------------------------------------------------------------------------
-function AnimatedNumber({
-  value, suffix = '', durationMs = 1200,
-}: {
-  value: number; suffix?: string; durationMs?: number
-}) {
-  const [shown, setShown] = useState(0)
-  const startRef = useRef<number | null>(null)
-  useEffect(() => {
-    startRef.current = null
-    let raf = 0
-    const tick = (now: number) => {
-      if (startRef.current == null) startRef.current = now
-      const t = Math.min(1, (now - startRef.current) / durationMs)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setShown(Math.round(value * eased))
-      if (t < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [value, durationMs])
-  return <>{shown}{suffix}</>
-}
 
 // (CSS+SVG molecule removed — replaced by the Figma-rendered molecule.png)
 

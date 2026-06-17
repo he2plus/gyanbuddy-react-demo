@@ -194,6 +194,10 @@ body {
   }
 }
 
+/* Hide scrollbar where we want a clean scroll surface (e.g. the home subject rail) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Subtle desktop scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

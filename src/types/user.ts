@@ -29,6 +29,16 @@ export type SubjectProgressDTO = {
   [key: string]: unknown
 }
 
+/** Parsed per-subject progress (the real backend metrics from /users/me). */
+export type SubjectProgress = {
+  subjectId: string
+  subjectName: string
+  chaptersCompleted: number
+  totalChapters: number
+  /** 0..100 chapter-completion percentage for the subject. */
+  completionRate: number
+}
+
 export type UserDTO = {
   id: string | number
   username?: string
@@ -78,6 +88,8 @@ export type User = {
   schoolName: string | null
   createdAt: string
   updatedAt: string
+  /** Real per-subject progress from the backend (empty if not shipped). */
+  subjectProgress: SubjectProgress[]
 }
 
 const safeInt = (v: unknown): number => {
@@ -115,6 +127,30 @@ const parseLevel = (v: LevelDTO | number | null | undefined): Level | null => {
   return null
 }
 
+const parseSubjectProgress = (
+  list: SubjectProgressDTO[] | undefined,
+): SubjectProgress[] => {
+  if (!Array.isArray(list)) return []
+  return list.map((s) => {
+    const done = safeInt(s.chapters_completed)
+    const total = safeInt(s.total_chapters_in_attempted_modules)
+    const rateRaw = s.chapter_completion_rate
+    const rate =
+      typeof rateRaw === 'number'
+        ? rateRaw
+        : total > 0
+          ? (done / total) * 100
+          : 0
+    return {
+      subjectId: String(s.subject_id ?? ''),
+      subjectName: String(s.subject_name ?? ''),
+      chaptersCompleted: done,
+      totalChapters: total,
+      completionRate: Math.round(rate),
+    }
+  })
+}
+
 export function parseUser(dto: UserDTO): User {
   const firstName = dto.first_name ?? ''
   const lastName = dto.last_name ?? ''
@@ -144,5 +180,6 @@ export function parseUser(dto: UserDTO): User {
     schoolName: dto.school_name ?? null,
     createdAt: dto.created_at ?? dto.date_joined ?? new Date().toISOString(),
     updatedAt: dto.updated_at ?? new Date().toISOString(),
+    subjectProgress: parseSubjectProgress(dto.subject_progress),
   }
 }
