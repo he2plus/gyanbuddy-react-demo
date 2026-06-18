@@ -96,18 +96,23 @@ export function ModuleChapterPage() {
   const isError = chaptersQ.isError
 
   return (
-    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+    // Fixed to the viewport height (counter-scaled for the app's zoom) so the
+    // PAGE itself never scrolls — only the journey card scrolls internally.
+    <div
+      className="flex flex-col overflow-hidden"
+      style={{ height: 'calc(100vh / var(--fit-scale, 1))', background: SURFACE_BG }}
+    >
       <TopBar pageTitle={module?.name ?? 'Topic'} />
 
       <main
-        className="mx-auto w-full"
+        className="mx-auto w-full flex-1 min-h-0 flex flex-col"
         style={{
           maxWidth: 1680,
-          padding: 'clamp(24px, 3vw, 50px) clamp(16px, 4vw, 120px) clamp(40px, 5vw, 60px)',
+          padding: 'clamp(16px, 2vw, 28px) clamp(16px, 4vw, 120px)',
         }}
       >
         <div
-          className="flex flex-col lg:flex-row"
+          className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-y-auto lg:overflow-hidden"
           style={{ gap: 'clamp(24px, 3vw, 64px)' }}
         >
           {/* LEFT CARD — topic preview */}
@@ -123,12 +128,14 @@ export function ModuleChapterPage() {
             onStart={() => currentChapter && goToChapter(currentChapter.id)}
           />
 
-          {/* RIGHT CARD — Learning Journey path */}
+          {/* RIGHT CARD — Learning Journey path. Fills the row height on
+              desktop (lg:h-full) so only the path inside it scrolls; on mobile
+              it falls back to a sensible min-height inside the page scroll. */}
           <section
-            className="bg-white flex flex-col min-w-0 overflow-hidden"
+            className="bg-white flex flex-col min-w-0 overflow-hidden lg:h-full min-h-0"
             style={{
               flex: 1, borderRadius: 34, padding: 'clamp(20px, 2.5vw, 34px)', gap: 18,
-              minHeight: 'clamp(560px, 82vh, 940px)',
+              minHeight: 'clamp(440px, 60vh, 720px)',
               boxShadow: '0 4px 18px rgba(0,0,0,0.04)',
             }}
           >

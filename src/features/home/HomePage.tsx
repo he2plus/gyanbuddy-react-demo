@@ -26,9 +26,6 @@ import { motion } from 'framer-motion'
 import {
   Sparkles,
   ArrowRight,
-  Check,
-  ChevronRight,
-  Lock,
   Atom,
   FlaskConical,
   Globe,
@@ -610,8 +607,6 @@ function ActiveSubjectCard({
     )
   }
 
-  const visible = chapters.slice(0, 2)
-
   return (
     <section
       className="bg-white relative overflow-hidden flex flex-col flex-1 min-w-0"
@@ -694,22 +689,9 @@ function ActiveSubjectCard({
         />
       </div>
 
-      {/* Chapter list */}
-      <div className="flex flex-col" style={{ gap: 22, marginTop: 28 }}>
-        {visible.map((c, idx) => (
-          <ChapterRow key={c.id} chapter={c} index={idx} />
-        ))}
-        {chapters.length > visible.length && (
-          <p
-            className="font-body"
-            style={{ fontSize: 14, fontWeight: 400, color: TXT_MUTED, lineHeight: '20px' }}
-          >
-            +{chapters.length - visible.length} more chapters
-          </p>
-        )}
-      </div>
-
-      {/* Start Learning button */}
+      {/* Start Learning button — the chapter preview list was removed so the
+          card stays clean; the Start button is the only action and it takes the
+          student straight to the subject's learning journey. */}
       <button
         type="button"
         onClick={onStart}
@@ -730,74 +712,6 @@ function ActiveSubjectCard({
   )
 }
 
-function ChapterRow({ chapter, index }: { chapter: ModuleChapter; index: number }) {
-  // Display variants from the Figma spec:
-  //   - in-progress (with progress bar)  → grey-stroke circle + cyan inner dot
-  //   - completed (no progress bar)      → green stroke + check icon
-  //   - locked (no progress bar)         → grey stroke + lock icon
-  //   - not_started (no progress bar)    → grey stroke + cyan inner dot
-  const completed = chapter.isCompleted
-  const inProgress = chapter.isInProgress
-  const locked = !chapter.isInProgress && !chapter.isCompleted && !chapter.isNotStarted
-
-  const stroke = completed ? '#07BE80' : '#989CA5'
-  const showBar = inProgress || (index === 0 && !completed && !locked)
-  const progress = inProgress ? 12 : 0  // chapters API doesn't ship a per-chapter pct yet
-
-  return (
-    <div className="flex items-start" style={{ gap: 14 }}>
-      {/* Status circle */}
-      <div
-        className="shrink-0 grid place-items-center"
-        style={{
-          width: 30, height: 30, borderRadius: 999,
-          border: `2px solid ${stroke}`,
-          marginTop: showBar ? 7 : 0,
-        }}
-      >
-        {completed ? (
-          <Check className="w-3.5 h-3.5" style={{ color: '#07BE80' }} strokeWidth={3} />
-        ) : locked ? (
-          <Lock className="w-3.5 h-3.5" style={{ color: TXT_MUTED }} strokeWidth={2.5} />
-        ) : (
-          <span
-            style={{ width: 14, height: 14, borderRadius: 999, background: CYAN }}
-          />
-        )}
-      </div>
-
-      {/* Title + optional progress bar */}
-      <div className="flex flex-col flex-1" style={{ gap: 6 }}>
-        <span
-          className="font-body"
-          style={{ fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px' }}
-        >
-          {chapter.name}
-        </span>
-        {showBar && (
-          <div
-            style={{
-              height: 8, borderRadius: 14, background: TRACK_BG, overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                height: '100%', borderRadius: 14, background: CYAN,
-                width: `${progress}%`,
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      <ChevronRight
-        className="w-6 h-6 shrink-0"
-        style={{ color: '#919BA9', marginTop: showBar ? 8 : 3 }}
-        strokeWidth={2.5}
-      />
-    </div>
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Subject rail — Figma Frame 46 (92 wide, 8 tiles each 92 x 72)

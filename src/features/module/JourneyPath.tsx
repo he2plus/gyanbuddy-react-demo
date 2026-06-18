@@ -17,38 +17,40 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { motion } from 'framer-motion'
 import type { ModuleChapter } from '../../types/module'
 
-const NAVY = '#00167A'
-const MUTED = '#8A93A5'
-const J = '/images/journey'
+const J = '/images/ladder'
 
 function hexColor(c: string | null | undefined): string {
   if (!c) return '#1ABCFE'
   return c.startsWith('#') ? c : `#${c}`
 }
 
-// Chapter state → art. EXACTLY ONE boy on the whole path — the single current
-// chapter. Every other node is a bare platform, no matter its raw status (the
-// backend can mark several chapters in_progress at once; only the current one
-// gets the boy). Mirrors the Flutter `_buildChapterCard` art, using the
-// pre-rendered stand_boy composite so the boy is always seated on the platform.
-//   - current      → stand_boy[_important]   (the one boy)
-//   - completed    → platform / important_platform / last_platform (final)
-//   - everything else → disabled platform
-// Widths follow the original's web proportions; height is intrinsic.
-function artFor(c: ModuleChapter, isLast: boolean, isCurrent: boolean): { src: string; w: number } {
+// Chapter state → podium art (the Ishaan ladder set). EXACTLY ONE character on
+// the whole path — the single current chapter — so the boy "moves" up the
+// ladder as the student progresses. No chapter names are drawn on the map; the
+// name lives only on the side card.
+//   - current      → blue podium + character (start-flag variant on chapter 1)
+//   - completed    → green podium (start-flag variant on chapter 1)
+//   - locked / not → grey podium with a lock
+//   - last chapter → checkered FINISH podium (char if current, else completed/lock)
+function artFor(
+  c: ModuleChapter,
+  isFirst: boolean,
+  isLast: boolean,
+  isCurrent: boolean,
+): { src: string; w: number } {
+  if (isLast) {
+    if (isCurrent) return { src: 'finish-char.png', w: 188 }
+    if (c.isCompleted) return { src: 'finish.png', w: 178 }
+    return { src: 'finish-lock.png', w: 178 }
+  }
   if (isCurrent) {
-    return c.isImportant
-      ? { src: 'stand_boy_important.png', w: 178 }
-      : { src: 'stand_boy.png', w: 150 }
+    return isFirst ? { src: 'blue-char-start.png', w: 168 } : { src: 'blue-char.png', w: 152 }
   }
   if (c.isCompleted) {
-    if (isLast) return { src: 'last_platform.png', w: 200 }
-    return c.isImportant ? { src: 'important_platform.png', w: 168 } : { src: 'platform.png', w: 150 }
+    return isFirst ? { src: 'green-start.png', w: 162 } : { src: 'green.png', w: 150 }
   }
-  // not started / locked / any non-current in-progress
-  if (c.isImportant) return { src: 'disabled_important_stand.png', w: 168 }
-  if (isLast) return { src: 'last_platform.png', w: 200 }
-  return { src: 'disabled_platform.png', w: 150 }
+  // locked / not started
+  return { src: 'grey-lock.png', w: 150 }
 }
 
 // Original zig-zag column: i%3 == 0 → centre, == 1 → right, == 2 → left.
@@ -90,7 +92,7 @@ export function JourneyPath({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
-  const currentRef = useRef<HTMLDivElement>(null)
+  const currentRef = useRef<HTMLButtonElement>(null)
   // One ref per platform image so we can measure where each platform sits and
   // draw the connectors between them (mirrors the Flutter _ChapterConnectionPainter).
   const imgRefs = useRef<Array<HTMLImageElement | null>>([])
@@ -158,12 +160,11 @@ export function JourneyPath({
   return (
     <div
       ref={scrollRef}
-      className="relative flex-1 overflow-y-auto"
-      style={{ minHeight: 'clamp(420px, 56vh, 680px)' }}
+      className="relative flex-1 min-h-0 overflow-y-auto"
     >
       <FloatingCircles color={color} />
 
-      <div ref={contentRef} className="relative flex flex-col" style={{ gap: 6, padding: '28px 0 44px' }}>
+      <div ref={contentRef} className="relative flex flex-col" style={{ gap: 18, padding: '28px 0 44px' }}>
         {/* Curved dashed connectors between consecutive platforms (behind them). */}
         {box.w > 0 && (
           <svg
@@ -188,9 +189,10 @@ export function JourneyPath({
         )}
 
         {chapters.map((c, i) => {
+          const isFirst = i === 0
           const isLast = i === N - 1
           const isCurrent = c.id === currentChapterId
-          const { src, w } = artFor(c, isLast, isCurrent)
+          const { src, w } = artFor(c, isFirst, isLast, isCurrent)
           const interactive = c.isInProgress || c.isCompleted || i === 0
           const lane = laneFor(i)
 
@@ -204,45 +206,30 @@ export function JourneyPath({
                 paddingRight: lane === 'right' ? '9%' : 0,
               }}
             >
-              <motion.div
+              <motion.button
                 ref={isCurrent ? currentRef : undefined}
-                className="flex flex-col items-center"
-                style={{ gap: 6 }}
+                type="button"
+                onClick={interactive ? () => onChapterClick(c.id) : undefined}
+                disabled={!interactive}
+                aria-label={c.name}
+                className={`flex ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
+                style={{ background: 'transparent', border: 'none', padding: 0 }}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.04 + i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               >
-                <button
-                  type="button"
-                  onClick={interactive ? () => onChapterClick(c.id) : undefined}
-                  disabled={!interactive}
-                  aria-label={c.name}
-                  className={interactive ? 'cursor-pointer' : 'cursor-default'}
-                  style={{ background: 'transparent', border: 'none', padding: 0 }}
-                >
-                  {/* Single composed image — the boy (when current) is part of
-                      the stand_boy art, so it always sits on the platform. */}
-                  <img
-                    ref={(el) => { imgRefs.current[i] = el }}
-                    src={`${J}/${src}`}
-                    alt=""
-                    draggable={false}
-                    onLoad={measure}
-                    className="block select-none"
-                    style={{ width: w, height: 'auto', display: 'block' }}
-                  />
-                </button>
-                <span
-                  className="font-body text-center"
-                  style={{
-                    maxWidth: 168, fontSize: 13, fontWeight: isCurrent ? 800 : 600, lineHeight: '17px',
-                    color: isCurrent ? NAVY : MUTED,
-                    overflowWrap: 'break-word', wordBreak: 'break-word',
-                  }}
-                >
-                  {c.name}
-                </span>
-              </motion.div>
+                {/* Podium art only — no chapter name on the map (it lives on the
+                    side card). The character is part of the current podium art. */}
+                <img
+                  ref={(el) => { imgRefs.current[i] = el }}
+                  src={`${J}/${src}`}
+                  alt=""
+                  draggable={false}
+                  onLoad={measure}
+                  className="block select-none"
+                  style={{ width: w, height: 'auto', display: 'block' }}
+                />
+              </motion.button>
             </div>
           )
         })}
