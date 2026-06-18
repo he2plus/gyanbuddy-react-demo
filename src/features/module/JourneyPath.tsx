@@ -24,14 +24,16 @@ function hexColor(c: string | null | undefined): string {
   return c.startsWith('#') ? c : `#${c}`
 }
 
-// Chapter state → podium art (the Ishaan ladder set). EXACTLY ONE character on
-// the whole path — the single current chapter — so the boy "moves" up the
-// ladder as the student progresses. No chapter names are drawn on the map; the
+// Chapter state → podium art (the Ishaan ladder set). Colour rules:
+//   - completed (passed)       → GREEN podium
+//   - in-progress (current)    → BLUE podium  (the ONE the student is on also
+//                                gets the character; other in-progress chapters
+//                                are blue but character-less)
+//   - not-started / locked     → GREY podium with a lock
+//   - last chapter             → checkered FINISH podium (same 3 states)
+// Only the single current chapter shows the character, so the boy "moves" up
+// the ladder as progress advances. No chapter names are drawn on the map — the
 // name lives only on the side card.
-//   - current      → blue podium + character (start-flag variant on chapter 1)
-//   - completed    → green podium (start-flag variant on chapter 1)
-//   - locked / not → grey podium with a lock
-//   - last chapter → checkered FINISH podium (char if current, else completed/lock)
 function artFor(
   c: ModuleChapter,
   isFirst: boolean,
@@ -40,7 +42,8 @@ function artFor(
 ): { src: string; w: number } {
   if (isLast) {
     if (isCurrent) return { src: 'finish-char.png', w: 188 }
-    if (c.isCompleted) return { src: 'finish.png', w: 178 }
+    // Reached (done) or still open → no lock; only truly locked gets the lock.
+    if (c.isCompleted || c.isInProgress) return { src: 'finish.png', w: 178 }
     return { src: 'finish-lock.png', w: 178 }
   }
   if (isCurrent) {
@@ -49,7 +52,11 @@ function artFor(
   if (c.isCompleted) {
     return isFirst ? { src: 'green-start.png', w: 162 } : { src: 'green.png', w: 150 }
   }
-  // locked / not started
+  // In-progress but not the one the boy is on → BLUE (not locked).
+  if (c.isInProgress) {
+    return { src: 'blue.png', w: 150 }
+  }
+  // not started / locked
   return { src: 'grey-lock.png', w: 150 }
 }
 
