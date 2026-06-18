@@ -31,12 +31,6 @@ export function ChapterQuizPage() {
   const quizQ = useChapterQuiz(chapterId)
 
   const chapter = chaptersQ.data?.find((c) => c.id === chapterId) ?? null
-  const chapters = chaptersQ.data ?? []
-  // Fire the celebratory splash when the LAST chapter of the module's quiz
-  // is completed — per docx #13 (last topic → chapter-completed animation).
-  const isLastChapter =
-    chapters.length > 0 &&
-    chapter?.id === chapters[chapters.length - 1]?.id
   void subjectQ.data
 
   const back = () =>
@@ -71,17 +65,11 @@ export function ChapterQuizPage() {
         ) : (
           <QuizFlow
             questions={quizQ.data ?? []}
-            onExit={toStandings}
+            onExit={back}
             onEmpty={back}
-            celebration={
-              isLastChapter && chapter
-                ? {
-                    chapterName: chapter.name,
-                    moduleName: 'this module',
-                    enabled: true,
-                  }
-                : undefined
-            }
+            // Original Flutter flow: finishing the last question pushes the
+            // student straight to the class standings/podium (no results card).
+            onComplete={toStandings}
           />
         )}
       </PageContainer>

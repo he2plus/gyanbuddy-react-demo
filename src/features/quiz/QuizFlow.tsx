@@ -24,14 +24,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion'
 import {
-  Check, X, Lightbulb, ArrowRight, AlertTriangle,
-  ChevronUp, ChevronDown, HelpCircle, Sparkles,
+  Check, Ban, Lightbulb, ArrowRight, AlertTriangle,
+  GripVertical, HelpCircle,
 } from 'lucide-react'
 
 import { checkAnswer } from '../../api/quiz'
 import { ChapterCompletedSplash } from '../module/ChapterCompletedSplash'
 import { Confetti } from '../../components/Confetti'
-import { playSound } from '../../lib/sound'
 import type { Question, QuestionOption } from '../../types/question'
 
 const NAVY = '#00167A'
@@ -44,7 +43,6 @@ type FeedbackState =
   | { kind: 'idle' }
   | { kind: 'checking' }
   | { kind: 'correct'; xp: number }
-  | { kind: 'incorrect'; attempts: number }
 
 type Props = {
   questions: Question[]
@@ -55,6 +53,13 @@ type Props = {
    * student to the path they came from instead of the post-quiz standings.
    */
   onEmpty?: () => void
+  /**
+   * Called the moment the final question is finished. When provided, the quiz
+   * navigates straight here (e.g. the class leaderboard) — no in-app results
+   * card — to mirror the original Flutter flow, which pushes the student
+   * directly to the standings/podium after the last question.
+   */
+  onComplete?: () => void
   /**
    * Optional celebratory interstitial title/subtitle. When the caller is a
    * chapter quiz, pass the chapter + module names — the ResultsCard then
@@ -68,15 +73,21 @@ type Props = {
   }
 }
 
-export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
+export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }: Props) {
   const [showSplash, setShowSplash] = useState(false)
   const [index, setIndex] = useState(0)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [shortAnswer, setShortAnswer] = useState('')
-  const [rearrangeOrder, setRearrangeOrder] = useState<string[]>([])
+  // Rearrange = tap-to-number (mirrors the Flutter app): the option ids the
+  // student has tapped, in tap order. An id's 1-based position in this list is
+  // its assigned order number; tapping a numbered option removes it and the
+  // rest shift down. Options never physically move — only the badges change.
+  const [rearrangeSeq, setRearrangeSeq] = useState<string[]>([])
   const [feedback, setFeedback] = useState<FeedbackState>({ kind: 'idle' })
   const [showHint, setShowHint] = useState(false)
-  const [revealedExplanation, setRevealedExplanation] = useState(false)
+  // Single-choice options the student has already tried and got wrong — they
+  // grey out (eliminated) so the student re-picks, exactly like the original.
+  const [eliminated, setEliminated] = useState<string[]>([])
   const [attempts, setAttempts] = useState(0)
   const [totalXp, setTotalXp] = useState(0)
   const [finished, setFinished] = useState(false)
@@ -98,10 +109,10 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
   useEffect(() => {
     setSelectedIds([])
     setShortAnswer('')
-    setRearrangeOrder(question?.options.map((o) => o.id) ?? [])
+    setRearrangeSeq([])
     setFeedback({ kind: 'idle' })
     setShowHint(false)
-    setRevealedExplanation(false)
+    setEliminated([])
     setAttempts(0)
     setShowConfetti(false)
     cardControls.set({ opacity: 0, x: 24 })
@@ -112,9 +123,11 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
   const hasAnswered = useMemo(() => {
     if (!question) return false
     if (question.type === 'short_answer') return shortAnswer.trim().length > 0
-    if (question.type === 'rearrange') return rearrangeOrder.length > 0
+    // Rearrange is answerable only once EVERY option has a number (matches the
+    // Flutter rule `_rearrangeOrder.length == _answers.length`).
+    if (question.type === 'rearrange') return rearrangeSeq.length === question.options.length
     return selectedIds.length > 0
-  }, [question, selectedIds, shortAnswer, rearrangeOrder])
+  }, [question, selectedIds, shortAnswer, rearrangeSeq])
 
   if (!question && !finished) {
     return (
@@ -204,7 +217,6 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
 
   const toggleOption = (id: string) => {
     if (isLocked) return
-    playSound('select')
     if (question.type === 'mcq_single') {
       setSelectedIds([id])
     } else {
@@ -214,17 +226,13 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
     }
   }
 
-  const moveRearrange = (id: string, dir: -1 | 1) => {
+  // Tap-to-number: tapping an un-numbered option appends it (gets the next
+  // order); tapping a numbered one removes it and the rest shift down.
+  const toggleRearrange = (id: string) => {
     if (isLocked) return
-    setRearrangeOrder((arr) => {
-      const i = arr.indexOf(id)
-      if (i < 0) return arr
-      const j = i + dir
-      if (j < 0 || j >= arr.length) return arr
-      const next = [...arr]
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
+    setRearrangeSeq((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
   }
 
   // ---- submit ----
@@ -234,7 +242,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
     setFeedback({ kind: 'checking' })
     const optionPayload =
       question.type === 'rearrange'
-        ? rearrangeOrder
+        ? rearrangeSeq
         : selectedIds
 
     const result = await checkAnswer(
@@ -248,41 +256,39 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
       setTotalXp((x) => x + result.expAwarded)
       setFeedback({ kind: 'correct', xp: result.expAwarded })
       setShowConfetti(true)
-      playSound('correct')
     } else {
-      const nextAttempts = attempts + 1
-      setAttempts(nextAttempts)
-      setFeedback({ kind: 'incorrect', attempts: nextAttempts })
-      playSound('incorrect')
+      // Original behaviour: just shake + pop the hint. No banner, no "try
+      // again" button, no explanation reveal — the student simply re-picks.
+      setAttempts((a) => a + 1)
       triggerShake()
-      // Auto-open the hint on the first wrong attempt (mirrors the original).
-      if (nextAttempts === 1 && question.hint) {
-        setShowHint(true)
+      if (question.hint) setShowHint(true)
+      // For single-choice, grey out (eliminate) the wrong pick and clear the
+      // selection so the Check button greys until a fresh option is chosen.
+      if (question.type === 'mcq_single') {
+        setEliminated((prev) => [...prev, ...selectedIds])
+        setSelectedIds([])
       }
-      // After the 2nd miss the question is spent — surface the explanation so
-      // the student sees why before moving to the next question.
-      if (nextAttempts >= 2 && question.explanation) {
-        setRevealedExplanation(true)
-      }
+      setFeedback({ kind: 'idle' })
     }
   }
 
   const goNext = () => {
-    if (index + 1 >= total) setFinished(true)
-    else setIndex((i) => i + 1)
+    if (index + 1 >= total) {
+      // Original flow: the last question drops the student straight onto the
+      // leaderboard. Only fall back to the in-app ResultsCard when no direct
+      // completion handler is supplied (e.g. tests that show a score summary).
+      if (onComplete) onComplete()
+      else setFinished(true)
+    } else {
+      setIndex((i) => i + 1)
+    }
   }
 
   const isChecking = feedback.kind === 'checking'
   const isCorrect = feedback.kind === 'correct'
-  const isIncorrect = feedback.kind === 'incorrect'
-  // After 2 failed attempts the question is spent (0 XP): reveal the answer and
-  // let the student move on instead of trapping them on "Try again".
-  const exhausted = isIncorrect && attempts >= 2
-  const resolved = isCorrect || exhausted
-
-  // Show the Why-button after 2 failed attempts (docx #16).
-  const showWhyButton =
-    isIncorrect && attempts >= 2 && !!question.explanation && !revealedExplanation
+  // The question only "resolves" (locks + reveals the green answer + Next) once
+  // it's answered correctly. A wrong answer just lets the student try again.
+  const resolved = isCorrect
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
@@ -344,7 +350,6 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
                 onClick={() => {
                   if (attempts === 0) return
                   setShowHint((s) => !s)
-                  playSound('hint')
                 }}
                 disabled={attempts === 0}
                 aria-label="Show hint"
@@ -415,10 +420,11 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
 
             {question.type === 'rearrange' && (
               <RearrangeList
-                order={rearrangeOrder}
                 options={question.options}
+                seq={rearrangeSeq}
                 disabled={isLocked}
-                onMove={moveRearrange}
+                resolved={resolved}
+                onToggle={toggleRearrange}
               />
             )}
 
@@ -429,15 +435,10 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
                     key={o.id}
                     option={o}
                     selected={selectedIds.includes(o.id)}
-                    disabled={isLocked}
+                    disabled={isLocked || eliminated.includes(o.id)}
+                    eliminated={eliminated.includes(o.id)}
                     multiSelect={question.type === 'mcq_multiple'}
-                    feedback={
-                      resolved && o.isCorrect
-                        ? 'correct'
-                        : isIncorrect && selectedIds.includes(o.id) && !o.isCorrect
-                          ? 'incorrect'
-                          : 'none'
-                    }
+                    feedback={resolved && o.isCorrect ? 'correct' : 'none'}
                     onToggle={() => toggleOption(o.id)}
                   />
                 ))}
@@ -485,73 +486,9 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
             )}
           </AnimatePresence>
 
-          {/* Why? button → reveals explanation after 2 fails */}
-          <AnimatePresence>
-            {showWhyButton && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                style={{ marginTop: 16 }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setRevealedExplanation(true)}
-                  className="flex items-center font-body"
-                  style={{
-                    gap: 8, padding: '10px 18px', borderRadius: 999,
-                    background: '#fff', border: `1px solid ${NAVY}`, color: NAVY,
-                    fontSize: 16, fontWeight: 700,
-                  }}
-                >
-                  <HelpCircle className="w-4 h-4" strokeWidth={2.5} />
-                  Why? Show the explanation
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {revealedExplanation && question.explanation && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-start"
-                style={{
-                  marginTop: 16, gap: 12, padding: 16, borderRadius: 16,
-                  background: '#E0E7FF', border: `1px solid #C7D2FE`,
-                }}
-              >
-                <Sparkles
-                  className="w-5 h-5 shrink-0"
-                  style={{ color: NAVY, marginTop: 2 }}
-                  strokeWidth={2.5}
-                />
-                <div className="flex flex-col flex-1" style={{ gap: 4 }}>
-                  <span
-                    className="font-body"
-                    style={{
-                      fontSize: 13, fontWeight: 700, color: NAVY,
-                      letterSpacing: '0.06em', textTransform: 'uppercase',
-                    }}
-                  >
-                    Explanation
-                  </span>
-                  <p
-                    className="font-body"
-                    style={{ fontSize: 16, fontWeight: 400, color: TXT_DARK, lineHeight: '24px', margin: 0 }}
-                  >
-                    {question.explanation}
-                  </p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Feedback banner — correct or incorrect */}
+          {/* Correct-answer banner only — a wrong answer just shakes + hints. */}
           <AnimatePresence>
             {isCorrect && <CorrectBanner xp={feedback.xp} />}
-            {isIncorrect && <IncorrectBanner exhausted={exhausted} />}
           </AnimatePresence>
       </motion.div>
 
@@ -589,7 +526,7 @@ export function QuizFlow({ questions, onExit, onEmpty, celebration }: Props) {
               opacity: hasAnswered ? 1 : 0.7,
             }}
           >
-            {isChecking ? 'Checking…' : isIncorrect ? 'Try again' : 'Check'}
+            {isChecking ? 'Checking…' : 'Check'}
           </motion.button>
         ) : (
           <motion.button
@@ -624,22 +561,24 @@ function labelFor(t: Question['type']): string {
 
 // ---------------------------------------------------------------------------
 function OptionRow({
-  option, selected, disabled, multiSelect, feedback, onToggle,
+  option, selected, disabled, eliminated, multiSelect, feedback, onToggle,
 }: {
   option: QuestionOption
   selected: boolean
   disabled: boolean
+  /** Already-tried wrong single-choice option — greyed out, not clickable. */
+  eliminated: boolean
   multiSelect: boolean
-  feedback: 'none' | 'correct' | 'incorrect'
+  feedback: 'none' | 'correct'
   onToggle: () => void
 }) {
   const border =
     feedback === 'correct' ? '#22C55E' :
-    feedback === 'incorrect' ? '#FF3131' :
+    eliminated ? '#E7E7E7' :
     selected ? NAVY : '#E7E7E7'
   const bg =
     feedback === 'correct' ? '#DCFCE7' :
-    feedback === 'incorrect' ? '#FFE2E2' :
+    eliminated ? '#F4F4F5' :
     selected ? '#F0F4FF' : '#fff'
 
   return (
@@ -653,6 +592,7 @@ function OptionRow({
         style={{
           gap: 14, padding: '16px 20px', borderRadius: 18,
           border: `1.5px solid ${border}`, background: bg,
+          opacity: eliminated ? 0.6 : 1,
           transition: 'all 0.2s ease',
         }}
       >
@@ -663,18 +603,17 @@ function OptionRow({
             borderRadius: multiSelect ? 6 : 999,
             border: `2px solid ${
               feedback === 'correct' ? '#22C55E' :
-              feedback === 'incorrect' ? '#FF3131' :
+              eliminated ? '#C4C4CC' :
               selected ? NAVY : '#D4D4D8'
             }`,
             background:
               feedback === 'correct' ? '#22C55E' :
-              feedback === 'incorrect' ? '#FF3131' :
-              selected ? NAVY : '#fff',
+              selected && !eliminated ? NAVY : '#fff',
             color: '#fff',
           }}
         >
-          {feedback === 'correct'   ? <Check className="w-4 h-4" strokeWidth={3} /> :
-           feedback === 'incorrect' ? <X     className="w-4 h-4" strokeWidth={3} /> :
+          {feedback === 'correct' ? <Check className="w-4 h-4" strokeWidth={3} /> :
+           eliminated ? <Ban className="w-3.5 h-3.5" style={{ color: '#A1A1AA' }} strokeWidth={2.5} /> :
            selected
              ? (multiSelect
                  ? <Check className="w-4 h-4" strokeWidth={3} />
@@ -683,7 +622,10 @@ function OptionRow({
         </span>
         <span
           className="font-body"
-          style={{ fontSize: 18, fontWeight: 500, color: TXT_DARK, lineHeight: '26px' }}
+          style={{
+            fontSize: 18, fontWeight: 500, lineHeight: '26px',
+            color: eliminated ? TXT_MUTED : TXT_DARK,
+          }}
         >
           {option.optionText}
         </span>
@@ -693,20 +635,20 @@ function OptionRow({
 }
 
 // ---------------------------------------------------------------------------
+// Rearrange = tap-to-number, exactly like the Flutter app. Options stay in a
+// fixed position; tapping one assigns it the next order number (badge), tapping
+// it again clears it and the rest renumber. No dragging, no arrows.
 function RearrangeList({
-  order, options, disabled, onMove,
+  options, seq, disabled, resolved, onToggle,
 }: {
-  order: string[]
   options: QuestionOption[]
+  /** Option ids in tap order — index + 1 is the assigned number. */
+  seq: string[]
   disabled: boolean
-  onMove: (id: string, dir: -1 | 1) => void
+  /** Answered correctly — every row turns green. */
+  resolved: boolean
+  onToggle: (id: string) => void
 }) {
-  const byId = useMemo(() => {
-    const m = new Map<string, QuestionOption>()
-    for (const o of options) m.set(o.id, o)
-    return m
-  }, [options])
-
   return (
     <div className="flex flex-col" style={{ gap: 10 }}>
       <p
@@ -716,68 +658,66 @@ function RearrangeList({
           letterSpacing: '0.06em', textTransform: 'uppercase', margin: 0,
         }}
       >
-        Use the arrows to put these in the correct order
+        Tap the options in the correct order
       </p>
-      <ul className="flex flex-col" style={{ gap: 10 }}>
-        {order.map((id, idx) => {
-          const o = byId.get(id)
-          if (!o) return null
+      <ul className="flex flex-col" style={{ gap: 12 }}>
+        {options.map((o) => {
+          const pos = seq.indexOf(o.id)
+          const selected = pos >= 0
+          const number = pos + 1
+          const green = resolved
+
+          const border = green ? '#22C55E' : selected ? NAVY : '#E7E7E7'
+          const bg = green ? '#DCFCE7' : selected ? '#F0F4FF' : '#fff'
+          const badgeBg = green ? '#22C55E' : selected ? NAVY : '#F1F1F1'
+
           return (
-            <motion.li
-              key={id}
-              layout
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="flex items-center bg-white"
-              style={{
-                gap: 14, padding: '14px 20px', borderRadius: 18,
-                border: '1.5px solid #E7E7E7',
-              }}
-            >
-              <span
-                className="grid place-items-center font-body shrink-0"
+            <li key={o.id}>
+              <motion.button
+                type="button"
+                onClick={() => onToggle(o.id)}
+                disabled={disabled}
+                whileTap={!disabled ? { scale: 0.99 } : undefined}
+                className="flex items-center w-full font-body text-left disabled:cursor-not-allowed"
                 style={{
-                  width: 36, height: 36, borderRadius: 999,
-                  background: NAVY, color: '#fff',
-                  fontSize: 18, fontWeight: 700,
+                  gap: 14, padding: '16px 20px', borderRadius: 18,
+                  border: `1.5px solid ${border}`, background: bg,
+                  boxShadow: (selected || green)
+                    ? `0 4px 12px ${green ? 'rgba(34,197,94,0.18)' : 'rgba(0,22,122,0.14)'}`
+                    : 'none',
+                  transition: 'all 0.2s ease',
                 }}
               >
-                {idx + 1}
-              </span>
-              <span
-                className="font-body flex-1"
-                style={{ fontSize: 18, fontWeight: 500, color: TXT_DARK, lineHeight: '26px' }}
-              >
-                {o.optionText}
-              </span>
-              <div className="flex flex-col" style={{ gap: 4 }}>
-                <button
-                  type="button"
-                  aria-label="Move up"
-                  disabled={disabled || idx === 0}
-                  onClick={() => onMove(id, -1)}
-                  className="grid place-items-center disabled:opacity-30"
+                {/* Order badge — number when selected, grip icon otherwise */}
+                <span
+                  className="grid place-items-center shrink-0"
                   style={{
-                    width: 32, height: 28, borderRadius: 8,
-                    background: '#F1F5F9', color: NAVY,
+                    width: 32, height: 32, borderRadius: 10,
+                    background: badgeBg, color: '#fff',
                   }}
                 >
-                  <ChevronUp className="w-4 h-4" strokeWidth={2.5} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Move down"
-                  disabled={disabled || idx === order.length - 1}
-                  onClick={() => onMove(id, 1)}
-                  className="grid place-items-center disabled:opacity-30"
+                  {selected || green ? (
+                    <span
+                      className="font-body tabular-nums"
+                      style={{ fontSize: 15, fontWeight: 700, lineHeight: 1 }}
+                    >
+                      {number}
+                    </span>
+                  ) : (
+                    <GripVertical className="w-4 h-4" style={{ color: '#9CA3AF' }} strokeWidth={2} />
+                  )}
+                </span>
+                <span
+                  className="font-body flex-1"
                   style={{
-                    width: 32, height: 28, borderRadius: 8,
-                    background: '#F1F5F9', color: NAVY,
+                    fontSize: 18, fontWeight: 500, lineHeight: '26px',
+                    color: green ? '#15803D' : TXT_DARK,
                   }}
                 >
-                  <ChevronDown className="w-4 h-4" strokeWidth={2.5} />
-                </button>
-              </div>
-            </motion.li>
+                  {o.optionText}
+                </span>
+              </motion.button>
+            </li>
           )
         })}
       </ul>
@@ -812,44 +752,6 @@ function CorrectBanner({ xp }: { xp: number }) {
         style={{ fontSize: 18, fontWeight: 700, color: '#15803D', lineHeight: '32px' }}
       >
         Correct! +{xp} XP
-      </div>
-    </motion.div>
-  )
-}
-
-function IncorrectBanner({ exhausted }: { exhausted: boolean }) {
-  const copy = exhausted
-    ? 'The correct answer is highlighted in green.'
-    : 'Not quite — try again.'
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8, x: 0 }}
-      animate={{ opacity: 1, y: 0, x: [0, -6, 6, -4, 4, 0] }}
-      exit={{ opacity: 0 }}
-      transition={{ x: { duration: 0.4 } }}
-      className="flex items-start"
-      style={{
-        marginTop: 20, gap: 12, padding: 16, borderRadius: 16,
-        background: '#FFE2E2', border: '1px solid #FCA5A5',
-      }}
-    >
-      <span
-        className="grid place-items-center shrink-0"
-        style={{
-          width: 32, height: 32, borderRadius: 999,
-          background: '#FF3131', color: '#fff',
-        }}
-      >
-        <X className="w-5 h-5" strokeWidth={3} />
-      </span>
-      <div>
-        <div
-          className="font-body"
-          style={{ fontSize: 18, fontWeight: 700, color: '#B91C1C', lineHeight: '24px' }}
-        >
-          {copy}
-        </div>
       </div>
     </motion.div>
   )

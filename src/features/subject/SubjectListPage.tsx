@@ -433,7 +433,6 @@ function SubjectRow({
                   key={m.id}
                   module={m}
                   subjectCode={subject.code}
-                  subjectLogo={subject.logo}
                   orderIndex={i}
                   delay={i * 0.04}
                   onClick={() => onChapterClick(m.id)}
@@ -462,21 +461,21 @@ function illustrationFor(subjectCode: string, orderIndex: number): string | null
   if (upper === 'BIO' && orderIndex < BIO_ILLUSTRATIONS.length) {
     return BIO_ILLUSTRATIONS[orderIndex]
   }
-  // Fallback: use the subject's own 3D icon so the chapter chip is never
-  // a blank tinted box. Biology gets specific illustrations because Figma
-  // shipped them; other subjects re-use the rail icon for now.
-  return SUBJECT_PNG[upper] ?? null
+  // No per-chapter art for this subject. We deliberately do NOT fall back to the
+  // subject's own icon here — every chapter would then show the same subject
+  // image. The chip uses the chapter's real backend logo first and a neutral
+  // book glyph otherwise (see ChapterChip), so each chapter reads distinctly.
+  return null
 }
 
 // ---------------------------------------------------------------------------
 // ChapterChip — Figma Frame 37/38/39/40 (224 × 261, white bg, radius 34)
 // ---------------------------------------------------------------------------
 function ChapterChip({
-  module: m, subjectCode, subjectLogo, orderIndex, delay, onClick,
+  module: m, subjectCode, orderIndex, delay, onClick,
 }: {
   module: Module
   subjectCode: string
-  subjectLogo: string | null
   orderIndex: number
   delay: number
   onClick: () => void
@@ -484,9 +483,11 @@ function ChapterChip({
   const status = chapterStatus(m)
   const chip = STATUS_CHIP[status]
   const locked = status === 'locked'
-  // Prefer per-chapter figma art, then the subject's real backend logo, so the
-  // thumbnail is the actual subject icon instead of a generic leaf.
-  const chapterIllustration = illustrationFor(subjectCode, orderIndex) || subjectLogo
+  // The chapter's OWN icon: the backend per-chapter logo first (this is what the
+  // original app showed for each chapter/module), then any chapter-specific
+  // illustration. A neutral book glyph fills in if neither exists — we no longer
+  // fall back to the subject icon, which made every chapter look identical.
+  const chapterIllustration = m.logo || illustrationFor(subjectCode, orderIndex)
 
   return (
     <motion.button
@@ -566,7 +567,7 @@ function ChapterChip({
               boxShadow: locked ? 'none' : `0 8px 22px ${chip.fg}40`,
             }}
           >
-            <Leaf
+            <BookOpen
               className="w-7 h-7"
               style={{ color: locked ? TXT_MUTED : '#fff', opacity: 0.95 }}
               strokeWidth={2}

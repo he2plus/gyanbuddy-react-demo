@@ -13,7 +13,7 @@
  *
  * Uses the original art copied to /images/journey/*.
  */
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { ModuleChapter } from '../../types/module'
 
@@ -26,20 +26,29 @@ function hexColor(c: string | null | undefined): string {
   return c.startsWith('#') ? c : `#${c}`
 }
 
-// Chapter state → platform image (mirrors _buildChapterCard, minus the boy,
-// which is placed on the *current* chapter only — see render below).
-function platformFor(c: ModuleChapter, isLast: boolean): { src: string; w: number } {
+// Chapter state → art. EXACTLY ONE boy on the whole path — the single current
+// chapter. Every other node is a bare platform, no matter its raw status (the
+// backend can mark several chapters in_progress at once; only the current one
+// gets the boy). Mirrors the Flutter `_buildChapterCard` art, using the
+// pre-rendered stand_boy composite so the boy is always seated on the platform.
+//   - current      → stand_boy[_important]   (the one boy)
+//   - completed    → platform / important_platform / last_platform (final)
+//   - everything else → disabled platform
+// Widths follow the original's web proportions; height is intrinsic.
+function artFor(c: ModuleChapter, isLast: boolean, isCurrent: boolean): { src: string; w: number } {
+  if (isCurrent) {
+    return c.isImportant
+      ? { src: 'stand_boy_important.png', w: 178 }
+      : { src: 'stand_boy.png', w: 150 }
+  }
   if (c.isCompleted) {
-    if (isLast) return { src: 'last_platform.png', w: 168 }
-    return { src: c.isImportant ? 'important_platform.png' : 'platform.png', w: c.isImportant ? 190 : 160 }
+    if (isLast) return { src: 'last_platform.png', w: 200 }
+    return c.isImportant ? { src: 'important_platform.png', w: 168 } : { src: 'platform.png', w: 150 }
   }
-  if (c.isInProgress) {
-    return { src: c.isImportant ? 'important_platform.png' : 'platform.png', w: c.isImportant ? 190 : 160 }
-  }
-  // not started / locked
-  if (c.isImportant) return { src: 'disabled_important_stand.png', w: 170 }
-  if (isLast) return { src: 'last_platform.png', w: 168 }
-  return { src: 'disabled_platform.png', w: 160 }
+  // not started / locked / any non-current in-progress
+  if (c.isImportant) return { src: 'disabled_important_stand.png', w: 168 }
+  if (isLast) return { src: 'last_platform.png', w: 200 }
+  return { src: 'disabled_platform.png', w: 150 }
 }
 
 // Original zig-zag column: i%3 == 0 → centre, == 1 → right, == 2 → left.
@@ -80,9 +89,58 @@ export function JourneyPath({
   subjectColor: string | null
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const currentRef = useRef<HTMLDivElement>(null)
+  // One ref per platform image so we can measure where each platform sits and
+  // draw the connectors between them (mirrors the Flutter _ChapterConnectionPainter).
+  const imgRefs = useRef<Array<HTMLImageElement | null>>([])
   const color = hexColor(subjectColor)
   const N = chapters.length
+
+  const [paths, setPaths] = useState<string[]>([])
+  const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+
+  // Measure each platform's slab anchor and build curved dashed connectors
+  // between consecutive platforms — exactly the original's cubic-bézier:
+  //   cp1 = (start.x, start.y + dy*0.7),  cp2 = (end.x, end.y - dy*0.7)
+  // which makes the dashes exit one platform downward and approach the next
+  // straight from above (the S-curve staircase).
+  const measure = useCallback(() => {
+    const content = contentRef.current
+    if (!content) return
+    const cRect = content.getBoundingClientRect()
+    const pts: Array<{ x: number; y: number } | null> = []
+    for (let i = 0; i < N; i++) {
+      const el = imgRefs.current[i]
+      if (!el) { pts.push(null); continue }
+      const r = el.getBoundingClientRect()
+      // Anchor on the platform slab (sits at the bottom of every art — plain
+      // platform or boy-on-platform), a touch above the bottom edge.
+      pts.push({
+        x: r.left - cRect.left + r.width / 2,
+        y: r.top - cRect.top + r.height - 16,
+      })
+    }
+    const ds: string[] = []
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i]
+      const b = pts[i + 1]
+      if (!a || !b) continue
+      const dy = b.y - a.y
+      ds.push(`M ${a.x} ${a.y} C ${a.x} ${a.y + dy * 0.7} ${b.x} ${b.y - dy * 0.7} ${b.x} ${b.y}`)
+    }
+    setPaths(ds)
+    setBox({ w: cRect.width, h: cRect.height })
+  }, [N])
+
+  useLayoutEffect(() => { measure() }, [measure, chapters])
+  useEffect(() => {
+    measure()
+    const ro = new ResizeObserver(() => measure())
+    if (contentRef.current) ro.observe(contentRef.current)
+    window.addEventListener('resize', measure)
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [measure])
 
   // Auto-scroll to the current chapter on load (mirrors _scrollToInProgressChapter).
   useEffect(() => {
@@ -105,24 +163,36 @@ export function JourneyPath({
     >
       <FloatingCircles color={color} />
 
-      <div className="relative flex flex-col" style={{ gap: 26, padding: '36px 0 52px' }}>
-        {/* dashed spine the platforms step off */}
-        {N > 1 && (
-          <div
-            className="absolute"
-            style={{ left: '50%', top: 56, bottom: 70, borderLeft: '2px dashed #C7CFDB', transform: 'translateX(-50%)' }}
+      <div ref={contentRef} className="relative flex flex-col" style={{ gap: 6, padding: '28px 0 44px' }}>
+        {/* Curved dashed connectors between consecutive platforms (behind them). */}
+        {box.w > 0 && (
+          <svg
+            className="absolute pointer-events-none"
+            style={{ left: 0, top: 0, width: '100%', height: '100%', zIndex: 0 }}
+            viewBox={`0 0 ${box.w} ${box.h}`}
+            preserveAspectRatio="none"
             aria-hidden="true"
-          />
+          >
+            {paths.map((d, i) => (
+              <path
+                key={i}
+                d={d}
+                fill="none"
+                stroke="#C3CCD8"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeDasharray="5 6"
+              />
+            ))}
+          </svg>
         )}
 
         {chapters.map((c, i) => {
           const isLast = i === N - 1
           const isCurrent = c.id === currentChapterId
-          const { src, w } = platformFor(c, isLast)
-          const boy = isCurrent
+          const { src, w } = artFor(c, isLast, isCurrent)
           const interactive = c.isInProgress || c.isCompleted || i === 0
           const lane = laneFor(i)
-          const boxH = boy ? Math.round((w * 59) / 174) + 96 : isLast ? w : Math.round((w * 59) / 174)
 
           return (
             <div
@@ -130,14 +200,14 @@ export function JourneyPath({
               className="relative z-10 flex w-full"
               style={{
                 justifyContent: lane === 'center' ? 'center' : lane === 'right' ? 'flex-end' : 'flex-start',
-                paddingLeft: lane === 'left' ? '7%' : 0,
-                paddingRight: lane === 'right' ? '7%' : 0,
+                paddingLeft: lane === 'left' ? '9%' : 0,
+                paddingRight: lane === 'right' ? '9%' : 0,
               }}
             >
               <motion.div
                 ref={isCurrent ? currentRef : undefined}
                 className="flex flex-col items-center"
-                style={{ gap: 10 }}
+                style={{ gap: 6 }}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.04 + i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -150,24 +220,17 @@ export function JourneyPath({
                   className={interactive ? 'cursor-pointer' : 'cursor-default'}
                   style={{ background: 'transparent', border: 'none', padding: 0 }}
                 >
-                  <div className="relative flex items-end justify-center" style={{ width: w, height: boxH }}>
-                    {boy && (
-                      <img
-                        src={`${J}/boy.png`}
-                        alt=""
-                        draggable={false}
-                        className="select-none"
-                        style={{ position: 'absolute', bottom: Math.round((w * 59) / 174) - 6, left: '50%', transform: 'translateX(-50%)', height: 112, width: 'auto', zIndex: 2 }}
-                      />
-                    )}
-                    <img
-                      src={`${J}/${src}`}
-                      alt=""
-                      draggable={false}
-                      className="block select-none"
-                      style={{ width: '100%', height: 'auto', position: 'absolute', bottom: 0, left: 0, zIndex: 1 }}
-                    />
-                  </div>
+                  {/* Single composed image — the boy (when current) is part of
+                      the stand_boy art, so it always sits on the platform. */}
+                  <img
+                    ref={(el) => { imgRefs.current[i] = el }}
+                    src={`${J}/${src}`}
+                    alt=""
+                    draggable={false}
+                    onLoad={measure}
+                    className="block select-none"
+                    style={{ width: w, height: 'auto', display: 'block' }}
+                  />
                 </button>
                 <span
                   className="font-body text-center"

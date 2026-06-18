@@ -194,9 +194,17 @@ body {
   }
 }
 
-/* Hide scrollbar where we want a clean scroll surface (e.g. the home subject rail) */
+/* Hide scrollbar where we want a clean scroll surface */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Home subject rail — a slim, always-visible scrollbar so users can tell the
+   rail scrolls (more subjects below). Thin enough not to disturb the tiles. */
+.subject-rail-scroll { scrollbar-width: thin; scrollbar-color: #c7ccd6 transparent; }
+.subject-rail-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.subject-rail-scroll::-webkit-scrollbar-track { background: transparent; }
+.subject-rail-scroll::-webkit-scrollbar-thumb { background: #c7ccd6; border-radius: 999px; }
+.subject-rail-scroll::-webkit-scrollbar-thumb:hover { background: #aeb4c0; }
 
 /* Subtle desktop scrollbar */
 ::-webkit-scrollbar {

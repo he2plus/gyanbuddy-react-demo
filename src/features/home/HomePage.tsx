@@ -20,7 +20,7 @@
  *   - Test score : avg of completed tests when present; falls back to "—%".
  *   The Figma values 4 / 35% / 78% are the demo defaults if data is missing.
  */
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -145,7 +145,7 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Home" />
+      <TopBar />
 
       {/*
         Main content. Padding shrinks with viewport width via clamp() so the
@@ -809,9 +809,35 @@ function SubjectRail({
   activeId: string | null
   onPick: (id: string) => void
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Custom hover tooltip (vs. the slow native `title`): shows the subject name
+  // beside the hovered icon. Rendered in this OUTER wrapper (overflow visible)
+  // so the scroll container can never clip it.
+  const [tip, setTip] = useState<{ name: string; top: number } | null>(null)
+  // Whether the rail actually overflows — drives the bottom fade affordance
+  // that signals "scroll for more" even to users who wouldn't think to try.
+  const [overflowing, setOverflowing] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const check = () => setOverflowing(el.scrollHeight - el.clientHeight > 4)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [subjects.length])
+
+  const showTip = (name: string) => (e: React.MouseEvent<HTMLButtonElement>) => {
+    const btn = e.currentTarget
+    const top = btn.offsetTop + btn.offsetHeight / 2 - (scrollRef.current?.scrollTop ?? 0)
+    setTip({ name, top })
+  }
+
   return (
-    <aside
-      className="flex flex-row lg:flex-col w-full lg:w-24 overflow-x-auto lg:overflow-y-auto lg:overflow-x-visible no-scrollbar"
+    <div className="relative w-full lg:w-[104px] shrink-0">
+    <div
+      ref={scrollRef}
+      className="flex flex-row lg:flex-col lg:items-center w-full overflow-x-auto lg:overflow-y-auto lg:overflow-x-hidden subject-rail-scroll"
       style={{ gap: 16, maxHeight: 'min(66vh, 720px)', paddingBottom: 4 }}
     >
       {subjects.map((s, i) => {
@@ -825,6 +851,8 @@ function SubjectRail({
             aria-label={s.name}
             title={s.name}
             onClick={() => onPick(s.id)}
+            onMouseEnter={showTip(s.name)}
+            onMouseLeave={() => setTip(null)}
             className="grid place-items-center bg-white shrink-0"
             style={{
               width: 96, height: 80, borderRadius: 28,
@@ -837,7 +865,7 @@ function SubjectRail({
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.05 + i * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            whileHover={{ x: -4, transition: { duration: 0.18 } }}
+            whileHover={{ scale: 1.04, transition: { duration: 0.18 } }}
             whileTap={{ scale: 0.97 }}
           >
             {/* Figma puts the icon directly in the 92x72 tile — no tinted
@@ -875,7 +903,55 @@ function SubjectRail({
           </motion.button>
         )
       })}
-    </aside>
+    </div>
+
+      {/* Bottom fade — only when the rail overflows. A soft gradient over the
+          last tile reads as "there's more below", inviting a scroll. */}
+      {overflowing && (
+        <div
+          className="hidden lg:block pointer-events-none"
+          style={{
+            position: 'absolute', left: 0, right: 0, bottom: 0, height: 34,
+            background: `linear-gradient(to top, ${SURFACE_BG} 10%, rgba(250,250,250,0) 100%)`,
+          }}
+        />
+      )}
+
+      {/* Custom hover tooltip — subject name, pinned beside the hovered icon. */}
+      {tip && (
+        <div
+          key={tip.name}
+          className="hidden lg:block"
+          style={{
+            position: 'absolute', top: tip.top, right: 'calc(100% + 14px)',
+            transform: 'translateY(-50%)', zIndex: 50, pointerEvents: 'none',
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, x: 6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="relative font-body"
+            style={{
+              background: NAVY, color: '#fff', fontSize: 14, fontWeight: 600,
+              padding: '6px 12px', borderRadius: 10, whiteSpace: 'nowrap', lineHeight: 1.2,
+              boxShadow: '0 8px 20px rgba(0,22,122,0.25)',
+            }}
+          >
+            {tip.name}
+            {/* Caret pointing at the icon */}
+            <span
+              style={{
+                position: 'absolute', top: '50%', left: '100%', transform: 'translateY(-50%)',
+                width: 0, height: 0,
+                borderTop: '5px solid transparent', borderBottom: '5px solid transparent',
+                borderLeft: `6px solid ${NAVY}`,
+              }}
+            />
+          </motion.div>
+        </div>
+      )}
+    </div>
   )
 }
 

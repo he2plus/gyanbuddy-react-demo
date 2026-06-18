@@ -15,10 +15,10 @@ export function MissionQuizPage() {
   const missionsQ = useMissions()
   const mission = missionsQ.data?.find((m) => m.id === missionId)
 
+  // Original Flutter flow: finishing the mission quiz pops straight back to the
+  // mission detail screen (Navigator.pop(context, mission.id)) — not the
+  // leaderboard. Exiting mid-quiz returns to the same place.
   const back = () => navigate(`/missions/${missionId}`)
-  // After finishing the mission quiz, show the live standings so the
-  // student sees the impact on their rank.
-  const toStandings = () => navigate('/leaderboard')
 
   return (
     <div className="min-h-screen bg-white">
@@ -44,7 +44,8 @@ export function MissionQuizPage() {
         ) : (
           <QuizFlow
             questions={mission.questions}
-            onExit={toStandings}
+            onExit={back}
+            onComplete={back}
           />
         )}
       </PageContainer>

@@ -79,9 +79,16 @@ export function TestQuizPage() {
             <TimerBar totalSeconds={totalSeconds} accent={accent} onExpire={() => void completeTest(testId).catch(() => undefined)} />
             <QuizFlow
               questions={questionsQ.data ?? test.questions ?? []}
+              // Original Flutter flow: completing the test returns to the test
+              // subject screen (Navigator.pop(context, test.id)) — not the
+              // leaderboard. Same when exiting mid-test.
               onExit={async () => {
                 await completeTest(testId).catch(() => undefined)
-                navigate('/leaderboard')
+                navigate('/tests')
+              }}
+              onComplete={async () => {
+                await completeTest(testId).catch(() => undefined)
+                navigate('/tests')
               }}
             />
           </>

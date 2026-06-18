@@ -32,16 +32,13 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronDown, TrendingUp, TrendingDown, Minus, Check,
+  ChevronDown, Check,
   ArrowRight,
 } from 'lucide-react'
 
 import { TopBar } from '../../shell/TopBar'
 import { useLeaderboard } from './useLeaderboard'
 import { useAuthStore } from '../../state/auth'
-import {
-  deriveStreak, deriveWeeklyDelta, formatDelta,
-} from '../../lib/derived-metrics'
 import type { User } from '../../types/user'
 
 const NAVY = '#00167A'
@@ -74,7 +71,7 @@ export function PodiumPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Leaderboard" hideBack />
+      <TopBar pageTitle="Leaderboard" />
 
       <main
         className="mx-auto w-full"
@@ -466,8 +463,6 @@ function PodiumRow({
   user: User; rank: number; isMe: boolean; isLeader: boolean
 }) {
   const initial = (user.firstName?.[0] ?? user.username?.[0] ?? 'U').toUpperCase()
-  const streak = deriveStreak(user.id)
-  const delta = formatDelta(deriveWeeklyDelta(user.id))
   const avatarColour = AVATAR_COLOURS[(rank - 1) % AVATAR_COLOURS.length]
   const highlight = isLeader || isMe
 
@@ -521,71 +516,28 @@ function PodiumRow({
         >
           {user.fullName || user.username}
         </span>
-        <span
-          className="font-body"
-          style={{
-            fontSize: 12, fontWeight: 500, lineHeight: '16px',
-            color: highlight ? 'rgba(255,255,255,0.85)' : TXT_MID,
-          }}
-        >
-          {streak} day{streak === 1 ? '' : 's'} streak
-        </span>
       </div>
       <div className="flex flex-col items-end leading-tight shrink-0">
         <span
           className="font-body tabular-nums"
           style={{
-            fontSize: 16, fontWeight: 800, lineHeight: '22px',
+            fontSize: 19, fontWeight: 800, lineHeight: '25px',
             color: highlight ? '#fff' : TXT_DARK,
           }}
         >
           {user.totalExp.toLocaleString()}{' '}
           <span
             style={{
-              fontSize: 11, fontWeight: 600,
+              fontSize: 13, fontWeight: 600,
               color: highlight ? 'rgba(255,255,255,0.85)' : TXT_MID,
             }}
           >
             XP
           </span>
         </span>
-        <DeltaPill tone={delta.tone} text={delta.text} onCyan={highlight} />
       </div>
     </motion.li>
   )
 }
 
-function DeltaPill({
-  tone, text, onCyan,
-}: {
-  tone: 'up' | 'down' | 'flat'; text: string; onCyan: boolean
-}) {
-  const palette = onCyan
-    ? {
-        up:   { fg: '#fff', strong: '#fff' },
-        down: { fg: '#fff', strong: '#FFD2D2' },
-        flat: { fg: 'rgba(255,255,255,0.85)', strong: 'rgba(255,255,255,0.85)' },
-      }
-    : {
-        up:   { fg: '#15803D', strong: '#15803D' },
-        down: { fg: '#B91C1C', strong: '#B91C1C' },
-        flat: { fg: TXT_MID,   strong: TXT_MID },
-      }
-  const Icon = tone === 'up' ? TrendingUp : tone === 'down' ? TrendingDown : Minus
-  const c = palette[tone]
-  return (
-    <span
-      className="inline-flex items-center"
-      style={{
-        marginTop: 2, gap: 3,
-        color: c.fg,
-        fontFamily: 'var(--font-body)', fontSize: 11, fontWeight: 700,
-        lineHeight: '14px',
-      }}
-    >
-      <Icon className="w-3 h-3" strokeWidth={3} style={{ color: c.strong }} />
-      {text}
-    </span>
-  )
-}
 

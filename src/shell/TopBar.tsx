@@ -15,8 +15,8 @@
  * the same logout / Tests / notification handlers six times.
  */
 import { useCallback, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
 
 import { useAuthStore } from '../state/auth'
 import { NavDrawer } from './NavDrawer'
@@ -29,17 +29,15 @@ const TXT_MUTED = '#989CA5'
 export function TopBar({
   pageTitle,
   testCount = 0,
-  hideBack = false,
 }: {
-  pageTitle: string
+  /** Large title shown next to the G logo. Omit to render the logo alone
+      (the Home page does this for a cleaner, slimmer bar). */
+  pageTitle?: string
   testCount?: number
-  /** Force the back arrow off (Leaderboard frame in Figma has none). */
-  hideBack?: boolean
 }) {
   const me = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
-  const location = useLocation()
   const xp = me?.totalExp ?? 0
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -47,27 +45,16 @@ export function TopBar({
   // the real fix lives inside NavDrawer, but a stable handle never hurts).
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
 
-  // Show a back arrow on every page except the root /home, unless explicitly
-  // suppressed by the page (some Figma frames don't render one).
-  const showBack = !hideBack && location.pathname !== '/home'
-  const goBack = () => {
-    if (window.history.state && window.history.length > 1) {
-      navigate(-1)
-    } else {
-      navigate('/home')
-    }
-  }
-
   return (
     <>
     <NavDrawer open={drawerOpen} onClose={closeDrawer} />
     <header
       className="w-full bg-white border-b"
-      style={{ height: 'clamp(68px, 11vw, 117px)', borderColor: '#F3F3F3' }}
+      style={{ height: 'clamp(54px, 7vw, 76px)', borderColor: '#F3F3F3' }}
     >
       <div
         className="mx-auto flex items-center"
-        style={{ maxWidth: 1920, padding: 'clamp(12px, 2vw, 24px) clamp(16px, 4vw, 120px)', gap: 'clamp(10px, 2vw, 34px)', height: '100%' }}
+        style={{ maxWidth: 1920, padding: 'clamp(8px, 1.2vw, 14px) clamp(16px, 4vw, 120px)', gap: 'clamp(10px, 2vw, 34px)', height: '100%' }}
       >
         {/* Left lockup: burger + [back] + G + title/subtitle */}
         <div className="flex items-center min-w-0" style={{ gap: 'clamp(8px, 1.5vw, 16px)' }}>
@@ -86,52 +73,29 @@ export function TopBar({
           >
             <Menu className="w-7 h-7" strokeWidth={2.5} />
           </button>
-          {showBack && (
-            <button
-              type="button"
-              aria-label="Go back"
-              onClick={goBack}
-              className="grid place-items-center"
-              style={{
-                width: 40, height: 40, borderRadius: 12,
-                background: '#F8FAFC', border: '1px solid #E7E7E7',
-                color: NAVY,
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#EEF2FF')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#F8FAFC')}
-            >
-              <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
-            </button>
-          )}
           <div
             className="grid place-items-center bg-white shadow-sm shrink-0"
-            style={{ width: 'clamp(44px, 5vw, 65px)', height: 'clamp(46px, 5vw, 68px)', borderRadius: 14 }}
+            style={{ width: 'clamp(38px, 4vw, 52px)', height: 'clamp(38px, 4vw, 52px)', borderRadius: 12 }}
           >
             <div
               className="font-display"
-              style={{ fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 800, color: NAVY, lineHeight: 1 }}
+              style={{ fontSize: 'clamp(22px, 2.6vw, 30px)', fontWeight: 800, color: NAVY, lineHeight: 1 }}
             >
               G
             </div>
           </div>
-          <div className="flex flex-col leading-none min-w-0">
-            <div
-              className="font-body truncate"
-              style={{ fontSize: 'clamp(18px, 3.2vw, 32px)', fontWeight: 600, color: '#000', lineHeight: 1.18 }}
-            >
-              {pageTitle}
+          {/* Page title only — the "Gyanbuddy" subtitle was dropped so the bar
+              stays slim and uncluttered. Home omits the title entirely. */}
+          {pageTitle && (
+            <div className="flex flex-col leading-none min-w-0">
+              <div
+                className="font-body truncate"
+                style={{ fontSize: 'clamp(18px, 3.2vw, 30px)', fontWeight: 600, color: '#000', lineHeight: 1.18 }}
+              >
+                {pageTitle}
+              </div>
             </div>
-            <div
-              className="font-body truncate"
-              style={{
-                fontSize: 'clamp(13px, 2.2vw, 22px)', fontWeight: 600, color: TXT_MUTED,
-                lineHeight: 1.35, marginTop: 0,
-              }}
-            >
-              Gyanbuddy
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="flex-1" />
