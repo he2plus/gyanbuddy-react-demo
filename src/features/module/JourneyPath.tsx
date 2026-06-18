@@ -13,7 +13,7 @@
  *
  * Uses the original art copied to /images/journey/*.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { ModuleChapter } from '../../types/module'
 
@@ -106,6 +106,21 @@ export function JourneyPath({
   const color = hexColor(subjectColor)
   const N = chapters.length
 
+  // Order the ladder by PROGRESS, not raw chapter number, so the climb always
+  // reads passed → current → locked. The backend can hand back chapters whose
+  // statuses aren't monotonic with their order (e.g. early chapters still
+  // in_progress while later ones are completed); sorting by progress keeps a
+  // completed (green) podium from ever sitting *after* the current (blue) one.
+  // For normal forward progress this is identical to chapter order.
+  const ordered = useMemo(() => {
+    const rank = (c: ModuleChapter) =>
+      c.isCompleted ? 0 : (c.isInProgress || c.id === currentChapterId) ? 1 : 2
+    return chapters
+      .map((c, origIdx) => ({ c, origIdx }))
+      .sort((a, b) => rank(a.c) - rank(b.c) || a.origIdx - b.origIdx)
+      .map((x) => x.c)
+  }, [chapters, currentChapterId])
+
   const [paths, setPaths] = useState<string[]>([])
   const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
 
@@ -195,7 +210,7 @@ export function JourneyPath({
           </svg>
         )}
 
-        {chapters.map((c, i) => {
+        {ordered.map((c, i) => {
           const isFirst = i === 0
           const isLast = i === N - 1
           const isCurrent = c.id === currentChapterId
