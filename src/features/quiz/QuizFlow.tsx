@@ -25,7 +25,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useAnimationControls } from 'framer-motion'
 import {
   Check, Ban, Lightbulb, ArrowRight, AlertTriangle,
-  GripVertical, HelpCircle,
+  GripVertical, HelpCircle, Sparkles,
 } from 'lucide-react'
 
 import { checkAnswer } from '../../api/quiz'
@@ -89,6 +89,11 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
   // grey out (eliminated) so the student re-picks, exactly like the original.
   const [eliminated, setEliminated] = useState<string[]>([])
   const [attempts, setAttempts] = useState(0)
+  // Spent = answered wrong twice (the Flutter 2-attempt cap): the question
+  // locks, the correct answer is revealed, and the explanation becomes available.
+  const [exhausted, setExhausted] = useState(false)
+  const [revealedExplanation, setRevealedExplanation] = useState(false)
+  const [apiExplanation, setApiExplanation] = useState<string | null>(null)
   const [totalXp, setTotalXp] = useState(0)
   const [finished, setFinished] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
@@ -114,6 +119,9 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
     setShowHint(false)
     setEliminated([])
     setAttempts(0)
+    setExhausted(false)
+    setRevealedExplanation(false)
+    setApiExplanation(null)
     setShowConfetti(false)
     cardControls.set({ opacity: 0, x: 24 })
     cardControls.start({ opacity: 1, x: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } })
@@ -213,7 +221,7 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
 
   // ---- option interaction ----
   const isLocked =
-    feedback.kind === 'correct' || feedback.kind === 'checking'
+    feedback.kind === 'correct' || feedback.kind === 'checking' || exhausted
 
   const toggleOption = (id: string) => {
     if (isLocked) return
@@ -237,8 +245,9 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
 
   // ---- submit ----
   const submit = async () => {
-    if (!hasAnswered) return
+    if (!hasAnswered || isLocked) return
     const tries = attempts + 1
+    setAttempts(tries)
     setFeedback({ kind: 'checking' })
     const optionPayload =
       question.type === 'rearrange'
@@ -251,24 +260,35 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
       shortAnswer || undefined,
       tries,
     )
+    if (result.explanation) setApiExplanation(result.explanation)
 
     if (result.isCorrect) {
-      setTotalXp((x) => x + result.expAwarded)
-      setFeedback({ kind: 'correct', xp: result.expAwarded })
+      // XP is computed CLIENT-SIDE exactly like the Flutter app — 2 on the 1st
+      // attempt, 1 on the 2nd, 0 after — independent of the backend's exp field
+      // (which returns 0 when re-doing an already-finished chapter).
+      const xp = tries <= 1 ? 2 : tries === 2 ? 1 : 0
+      setTotalXp((x) => x + xp)
+      setFeedback({ kind: 'correct', xp })
+      // Play once, then force-dismiss after the original's 1600ms.
       setShowConfetti(true)
+      window.setTimeout(() => setShowConfetti(false), 1600)
     } else {
-      // Original behaviour: just shake + pop the hint. No banner, no "try
-      // again" button, no explanation reveal — the student simply re-picks.
-      setAttempts((a) => a + 1)
       triggerShake()
       if (question.hint) setShowHint(true)
-      // For single-choice, grey out (eliminate) the wrong pick and clear the
-      // selection so the Check button greys until a fresh option is chosen.
       if (question.type === 'mcq_single') {
+        // Grey out (eliminate) the wrong pick either way.
         setEliminated((prev) => [...prev, ...selectedIds])
-        setSelectedIds([])
       }
-      setFeedback({ kind: 'idle' })
+      if (tries >= 2) {
+        // Second wrong attempt → the Flutter 2-attempt cap kicks in: lock the
+        // question, reveal the correct answer (green), and offer the explanation.
+        setExhausted(true)
+        setFeedback({ kind: 'idle' })
+      } else {
+        // First wrong attempt → auto-hint, clear the selection, let them retry.
+        if (question.type === 'mcq_single') setSelectedIds([])
+        setFeedback({ kind: 'idle' })
+      }
     }
   }
 
@@ -286,9 +306,10 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
 
   const isChecking = feedback.kind === 'checking'
   const isCorrect = feedback.kind === 'correct'
-  // The question only "resolves" (locks + reveals the green answer + Next) once
-  // it's answered correctly. A wrong answer just lets the student try again.
-  const resolved = isCorrect
+  // "Resolved" = the question is done: either answered correctly, or spent after
+  // two wrong attempts. Both reveal the green answer and switch Check → Next.
+  const resolved = isCorrect || exhausted
+  const explanationText = question.explanation ?? apiExplanation
 
   return (
     <div className="flex flex-col" style={{ gap: 24 }}>
@@ -486,7 +507,67 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
             )}
           </AnimatePresence>
 
-          {/* Correct-answer banner only — a wrong answer just shakes + hints. */}
+          {/* Why? → reveal the explanation, only after the 2nd wrong attempt
+              (the Flutter "Why?" button on the incorrect panel). */}
+          <AnimatePresence>
+            {exhausted && explanationText && !revealedExplanation && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                style={{ marginTop: 16 }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setRevealedExplanation(true)}
+                  className="flex items-center font-body"
+                  style={{
+                    gap: 8, padding: '10px 18px', borderRadius: 999,
+                    background: '#fff', border: `1px solid ${NAVY}`, color: NAVY,
+                    fontSize: 16, fontWeight: 700,
+                  }}
+                >
+                  <HelpCircle className="w-4 h-4" strokeWidth={2.5} />
+                  Why? Show the explanation
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence>
+            {revealedExplanation && explanationText && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-start"
+                style={{
+                  marginTop: 16, gap: 12, padding: 16, borderRadius: 16,
+                  background: '#E0E7FF', border: '1px solid #C7D2FE',
+                }}
+              >
+                <Sparkles className="w-5 h-5 shrink-0" style={{ color: NAVY, marginTop: 2 }} strokeWidth={2.5} />
+                <div className="flex flex-col flex-1" style={{ gap: 4 }}>
+                  <span
+                    className="font-body"
+                    style={{
+                      fontSize: 13, fontWeight: 700, color: NAVY,
+                      letterSpacing: '0.06em', textTransform: 'uppercase',
+                    }}
+                  >
+                    Explanation
+                  </span>
+                  <p
+                    className="font-body"
+                    style={{ fontSize: 16, fontWeight: 400, color: TXT_DARK, lineHeight: '24px', margin: 0 }}
+                  >
+                    {explanationText}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Correct-answer banner — a wrong answer just shakes + hints. */}
           <AnimatePresence>
             {isCorrect && <CorrectBanner xp={feedback.xp} />}
           </AnimatePresence>

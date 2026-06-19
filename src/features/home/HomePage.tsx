@@ -25,7 +25,9 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Sparkles,
-  ArrowRight,
+  Check,
+  ChevronRight,
+  Lock,
   Atom,
   FlaskConical,
   Globe,
@@ -607,6 +609,8 @@ function ActiveSubjectCard({
     )
   }
 
+  const visible = chapters.slice(0, 2)
+
   return (
     <section
       className="bg-white relative overflow-hidden flex flex-col flex-1 min-w-0"
@@ -689,29 +693,92 @@ function ActiveSubjectCard({
         />
       </div>
 
-      {/* Start Learning button — the chapter preview list was removed so the
-          card stays clean; the Start button is the only action and it takes the
-          student straight to the subject's learning journey. */}
+      {/* Chapter preview — the first two chapters (name + progress) so the card
+          isn't blank, plus a "+N more" count. */}
+      <div className="flex flex-col" style={{ gap: 22, marginTop: 24 }}>
+        {visible.map((c, idx) => (
+          <ChapterRow key={c.id} chapter={c} index={idx} />
+        ))}
+        {chapters.length > visible.length && (
+          <p
+            className="font-body"
+            style={{ fontSize: 14, fontWeight: 400, color: TXT_MUTED, lineHeight: '20px' }}
+          >
+            +{chapters.length - visible.length} more chapters
+          </p>
+        )}
+      </div>
+
+      {/* Start button — label is just "Start" (no arrow), opens the journey. */}
       <button
         type="button"
         onClick={onStart}
         className="w-full grid place-items-center"
         style={{
-          marginTop: 28, height: 50, borderRadius: 42, background: NAVY,
+          marginTop: 24, height: 50, borderRadius: 42, background: NAVY,
           fontFamily: 'var(--font-body)', color: '#fff',
         }}
       >
-        <span className="flex items-center" style={{ gap: 14 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
-            Start Learning
-          </span>
-          <ArrowRight className="w-5 h-5" strokeWidth={3} />
+        <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
+          Start
         </span>
       </button>
     </section>
   )
 }
 
+
+function ChapterRow({ chapter, index }: { chapter: ModuleChapter; index: number }) {
+  // Status circle: completed → green check, locked → grey lock, else cyan dot.
+  const completed = chapter.isCompleted
+  const inProgress = chapter.isInProgress
+  const locked = !chapter.isInProgress && !chapter.isCompleted && !chapter.isNotStarted
+
+  const stroke = completed ? '#07BE80' : '#989CA5'
+  const showBar = inProgress || (index === 0 && !completed && !locked)
+  const progress = inProgress ? 12 : 0  // chapters API doesn't ship a per-chapter pct yet
+
+  return (
+    <div className="flex items-start" style={{ gap: 14 }}>
+      <div
+        className="shrink-0 grid place-items-center"
+        style={{
+          width: 30, height: 30, borderRadius: 999,
+          border: `2px solid ${stroke}`,
+          marginTop: showBar ? 7 : 0,
+        }}
+      >
+        {completed ? (
+          <Check className="w-3.5 h-3.5" style={{ color: '#07BE80' }} strokeWidth={3} />
+        ) : locked ? (
+          <Lock className="w-3.5 h-3.5" style={{ color: TXT_MUTED }} strokeWidth={2.5} />
+        ) : (
+          <span style={{ width: 14, height: 14, borderRadius: 999, background: CYAN }} />
+        )}
+      </div>
+
+      <div className="flex flex-col flex-1" style={{ gap: 6 }}>
+        <span
+          className="font-body"
+          style={{ fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px' }}
+        >
+          {chapter.name}
+        </span>
+        {showBar && (
+          <div style={{ height: 8, borderRadius: 14, background: TRACK_BG, overflow: 'hidden' }}>
+            <div style={{ height: '100%', borderRadius: 14, background: CYAN, width: `${progress}%` }} />
+          </div>
+        )}
+      </div>
+
+      <ChevronRight
+        className="w-6 h-6 shrink-0"
+        style={{ color: '#919BA9', marginTop: showBar ? 8 : 3 }}
+        strokeWidth={2.5}
+      />
+    </div>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // Subject rail — Figma Frame 46 (92 wide, 8 tiles each 92 x 72)

@@ -56,8 +56,17 @@ export function Confetti({ play }: { play: boolean }) {
   const startedRef = useRef(false)
 
   useEffect(() => {
+    // Wipe the canvas whenever the effect tears down or play is off, so a frame
+    // left mid-flight (e.g. the student taps Next before the 1500ms is up) can
+    // never freeze on screen.
+    const wipe = () => {
+      const c = canvasRef.current
+      const cx = c?.getContext('2d')
+      if (c && cx) cx.clearRect(0, 0, c.width, c.height)
+    }
     if (!play) {
       startedRef.current = false
+      wipe()
       return
     }
     if (startedRef.current) return
@@ -124,7 +133,10 @@ export function Confetti({ play }: { play: boolean }) {
     }
     rafRef.current = requestAnimationFrame(frame)
 
-    return () => cancelAnimationFrame(rafRef.current)
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      wipe()
+    }
   }, [play])
 
   return (
