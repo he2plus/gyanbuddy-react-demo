@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getModuleChapters, getSubjectModules } from '../../api/modules'
+import { visibleChapters } from '../../lib/chapters'
 
 export function useModuleChapters(moduleId: string | undefined) {
   return useQuery({
@@ -7,6 +8,8 @@ export function useModuleChapters(moduleId: string | undefined) {
     queryFn: () => getModuleChapters(moduleId!),
     enabled: !!moduleId,
     staleTime: 60_000,
+    // Hide meta/pre-assessment chapters everywhere chapters are shown.
+    select: visibleChapters,
   })
 }
 
