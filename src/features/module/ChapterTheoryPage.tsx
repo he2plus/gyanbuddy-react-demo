@@ -54,10 +54,16 @@ export function ChapterTheoryPage() {
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}/quiz`)
 
   return (
-    <div className="min-h-screen" style={{ background: SURFACE_BG }}>
+    // Fixed to the viewport height so only the content scrolls — the action bar
+    // at the bottom stays pinned (sticky) no matter how long the theory is.
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh / var(--fit-scale, 1))', background: SURFACE_BG }}>
       <TopBar pageTitle={chapter?.name ?? 'Chapter'} />
 
-      <main className="mx-auto" style={{ maxWidth: 1680, padding: 'clamp(20px, 3vw, 40px) clamp(16px, 4vw, 120px) clamp(32px, 5vw, 60px)' }}>
+      <main
+        className="flex-1 min-h-0 flex flex-col mx-auto w-full"
+        style={{ maxWidth: 1680, paddingLeft: 'clamp(16px, 4vw, 120px)', paddingRight: 'clamp(16px, 4vw, 120px)' }}
+      >
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ paddingTop: 'clamp(20px, 3vw, 40px)', paddingBottom: 16 }}>
         {/* Back button */}
         <button
           type="button"
@@ -217,21 +223,22 @@ export function ChapterTheoryPage() {
               </h2>
               <TheoryBody text={chapter.theory ?? ''} />
             </motion.section>
+          </article>
+        )}
+        </div>
 
-            {/* CTA — sticky-feel start quiz */}
-            <motion.section
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+        {/* Pinned bottom action bar — always visible while the content scrolls. */}
+        {chapter && !chaptersQ.isLoading && !chaptersQ.isError && (
+          <div className="mx-auto w-full" style={{ maxWidth: 1000, paddingTop: 12, paddingBottom: 'clamp(14px, 2vw, 24px)' }}>
+            <section
               className="flex items-center"
               style={{
-                padding: '24px 28px', borderRadius: 34, gap: 16,
+                padding: '18px 28px', borderRadius: 28, gap: 16,
                 background: '#fff', border: `2px solid ${CYAN}`,
-                boxShadow: '0 8px 28px rgba(26,188,254,0.16)',
-                position: 'sticky', bottom: 20,
+                boxShadow: '0 -6px 24px rgba(0,0,0,0.07)',
               }}
             >
-              <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
+              <div className="flex-1 flex flex-col min-w-0" style={{ gap: 4 }}>
                 <span
                   className="font-body"
                   style={{ fontSize: 14, fontWeight: 600, color: TXT_MID, lineHeight: '20px' }}
@@ -239,7 +246,7 @@ export function ChapterTheoryPage() {
                   {chapter.isCompleted ? 'Already completed' : 'Ready when you are'}
                 </span>
                 <span
-                  className="font-body"
+                  className="font-body truncate"
                   style={{ fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: '28px' }}
                 >
                   {chapter.isCompleted
@@ -266,8 +273,8 @@ export function ChapterTheoryPage() {
                   <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
                 </span>
               </motion.button>
-            </motion.section>
-          </article>
+            </section>
+          </div>
         )}
       </main>
     </div>
