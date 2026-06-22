@@ -16,7 +16,7 @@
  */
 import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
+import { ArrowLeft, Bell, ClipboardList, LogOut, Menu, Sparkles } from 'lucide-react'
 
 import { useAuthStore } from '../state/auth'
 import { NavDrawer } from './NavDrawer'
@@ -29,11 +29,14 @@ const TXT_MUTED = '#989CA5'
 export function TopBar({
   pageTitle,
   testCount = 0,
+  onBack,
 }: {
   /** Large title shown next to the G logo. Omit to render the logo alone
       (the Home page does this for a cleaner, slimmer bar). */
   pageTitle?: string
   testCount?: number
+  /** When provided, a back arrow is shown after the menu button. */
+  onBack?: () => void
 }) {
   const me = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -73,6 +76,22 @@ export function TopBar({
           >
             <Menu className="w-7 h-7" strokeWidth={2.5} />
           </button>
+          {onBack && (
+            <button
+              type="button"
+              aria-label="Go back"
+              onClick={onBack}
+              className="grid place-items-center shrink-0"
+              style={{
+                width: 40, height: 40, borderRadius: 12, color: TXT_MID,
+                background: 'transparent', transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#F1F1F1')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              <ArrowLeft className="w-6 h-6" strokeWidth={2.5} />
+            </button>
+          )}
           <div
             className="grid place-items-center bg-white shadow-sm shrink-0"
             style={{ width: 'clamp(38px, 4vw, 52px)', height: 'clamp(38px, 4vw, 52px)', borderRadius: 12 }}

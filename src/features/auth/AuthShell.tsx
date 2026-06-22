@@ -116,7 +116,7 @@ export function AuthShell({
             className="font-body"
             style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.5)' }}
           >
-            © Gyaan Buddy
+            © GyanBuddy
           </span>
         </div>
       </div>

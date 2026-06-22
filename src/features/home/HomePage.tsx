@@ -343,21 +343,14 @@ function TrophyBanner({
 
         {/* King pill + winner row */}
         <div className="flex flex-col min-w-0" style={{ gap: 12 }}>
-          <motion.div
+          <div
             className="flex items-center"
             style={{
               background: CYAN, borderRadius: 42,
               padding: '8px 16px',
               alignSelf: 'flex-start', maxWidth: '100%',
+              boxShadow: '0 4px 12px rgba(26,188,254,0.30)',
             }}
-            animate={{
-              boxShadow: [
-                '0 0 0 0 rgba(26,188,254,0.55)',
-                '0 0 0 10px rgba(26,188,254,0)',
-                '0 0 0 0 rgba(26,188,254,0)',
-              ],
-            }}
-            transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
           >
             <span
               className="font-body truncate"
@@ -365,7 +358,7 @@ function TrophyBanner({
             >
               The week King of Leaderboard
             </span>
-          </motion.div>
+          </div>
           <div className="flex items-center min-w-0" style={{ gap: 12 }}>
             <div
               className="grid place-items-center shrink-0"
@@ -452,7 +445,7 @@ function LeaderboardWidget({
             className="font-body"
             style={{ fontSize: 19, fontWeight: 700, color: '#000', lineHeight: '26px' }}
           >
-            Leader board
+            Leaderboard
           </span>
           <span
             className="font-body"

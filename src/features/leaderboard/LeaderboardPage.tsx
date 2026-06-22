@@ -24,7 +24,7 @@
  *     without any fixed pixel breakpoints needed beyond the typography
  *     scale.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -58,6 +58,16 @@ export function LeaderboardPage() {
   const className = lbQ.data?.className ?? '10-A'
   const myIndex = me ? users.findIndex((u) => u.id === me.id) : -1
   const myRank = myIndex >= 0 ? myIndex + 1 : 0
+
+  // Auto-scroll the current student's row into view once standings load.
+  const meRowRef = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (myIndex < 0) return
+    const t = setTimeout(() => {
+      meRowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 500)
+    return () => clearTimeout(t)
+  }, [myIndex, period])
 
   const justNow = useMemo(() => new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }), [lbQ.dataUpdatedAt])
 
@@ -182,6 +192,7 @@ export function LeaderboardPage() {
                   rank={i + 1}
                   isMe={u.id === me.id}
                   isLast={i === users.length - 1}
+                  innerRef={u.id === me.id ? meRowRef : undefined}
                 />
               ))}
             </ul>
@@ -321,15 +332,17 @@ function PeriodTabs({
 
 // ---------------------------------------------------------------------------
 function LeaderRow({
-  user, rank, isMe, isLast,
+  user, rank, isMe, isLast, innerRef,
 }: {
   user: User; rank: number; isMe: boolean; isLast: boolean
+  innerRef?: React.Ref<HTMLLIElement>
 }) {
   const initial = (user.firstName?.[0] ?? user.username?.[0] ?? 'U').toUpperCase()
   const avatarColour = AVATAR_COLOURS[(rank - 1) % AVATAR_COLOURS.length]
 
   return (
     <motion.li
+      ref={innerRef}
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, delay: Math.min(rank, 10) * 0.02 }}

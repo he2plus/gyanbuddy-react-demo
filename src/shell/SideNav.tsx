@@ -107,7 +107,7 @@ export function SideNav() {
       <div className="mt-auto border-t border-[#F0F0F0] px-3 py-3 text-[10px] text-[#999]">
         {!collapsed && (
           <div className="space-y-0.5">
-            <div>© Gyaan Buddy</div>
+            <div>© GyanBuddy</div>
           </div>
         )}
       </div>

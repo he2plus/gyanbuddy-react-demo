@@ -56,7 +56,7 @@ export function NotificationsPage() {
 
   return (
     <div className="min-h-screen" style={{ background: SURFACE_BG }}>
-      <TopBar pageTitle="Notifications" />
+      <TopBar pageTitle="Notifications" onBack={() => navigate(-1)} />
 
       <main
         className="mx-auto flex flex-col"

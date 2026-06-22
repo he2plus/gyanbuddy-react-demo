@@ -8,7 +8,7 @@ export function AppBar() {
       className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[var(--color-input-border)] bg-[var(--color-bg)] px-4"
     >
       <div className="text-base font-semibold text-[var(--color-text-primary)]">
-        Gyaan Buddy
+        GyanBuddy
       </div>
       {/* trailing slot reserved for notifications bell, profile, etc. */}
       <div aria-hidden="true" />

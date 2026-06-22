@@ -254,14 +254,21 @@ function SubjectRow({
 
   // Apply filter to chapter chips inside the expanded row
   const filtered = useMemo(() => {
-    if (filter === 'all') return modules
-    return modules.filter((m) => {
-      const st = chapterStatus(m)
+    // Display priority: Overdue → In Progress/Due → Done → Locked.
+    const rank: Record<ChapterStatus, number> = { overdue: 0, due: 1, done: 2, locked: 3 }
+    const pass = (st: ChapterStatus) => {
+      if (filter === 'all') return true
       if (filter === 'overdue') return st === 'overdue'
-      if (filter === 'in_progress') return st === 'due' // backend's in-progress maps to "due" in the chip vocabulary
+      // "In Progress" also surfaces overdue chapters — they're still ongoing work.
+      if (filter === 'in_progress') return st === 'due' || st === 'overdue'
       if (filter === 'locked') return st === 'locked'
       return true
-    })
+    }
+    return modules
+      .map((m) => ({ m, st: chapterStatus(m) }))
+      .filter((x) => pass(x.st))
+      .sort((a, b) => rank[a.st] - rank[b.st])
+      .map((x) => x.m)
   }, [modules, filter])
 
   // Collapsed row uses subject.moduleCount (no module fetch needed)
@@ -331,7 +338,7 @@ function SubjectRow({
             <span
               className="font-body"
               style={{
-                fontSize: 26, fontWeight: 700, lineHeight: '36px',
+                fontSize: 20, fontWeight: 700, lineHeight: '28px',
                 color: expanded ? '#fff' : TXT_DARK,
               }}
             >
@@ -372,7 +379,7 @@ function SubjectRow({
             <span
               className="font-body tabular-nums"
               style={{
-                fontSize: 26, fontWeight: 700, lineHeight: '36px',
+                fontSize: 20, fontWeight: 700, lineHeight: '28px',
                 color: expanded ? '#fff' : NAVY,
                 minWidth: 64, textAlign: 'right',
               }}

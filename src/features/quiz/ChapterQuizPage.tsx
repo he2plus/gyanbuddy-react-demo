@@ -2,7 +2,7 @@
  * ChapterQuizPage — quiz route for chapter-Start-Quiz flow.
  * Route: /subjects/:subjectId/modules/:moduleId/chapters/:chapterId/quiz
  */
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { ScreenHeader } from '../../components/ScreenHeader'
@@ -29,21 +29,32 @@ export function ChapterQuizPage() {
   })
   const chaptersQ = useModuleChapters(moduleId)
   const quizQ = useChapterQuiz(chapterId)
+  const queryClient = useQueryClient()
 
   const chapter = chaptersQ.data?.find((c) => c.id === chapterId) ?? null
   void subjectQ.data
 
-  const back = () =>
+  // Drop the cached progress so the journey, module and subject screens refetch
+  // and the character advances to the newly-unlocked chapter.
+  const refreshProgress = () => {
+    queryClient.invalidateQueries({ queryKey: ['modules', moduleId, 'chapters'] })
+    queryClient.invalidateQueries({ queryKey: ['subjects', subjectId, 'modules'] })
+    queryClient.invalidateQueries({ queryKey: ['subjects'] })
+  }
+
+  const back = () => {
+    refreshProgress()
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}`)
+  }
   // After a quiz finishes, take the student to the live class standings (the
-  // podium) so they immediately see how their attempt moved them in the class.
-  // We pass the journey URL as `returnTo` so the podium can offer a "Continue
-  // learning" button that drops them back on the journey — now on the next
-  // podium, since the chapter they just finished is complete.
-  const toStandings = () =>
+  // podium). The journey URL is passed as `returnTo` so the podium's "Continue
+  // learning" button drops them back on the journey — now advanced one chapter.
+  const toStandings = () => {
+    refreshProgress()
     navigate('/podium', {
       state: { returnTo: `/subjects/${subjectId}/modules/${moduleId}/chapters` },
     })
+  }
 
   return (
     <div className="min-h-screen bg-white">

@@ -236,13 +236,15 @@ export function ChapterTheoryPage() {
                   className="font-body"
                   style={{ fontSize: 14, fontWeight: 600, color: TXT_MID, lineHeight: '20px' }}
                 >
-                  Ready when you are
+                  {chapter.isCompleted ? 'Already completed' : 'Ready when you are'}
                 </span>
                 <span
                   className="font-body"
                   style={{ fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: '28px' }}
                 >
-                  Start the quiz for {chapter.name}
+                  {chapter.isCompleted
+                    ? `Review ${chapter.name}`
+                    : `Start the quiz for ${chapter.name}`}
                 </span>
               </div>
               <motion.button
@@ -259,7 +261,7 @@ export function ChapterTheoryPage() {
                 <span className="flex items-center" style={{ gap: 12 }}>
                   <Play className="w-5 h-5" strokeWidth={2.5} fill="#fff" />
                   <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
-                    Start Quiz
+                    {chapter.isCompleted ? 'Review' : 'Start Quiz'}
                   </span>
                   <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
                 </span>

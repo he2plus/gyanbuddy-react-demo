@@ -57,15 +57,26 @@ export async function checkAnswer(
   optionIds: string[],
   shortAnswer?: string,
   tries: number = 1,
+  isLast: boolean = false,
 ): Promise<CheckResult> {
   if (isMockSessionActive()) {
     return mockCheck(question, optionIds, shortAnswer, tries)
   }
   try {
-    const body: Record<string, unknown> = { tries }
-    if (optionIds && optionIds.length > 1) body.answer_ids = optionIds
-    else if (optionIds && optionIds.length === 1) body.answer_id = optionIds[0]
-    if (shortAnswer) body.answer_text = shortAnswer
+    // `is_last` tells the backend this was the final question of the chapter,
+    // which marks the chapter complete and advances the next one (so the
+    // journey character moves forward).
+    const body: Record<string, unknown> = { tries, is_last: isLast }
+    if (shortAnswer) {
+      body.answer_text = shortAnswer
+    } else if (question.type === 'mcq_single') {
+      if (optionIds[0]) body.answer_id = optionIds[0]
+    } else if (optionIds.length) {
+      // mcq_multiple + rearrange always go as an array — sending a single
+      // `answer_id` for a multi-select with one pick made the backend grade it
+      // as a single-answer question (false positives on partial answers).
+      body.answer_ids = optionIds
+    }
     const { data: envelope } = await api.patch<ApiEnvelope<{
       is_correct?: boolean
       exp_awarded?: number

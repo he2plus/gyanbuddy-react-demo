@@ -259,6 +259,7 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
       optionPayload,
       shortAnswer || undefined,
       tries,
+      index === total - 1,   // is_last → backend completes the chapter & advances the next
     )
     if (result.explanation) setApiExplanation(result.explanation)
 
