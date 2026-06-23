@@ -174,7 +174,7 @@ export function ModuleChapterPage() {
             )}
 
             {/* Bottom CTA bar */}
-            {currentChapter && !isLoading && !isError && (
+            {!isLoading && !isError && chapters.length > 0 && (
               <motion.div
                 className="flex items-center"
                 style={{
@@ -187,32 +187,55 @@ export function ModuleChapterPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.45, delay: 0.2 }}
               >
-                <span
-                  className="font-body flex-1 truncate"
-                  style={{
-                    fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: '28px',
-                  }}
-                >
-                  Let's start with {currentChapter.name}
-                </span>
-                <motion.button
-                  type="button"
-                  onClick={() => goToChapter(currentChapter.id)}
-                  className="grid place-items-center"
-                  style={{
-                    background: NAVY, color: '#fff', borderRadius: 42,
-                    padding: '16px 24px', height: 57, gap: 14,
-                  }}
-                  whileTap={{ scale: 0.97 }}
-                  whileHover={{ y: -2 }}
-                >
-                  <span className="flex items-center" style={{ gap: 14 }}>
-                    <Play className="w-5 h-5" style={{ color: '#fff' }} strokeWidth={2.5} fill="#fff" />
-                    <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
-                      Start
+                {currentChapter ? (
+                  <>
+                    <span
+                      className="font-body flex-1 truncate"
+                      style={{ fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: '28px' }}
+                    >
+                      Let's start with {currentChapter.name}
                     </span>
-                  </span>
-                </motion.button>
+                    <motion.button
+                      type="button"
+                      onClick={() => goToChapter(currentChapter.id)}
+                      className="grid place-items-center"
+                      style={{
+                        background: NAVY, color: '#fff', borderRadius: 42,
+                        padding: '16px 24px', height: 57, gap: 14,
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ y: -2 }}
+                    >
+                      <span className="flex items-center" style={{ gap: 14 }}>
+                        <Play className="w-5 h-5" style={{ color: '#fff' }} strokeWidth={2.5} fill="#fff" />
+                        <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>Start</span>
+                      </span>
+                    </motion.button>
+                  </>
+                ) : (
+                  <>
+                    <span
+                      className="font-body flex-1 truncate"
+                      style={{ fontSize: 20, fontWeight: 700, color: '#1B7C3C', lineHeight: '28px' }}
+                    >
+                      🎉 All topics complete! Great work.
+                    </span>
+                    <motion.button
+                      type="button"
+                      onClick={() => chapters[0] && goToChapter(chapters[0].id)}
+                      className="grid place-items-center"
+                      style={{
+                        background: '#E8F5E9', color: '#1B7C3C', borderRadius: 42,
+                        padding: '16px 24px', height: 57,
+                        border: '1.5px solid #A7D7B0',
+                      }}
+                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ y: -2 }}
+                    >
+                      <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>Review</span>
+                    </motion.button>
+                  </>
+                )}
               </motion.div>
             )}
           </section>
