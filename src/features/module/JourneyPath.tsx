@@ -218,22 +218,6 @@ export function JourneyPath({
           const interactive = c.isInProgress || c.isCompleted || i === 0
           const lane = laneFor(i)
 
-          // Label text and button state for each chapter node
-          const btnLabel = c.isCompleted
-            ? 'Review'
-            : isCurrent || c.isInProgress
-            ? 'Continue'
-            : interactive
-            ? 'Start'
-            : null
-
-          const btnBg = c.isCompleted
-            ? '#E8F5E9'
-            : isCurrent || c.isInProgress
-            ? '#1ABCFE'
-            : '#00167A'
-          const btnColor = c.isCompleted ? '#1B7C3C' : '#fff'
-
           return (
             <div
               key={c.id}
@@ -244,63 +228,30 @@ export function JourneyPath({
                 paddingRight: lane === 'right' ? '9%' : 0,
               }}
             >
-              <motion.div
-                className="flex flex-col items-center"
-                style={{ gap: 6 }}
+              <motion.button
+                ref={isCurrent ? currentRef : undefined}
+                type="button"
+                onClick={interactive ? () => onChapterClick(c.id) : undefined}
+                disabled={!interactive}
+                aria-label={c.name}
+                className={`flex ${interactive ? 'cursor-pointer' : 'cursor-default'}`}
+                style={{ background: 'transparent', border: 'none', padding: 0 }}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.04 + i * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               >
-                <button
-                  ref={isCurrent ? currentRef : undefined}
-                  type="button"
-                  onClick={interactive ? () => onChapterClick(c.id) : undefined}
-                  disabled={!interactive}
-                  aria-label={c.name}
-                  className={interactive ? 'cursor-pointer' : 'cursor-default'}
-                  style={{ background: 'transparent', border: 'none', padding: 0 }}
-                >
-                  <img
-                    ref={(el) => { imgRefs.current[i] = el }}
-                    src={`${J}/${src}`}
-                    alt=""
-                    draggable={false}
-                    onLoad={measure}
-                    className="block select-none"
-                    style={{ width: w, height: 'auto', display: 'block' }}
-                  />
-                </button>
-
-                {/* Chapter name */}
-                <span
-                  className="font-body text-center"
-                  style={{
-                    fontSize: 13, fontWeight: 700, color: '#121212',
-                    lineHeight: '18px', maxWidth: w, wordBreak: 'break-word',
-                  }}
-                >
-                  {c.name}
-                </span>
-
-                {/* Action button */}
-                {btnLabel && (
-                  <button
-                    type="button"
-                    onClick={interactive ? () => onChapterClick(c.id) : undefined}
-                    disabled={!interactive}
-                    className="font-body"
-                    style={{
-                      background: btnBg, color: btnColor,
-                      borderRadius: 20, padding: '6px 18px',
-                      fontSize: 12, fontWeight: 700, border: 'none',
-                      cursor: interactive ? 'pointer' : 'default',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.10)',
-                    }}
-                  >
-                    {btnLabel}
-                  </button>
-                )}
-              </motion.div>
+                {/* Podium art only — no chapter name on the map (it lives on the
+                    side card). The character is part of the current podium art. */}
+                <img
+                  ref={(el) => { imgRefs.current[i] = el }}
+                  src={`${J}/${src}`}
+                  alt=""
+                  draggable={false}
+                  onLoad={measure}
+                  className="block select-none"
+                  style={{ width: w, height: 'auto', display: 'block' }}
+                />
+              </motion.button>
             </div>
           )
         })}
