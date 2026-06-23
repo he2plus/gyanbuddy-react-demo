@@ -125,11 +125,27 @@ function useFitScale(): number {
   return ZOOM_SUPPORTED ? scale : 1
 }
 
+// Quiz screens are full-screen immersive pages with their own responsive layout
+// (mobile-first, clamp padding, maxWidth columns). Applying the app-wide zoom
+// to them makes the content artificially small — on a 13" MacBook the zoom
+// canvas is 1680px and a maxWidth:900 column sits in only 53% of that.
+// Skip zoom for these routes so the quiz fills the real viewport directly.
+function isQuizRoute(path: string): boolean {
+  return (
+    path.endsWith('/quiz') ||
+    // /tests/:id  (two segments after /tests)
+    (/^\/tests\/[^/]+$/).test(path)
+  )
+}
+
 export function AppShell() {
   const { pathname } = useLocation()
   const showChrome = !isChromeless(pathname)
   const collapsed = useUIStore((s) => s.sidenavCollapsed)
-  const fitScale = useFitScale()
+  const rawScale = useFitScale()
+  // Quiz routes opt out of the viewport zoom — they're full-screen mobile-first
+  // and already handle all breakpoints with clamp() and their own maxWidths.
+  const fitScale = isQuizRoute(pathname) ? 1 : rawScale
 
   const sidebarWidth = collapsed ? 64 : 240
 

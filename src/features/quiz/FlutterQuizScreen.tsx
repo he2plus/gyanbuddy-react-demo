@@ -691,20 +691,24 @@ export function FlutterQuizScreen({
               }}
             >
               <div
-                className="flex items-center"
-                style={{ maxWidth: 900, width: '100%', justifyContent: 'space-between' }}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  maxWidth: 900, width: '100%',
+                  /* Items grouped on the left; Continue pushed to the right */
+                }}
               >
                 {/* 🎉 celebrate image */}
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
+                  style={{ marginRight: 12, flexShrink: 0 }}
                 >
                   <img
                     src="/images/celebrate.png"
                     alt="🎉"
                     width={32} height={32}
-                    style={{ objectFit: 'contain' }}
+                    style={{ objectFit: 'contain', display: 'block' }}
                     onError={(e) => {
                       e.currentTarget.style.display = 'none'
                       const span = document.createElement('span')
@@ -715,7 +719,7 @@ export function FlutterQuizScreen({
                   />
                 </motion.div>
 
-                <span style={{ fontSize: 20, fontWeight: 600, color: '#000' }}>Correct!</span>
+                <span style={{ fontSize: 20, fontWeight: 600, color: '#000', marginRight: 12 }}>Correct!</span>
 
                 {/* XP badge — bounces in */}
                 <motion.div
@@ -727,12 +731,14 @@ export function FlutterQuizScreen({
                     background: C.xpGreen, color: '#fff',
                     fontSize: 14, fontWeight: 700,
                     boxShadow: '0 2px 8px rgba(34,197,94,0.4)',
+                    flexShrink: 0,
                   }}
                 >
                   +{earnedXp} XP
                 </motion.div>
 
-                <div style={{ flex: 1, maxWidth: 60 }} />
+                {/* Push Continue to the far right */}
+                <div style={{ flex: 1 }} />
 
                 {/* Continue — onClick is the action (works in all Safari versions).
                     onPointerDown/Up are ONLY for the press-depth visual. */}
