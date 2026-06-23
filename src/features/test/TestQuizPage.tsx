@@ -14,7 +14,8 @@ import { Clock, AlertTriangle } from 'lucide-react'
 import { ScreenHeader } from '../../components/ScreenHeader'
 import { PageContainer } from '../../components/PageContainer'
 import { Button } from '../../components/Button'
-import { QuizFlow, QuizErrorState } from '../quiz/QuizFlow'
+import { FlutterQuizScreen } from '../quiz/FlutterQuizScreen'
+import { QuizErrorState } from '../quiz/QuizFlow'
 import { useTest, useTestQuestions } from './useTests'
 import { startTest, completeTest } from '../../api/tests'
 
@@ -75,23 +76,23 @@ export function TestQuizPage() {
         ) : test.status === 'completed' ? (
           <CompletedState test={test} onExit={back} />
         ) : (
-          <>
+          <div className="flex flex-col" style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
             <TimerBar totalSeconds={totalSeconds} accent={accent} onExpire={() => void completeTest(testId).catch(() => undefined)} />
-            <QuizFlow
-              questions={questionsQ.data ?? test.questions ?? []}
-              // Original Flutter flow: completing the test returns to the test
-              // subject screen (Navigator.pop(context, test.id)) — not the
-              // leaderboard. Same when exiting mid-test.
-              onExit={async () => {
-                await completeTest(testId).catch(() => undefined)
-                navigate('/tests')
-              }}
-              onComplete={async () => {
-                await completeTest(testId).catch(() => undefined)
-                navigate('/tests')
-              }}
-            />
-          </>
+            <div className="flex-1 overflow-hidden">
+              <FlutterQuizScreen
+                questions={questionsQ.data ?? test.questions ?? []}
+                subjectColor={accent}
+                onExit={async () => {
+                  await completeTest(testId).catch(() => undefined)
+                  navigate('/tests')
+                }}
+                onComplete={async () => {
+                  await completeTest(testId).catch(() => undefined)
+                  navigate('/tests')
+                }}
+              />
+            </div>
+          </div>
         )}
       </PageContainer>
     </div>

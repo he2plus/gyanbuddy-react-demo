@@ -4,10 +4,9 @@
  */
 import { useNavigate, useParams } from 'react-router-dom'
 
-import { ScreenHeader } from '../../components/ScreenHeader'
-import { PageContainer } from '../../components/PageContainer'
 import { useMissions } from '../mission/useMissions'
-import { QuizFlow, QuizErrorState } from './QuizFlow'
+import { FlutterQuizScreen } from '../quiz/FlutterQuizScreen'
+import { QuizErrorState } from '../quiz/QuizFlow'
 
 export function MissionQuizPage() {
   const navigate = useNavigate()
@@ -20,35 +19,31 @@ export function MissionQuizPage() {
   // leaderboard. Exiting mid-quiz returns to the same place.
   const back = () => navigate(`/missions/${missionId}`)
 
+  if (missionsQ.isLoading) {
+    return (
+      <div className="min-h-screen bg-white grid place-items-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (missionsQ.isError || !mission) {
+    return (
+      <div className="min-h-screen bg-white p-6">
+        <QuizErrorState
+          message={missionsQ.error instanceof Error ? missionsQ.error.message : 'Mission not found'}
+          onRetry={() => missionsQ.refetch()}
+          onExit={back}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-white">
-      <ScreenHeader
-        title={mission ? `Mission · ${mission.title}` : 'Mission Quiz'}
-        onBack={back}
-      />
-      <PageContainer variant="medium" className="pb-12 pt-2">
-        {missionsQ.isLoading ? (
-          <div className="grid place-items-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent" />
-          </div>
-        ) : missionsQ.isError || !mission ? (
-          <QuizErrorState
-            message={
-              missionsQ.error instanceof Error
-                ? missionsQ.error.message
-                : 'Mission not found'
-            }
-            onRetry={() => missionsQ.refetch()}
-            onExit={back}
-          />
-        ) : (
-          <QuizFlow
-            questions={mission.questions}
-            onExit={back}
-            onComplete={back}
-          />
-        )}
-      </PageContainer>
-    </div>
+    <FlutterQuizScreen
+      questions={mission.questions}
+      onExit={back}
+      onComplete={back}
+    />
   )
 }

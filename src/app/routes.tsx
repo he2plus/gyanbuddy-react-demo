@@ -16,6 +16,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { RegisterPage } from '../features/auth/RegisterPage'
 import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage'
+import { OnboardingPage } from '../features/onboarding/OnboardingPage'
 
 // Top-level screens
 import { HomePage } from '../features/home/HomePage'
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
       { path: 'register', element: <RegisterPage /> },
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
       { path: 'reset-password', element: <ResetPasswordPage /> },
+      { path: 'onboarding', element: <OnboardingPage /> },
 
       // Top-level
       { path: 'home', element: guarded(<HomePage />) },

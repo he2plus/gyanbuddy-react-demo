@@ -83,6 +83,26 @@ function computeFitScale(width: number): number {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, raw))
 }
 
+// `zoom` is the preferred approach (it shrinks the layout box unlike transform:scale),
+// but it was not supported in Safari until Safari 17 (Sep 2023). Detect support once
+// so we can skip the scale on older WebKit and let the fluid CSS (globals.css) handle it.
+function supportsZoom(): boolean {
+  if (typeof document === 'undefined') return false
+  try {
+    const el = document.createElement('div')
+    el.style.zoom = '0.5'
+    // Safari ≤16 silently ignores `zoom`; checking computedStyle zoom confirms support.
+    document.body.appendChild(el)
+    const supported = window.getComputedStyle(el).zoom !== ''
+    document.body.removeChild(el)
+    return supported
+  } catch {
+    return false
+  }
+}
+
+const ZOOM_SUPPORTED = supportsZoom()
+
 function useFitScale(): number {
   const [scale, setScale] = useState(() =>
     typeof window === 'undefined' ? 1 : computeFitScale(window.innerWidth),
@@ -100,7 +120,9 @@ function useFitScale(): number {
       window.removeEventListener('resize', onResize)
     }
   }, [])
-  return scale
+  // On browsers that don't support CSS zoom, return 1 (no scaling).
+  // The fluid CSS in globals.css (max-width overrides, flex-wrap) handles narrower screens.
+  return ZOOM_SUPPORTED ? scale : 1
 }
 
 export function AppShell() {

@@ -16,6 +16,21 @@ import { isMockSessionActive } from './modules'
 import { getUserMissions } from './missions'
 import { getModuleChapters } from './modules'
 
+export async function getHotsQuestions(chapterId: string): Promise<Question[]> {
+  if (isMockSessionActive()) {
+    return mockHotsForChapter(chapterId)
+  }
+  try {
+    const { data: envelope } = await api.get<ApiEnvelope<QuestionDTO[]>>(
+      `/module_chapters/${chapterId}/hots_questions/`,
+    )
+    if (!envelope.success) return []
+    return (envelope.data ?? []).map(parseQuestion)
+  } catch {
+    return []
+  }
+}
+
 export async function getChapterQuestions(chapterId: string): Promise<Question[]> {
   if (isMockSessionActive()) {
     // Mock path: synthesize a small quiz per chapter so the flow works offline.
@@ -440,6 +455,92 @@ function mockQuestionsForChapter(chapterId: string): Question[] {
     })),
   })
   return bank.map((q, i) => parseQuestion(make(i, q)))
+}
+
+// HOTS (Higher Order Thinking Skills) mock questions — one analytical question
+// per subject, matched by the same chapter-ID prefix scheme as the main bank.
+function mockHotsForChapter(chapterId: string): Question[] {
+  const prefix = chapterId.split('-')[0]?.toLowerCase() ?? ''
+  const hotsBank: QBank = (() => {
+    switch (prefix) {
+      case 'chem': return [{
+        text: 'A student mixes vinegar and baking soda and notices bubbling. Predict TWO observations and classify the reaction type.',
+        options: [
+          { t: 'Gas is released + temperature drops; endothermic double-displacement', c: true },
+          { t: 'Solid forms + temperature rises; exothermic synthesis' },
+          { t: 'Colour changes + gas released; neutralisation' },
+          { t: 'No change; physical mixing' },
+        ],
+        hint: 'Acetic acid + NaHCO₃ → sodium acetate + H₂O + CO₂',
+        explanation: 'Vinegar (acetic acid) + baking soda (NaHCO₃) produces CO₂ gas (bubbling) and absorbs heat (endothermic). It is a double-displacement (acid–base) reaction.',
+      }]
+      case 'phys': return [{
+        text: 'A car decelerates from 20 m/s to rest in 4 s. What is the braking force if the car weighs 1000 kg?',
+        options: [
+          { t: '5000 N', c: true },
+          { t: '2000 N' },
+          { t: '8000 N' },
+          { t: '1250 N' },
+        ],
+        hint: 'Find acceleration first (a = Δv/t), then use F = ma.',
+        explanation: 'a = (0−20)/4 = −5 m/s². F = 1000 × 5 = 5000 N (opposing direction).',
+      }]
+      case 'bio': return [{
+        text: 'Why would a plant wilt if placed in very salty soil water?',
+        options: [
+          { t: 'Osmosis draws water OUT of root cells into the soil', c: true },
+          { t: 'Salt blocks photosynthesis directly' },
+          { t: 'Roots cannot absorb minerals so growth stops' },
+          { t: 'High salt causes roots to produce more water' },
+        ],
+        hint: 'Think about the direction water moves via osmosis.',
+        explanation: 'Concentrated salt solution has lower water potential than the root cells, so water moves by osmosis from roots to soil — the plant loses turgor and wilts.',
+      }]
+      case 'math': return [{
+        text: 'If 3x − 7 = 2(x + 5), solve for x and state whether the solution is rational or irrational.',
+        options: [
+          { t: 'x = 17; rational', c: true },
+          { t: 'x = 3; irrational' },
+          { t: 'x = 17; irrational' },
+          { t: 'x = −3; rational' },
+        ],
+        hint: 'Expand the right side, then collect x terms on one side.',
+        explanation: '3x − 7 = 2x + 10  →  x = 17. A whole number is rational.',
+      }]
+      default: return [{
+        text: 'What is one long-term consequence of deforestation on a local river system?',
+        options: [
+          { t: 'Increased soil erosion raises sediment load in rivers', c: true },
+          { t: 'Rivers receive more oxygen from fallen leaves' },
+          { t: 'Reduced rainfall increases river water volume' },
+          { t: 'Trees block sunlight, so removing them helps rivers' },
+        ],
+        hint: 'Think about tree roots and what they normally hold in place.',
+        explanation: 'Tree roots bind soil. Without them, heavy rain washes soil into rivers, increasing turbidity and disrupting aquatic life.',
+      }]
+    }
+  })()
+  return hotsBank.map((q, i) => {
+    const dto: QuestionDTO = {
+      id: `${chapterId}-hots-q${i + 1}`,
+      question_text: q.text,
+      question_type: 'mcq_single',
+      exp_points: 15,
+      difficulty_level: 'hard',
+      is_active: true,
+      is_hots: true,
+      level: 3,
+      hint: q.hint,
+      explanation: q.explanation,
+      options: q.options.map((o, idx) => ({
+        id: `${chapterId}-hots-q${i + 1}-o${idx + 1}`,
+        option_text: o.t,
+        is_correct: o.c === true,
+        order: idx + 1,
+      })),
+    }
+    return parseQuestion(dto)
+  })
 }
 
 // Re-export for symmetry with other features

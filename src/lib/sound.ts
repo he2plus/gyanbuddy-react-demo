@@ -4,14 +4,16 @@
  * play uses a fresh Audio element so rapid repeats overlap cleanly. Failures
  * (autoplay policy before first interaction) are swallowed.
  */
+// Safari does not support OGG. MP3 is universally supported.
+// OGG files exist in /sounds/ for future use but we use MP3 fallbacks here.
 const FILES = {
   correct: '/sounds/correct_answer.mp3',
   incorrect: '/sounds/incorrect_answer.mp3',
-  select: '/sounds/answer-select.ogg',
+  select: '/sounds/button_click.mp3',   // answer-select.ogg — no MP3 variant; use click
   click: '/sounds/button_click.mp3',
   success: '/sounds/success.mp3',
-  hint: '/sounds/hint-usage.ogg',
-  whoosh: '/sounds/question-whoosh.ogg',
+  hint: '/sounds/button_click.mp3',     // hint-usage.ogg — no MP3 variant; use click
+  whoosh: '/sounds/button_click.mp3',   // question-whoosh.ogg — no MP3 variant; use click
 } as const
 
 export type SoundName = keyof typeof FILES
