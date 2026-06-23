@@ -11,6 +11,7 @@ const KEYS = {
   refresh: 'refresh_token',
   accessExpires: 'access_token_expires',
   refreshExpires: 'refresh_token_expires',
+  user: 'gb_user_profile',
 } as const
 
 export type TokenSet = {
@@ -51,5 +52,21 @@ export const tokenStorage = {
     const t = this.read()
     if (!t) return true
     return new Date(t.accessTokenExpires).getTime() <= Date.now()
+  },
+
+  // Cached user profile — avoids a blocking /users/me call on every page load.
+  writeUser(user: unknown) {
+    try { localStorage.setItem(KEYS.user, JSON.stringify(user)) } catch { /* ignore */ }
+  },
+
+  readUser<T>(): T | null {
+    try {
+      const raw = localStorage.getItem(KEYS.user)
+      return raw ? (JSON.parse(raw) as T) : null
+    } catch { return null }
+  },
+
+  clearUser() {
+    localStorage.removeItem(KEYS.user)
   },
 }
