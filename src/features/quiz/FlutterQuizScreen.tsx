@@ -402,7 +402,7 @@ export function FlutterQuizScreen({
   return (
     <div
       className="flex flex-col"
-      style={{ minHeight: '100vh', background: '#fff', maxWidth: 700, margin: '0 auto' }}
+      style={{ minHeight: '100vh', background: '#fff', width: '100%' }}
     >
       <Confetti play={showConfetti} />
 
@@ -410,12 +410,19 @@ export function FlutterQuizScreen({
       <div
         style={{
           background: C.headerBg,
-          padding: '12px 16px',
           borderBottom: '1px solid #E5E5E5',
           flexShrink: 0,
         }}
       >
-        <div className="flex items-center" style={{ gap: 12 }}>
+        <div
+          className="flex items-center"
+          style={{
+            gap: 12,
+            maxWidth: 900,
+            margin: '0 auto',
+            padding: '12px clamp(16px, 4vw, 40px)',
+          }}
+        >
           {/* Circular close button */}
           <button
             type="button"
@@ -463,12 +470,19 @@ export function FlutterQuizScreen({
 
       {/* ── Scrollable question area ────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto" style={{ position: 'relative' }}>
-        <div style={{ padding: '8px 4px 0', position: 'relative' }}>
+        <div
+          style={{
+            maxWidth: 900,
+            margin: '0 auto',
+            padding: '8px 0 0',
+            position: 'relative',
+          }}
+        >
 
           {/* Flag + Hint icons — top-right, absolutely positioned */}
           <div
             style={{
-              position: 'absolute', top: 8, right: 16, zIndex: 10,
+              position: 'absolute', top: 8, right: 'clamp(16px, 4vw, 40px)', zIndex: 10,
               display: 'flex', gap: 8,
             }}
           >
@@ -563,7 +577,10 @@ export function FlutterQuizScreen({
           </AnimatePresence>
 
           {/* Question card — slides in from left on change, shakes on wrong */}
-          <motion.div animate={cardControls} style={{ padding: '40px 16px 16px' }}>
+          <motion.div
+            animate={cardControls}
+            style={{ padding: `40px clamp(16px, 4vw, 40px) 24px` }}
+          >
 
             {/* Question type badge */}
             <div
@@ -582,8 +599,8 @@ export function FlutterQuizScreen({
 
             {/* Question text */}
             <p style={{
-              fontSize: 18, fontWeight: 500, color: '#000',
-              lineHeight: 1.5, margin: '8px 0 16px',
+              fontSize: 'clamp(17px, 2.2vw, 22px)', fontWeight: 500, color: '#000',
+              lineHeight: 1.55, margin: '8px 0 20px',
             }}>
               {question.text}
             </p>
@@ -669,12 +686,12 @@ export function FlutterQuizScreen({
                 position: 'absolute', inset: 0,
                 background: C.successBg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '0 20px',
+                padding: `0 clamp(20px, 4vw, 40px)`,
               }}
             >
               <div
                 className="flex items-center"
-                style={{ gap: 10, maxWidth: 700, width: '100%', justifyContent: 'center' }}
+                style={{ gap: 10, maxWidth: 900, width: '100%', justifyContent: 'space-between' }}
               >
                 {/* 🎉 celebrate image */}
                 <motion.div
@@ -753,10 +770,11 @@ export function FlutterQuizScreen({
               transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
               style={{
                 position: 'absolute', inset: 0,
-                display: 'flex', alignItems: 'center',
-                padding: '0 20px', gap: 12,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: `0 clamp(20px, 4vw, 40px)`,
               }}
             >
+            <div className="flex items-center" style={{ gap: 12, maxWidth: 900, width: '100%' }}>
               {/* Why? button */}
               <button
                 type="button"
@@ -816,6 +834,7 @@ export function FlutterQuizScreen({
                 <span style={{ fontSize: 22 }}>❌</span>
                 <span style={{ fontSize: 18, fontWeight: 600, color: '#000' }}>Incorrect</span>
               </motion.div>
+            </div>
             </motion.div>
           )}
 
@@ -826,6 +845,7 @@ export function FlutterQuizScreen({
               style={{
                 position: 'absolute', inset: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: `0 clamp(20px, 4vw, 40px)`,
               }}
             >
               <button
@@ -839,7 +859,7 @@ export function FlutterQuizScreen({
                 }}
                 onPointerLeave={() => setCheckPressed(false)}
                 style={{
-                  width: 320, height: 50, borderRadius: 28,
+                  width: '100%', maxWidth: 480, height: 50, borderRadius: 28,
                   background: hasAnswer ? C.checkActive : C.checkInactive,
                   color: hasAnswer ? '#fff' : C.checkInactiveText,
                   fontSize: 18, fontWeight: 500, border: 'none',
@@ -877,7 +897,7 @@ export function FlutterQuizScreen({
                 position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
                 background: '#fff',
                 borderRadius: '24px 24px 0 0',
-                maxHeight: '60vh', maxWidth: 700, margin: '0 auto',
+                maxHeight: '60vh', maxWidth: 900, margin: '0 auto',
                 boxShadow: '0 -4px 20px rgba(0,0,0,0.1)',
                 display: 'flex', flexDirection: 'column',
               }}
