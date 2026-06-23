@@ -66,7 +66,7 @@ export function NavDrawer({ open, onClose }: { open: boolean; onClose: () => voi
             transition={{ duration: 0.2 }}
             onClick={onClose}
             className="fixed inset-0 z-40"
-            style={{ background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(2px)' }}
+            style={{ background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
           />
 
           {/* Drawer */}

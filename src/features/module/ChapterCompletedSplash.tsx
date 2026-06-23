@@ -171,7 +171,7 @@ export function ChapterCompletedSplash({
             marginTop: 24, padding: '14px 24px', borderRadius: 999,
             background: 'rgba(255,255,255,0.15)',
             border: '1px solid rgba(255,255,255,0.3)',
-            backdropFilter: 'blur(8px)',
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
             gap: 10,
           }}
         >

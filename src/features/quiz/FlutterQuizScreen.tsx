@@ -683,15 +683,16 @@ export function FlutterQuizScreen({
               animate={{ y: 0 }}
               transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
               style={{
-                position: 'absolute', inset: 0,
+                /* inset:0 not supported in Safari < 14.1 — use explicit TRBL */
+                position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
                 background: C.successBg,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: `0 clamp(20px, 4vw, 40px)`,
+                padding: '0 clamp(20px, 4vw, 40px)',
               }}
             >
               <div
                 className="flex items-center"
-                style={{ gap: 10, maxWidth: 900, width: '100%', justifyContent: 'space-between' }}
+                style={{ maxWidth: 900, width: '100%', justifyContent: 'space-between' }}
               >
                 {/* 🎉 celebrate image */}
                 <motion.div
@@ -733,15 +734,15 @@ export function FlutterQuizScreen({
 
                 <div style={{ flex: 1, maxWidth: 60 }} />
 
-                {/* Continue button — 3-D press with bottom border */}
+                {/* Continue — onClick is the action (works in all Safari versions).
+                    onPointerDown/Up are ONLY for the press-depth visual. */}
                 <button
                   type="button"
                   onPointerDown={() => setContinuePressed(true)}
-                  onPointerUp={() => {
-                    setContinuePressed(false)
-                    advance()
-                  }}
+                  onPointerUp={() => setContinuePressed(false)}
                   onPointerLeave={() => setContinuePressed(false)}
+                  onPointerCancel={() => setContinuePressed(false)}
+                  onClick={advance}
                   style={{
                     height: 50, padding: '0 32px', borderRadius: 28,
                     background: C.continueGreen, color: '#fff',
@@ -753,6 +754,7 @@ export function FlutterQuizScreen({
                       ? '0 1px 4px rgba(41,204,87,0.4)'
                       : '0 4px 8px rgba(41,204,87,0.4)',
                     transition: 'border-bottom-width 0.1s, box-shadow 0.1s',
+                    WebkitTapHighlightColor: 'transparent',
                   }}
                 >
                   Continue
@@ -769,72 +771,76 @@ export function FlutterQuizScreen({
               animate={{ y: 0 }}
               transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
               style={{
-                position: 'absolute', inset: 0,
+                position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: `0 clamp(20px, 4vw, 40px)`,
+                padding: '0 clamp(20px, 4vw, 40px)',
               }}
             >
-            <div className="flex items-center" style={{ gap: 12, maxWidth: 900, width: '100%' }}>
-              {/* Why? button */}
-              <button
-                type="button"
-                onPointerDown={() => setWhyPressed(true)}
-                onPointerUp={() => { setWhyPressed(false); setShowExplModal(true) }}
-                onPointerLeave={() => setWhyPressed(false)}
-                style={{
-                  height: 50, padding: '0 20px', borderRadius: 28,
-                  background: C.whyBtn, color: '#212121',
-                  fontSize: 16, fontWeight: 600, border: 'none',
-                  borderBottom: `${whyPressed ? 1 : 4}px solid ${C.whyBorder}`,
-                  cursor: 'pointer', flexShrink: 0,
-                  transition: 'border-bottom-width 0.1s',
-                }}
-              >
-                Why?
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', maxWidth: 900, width: '100%' }}>
+                {/* Why? — onClick opens modal */}
+                <button
+                  type="button"
+                  onPointerDown={() => setWhyPressed(true)}
+                  onPointerUp={() => setWhyPressed(false)}
+                  onPointerLeave={() => setWhyPressed(false)}
+                  onPointerCancel={() => setWhyPressed(false)}
+                  onClick={() => setShowExplModal(true)}
+                  style={{
+                    height: 50, padding: '0 20px', borderRadius: 28,
+                    background: C.whyBtn, color: '#212121',
+                    fontSize: 16, fontWeight: 600, border: 'none',
+                    borderBottom: `${whyPressed ? 1 : 4}px solid ${C.whyBorder}`,
+                    cursor: 'pointer', flexShrink: 0, marginRight: 12,
+                    transition: 'border-bottom-width 0.1s',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  Why?
+                </button>
 
-              {/* Continue — dark after 2nd wrong, light on 1st wrong */}
-              <button
-                type="button"
-                onPointerDown={() => setTryAgainPressed(true)}
-                onPointerUp={() => {
-                  setTryAgainPressed(false)
-                  if (tries >= 2) {
-                    advance()
-                  } else {
-                    setShowIncorrect(false)
-                    setSelectedIndex(null)
-                    setSelectedIndices(new Set())
-                    setShortAnswer('')
-                    setRearrangeSeq([])
-                  }
-                }}
-                onPointerLeave={() => setTryAgainPressed(false)}
-                style={{
-                  flex: 1, height: 50, borderRadius: 28,
-                  background: tries >= 2 ? C.checkActive : C.continueLightBg,
-                  color: tries >= 2 ? '#fff' : 'rgba(0,0,0,0.54)',
-                  fontSize: 18, fontWeight: 500, border: 'none',
-                  borderBottom: `${tryAgainPressed ? 1 : 4}px solid ${tries >= 2 ? '#000' : C.continueLightBorder}`,
-                  cursor: 'pointer',
-                  transition: 'border-bottom-width 0.1s',
-                }}
-              >
-                Continue
-              </button>
+                {/* Continue — onClick is the action */}
+                <button
+                  type="button"
+                  onPointerDown={() => setTryAgainPressed(true)}
+                  onPointerUp={() => setTryAgainPressed(false)}
+                  onPointerLeave={() => setTryAgainPressed(false)}
+                  onPointerCancel={() => setTryAgainPressed(false)}
+                  onClick={() => {
+                    if (tries >= 2) {
+                      advance()
+                    } else {
+                      setShowIncorrect(false)
+                      setSelectedIndex(null)
+                      setSelectedIndices(new Set())
+                      setShortAnswer('')
+                      setRearrangeSeq([])
+                    }
+                  }}
+                  style={{
+                    flex: 1, height: 50, borderRadius: 28,
+                    background: tries >= 2 ? C.checkActive : C.continueLightBg,
+                    color: tries >= 2 ? '#fff' : 'rgba(0,0,0,0.54)',
+                    fontSize: 18, fontWeight: 500, border: 'none',
+                    borderBottom: `${tryAgainPressed ? 1 : 4}px solid ${tries >= 2 ? '#000' : C.continueLightBorder}`,
+                    cursor: 'pointer', marginRight: 12,
+                    transition: 'border-bottom-width 0.1s',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  Continue
+                </button>
 
-              {/* Incorrect label — bounces in */}
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
-                className="flex items-center"
-                style={{ gap: 6, flexShrink: 0 }}
-              >
-                <span style={{ fontSize: 22 }}>❌</span>
-                <span style={{ fontSize: 18, fontWeight: 600, color: '#000' }}>Incorrect</span>
-              </motion.div>
-            </div>
+                {/* Incorrect label — bounces in */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.8, ease: [0.34, 1.56, 0.64, 1] }}
+                  style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                >
+                  <span style={{ fontSize: 22 }}>❌</span>
+                  <span style={{ fontSize: 18, fontWeight: 600, color: '#000', marginLeft: 6 }}>Incorrect</span>
+                </motion.div>
+              </div>
             </motion.div>
           )}
 
@@ -843,21 +849,22 @@ export function FlutterQuizScreen({
             <motion.div
               key="check"
               style={{
-                position: 'absolute', inset: 0,
+                position: 'absolute', top: 0, right: 0, bottom: 0, left: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: `0 clamp(20px, 4vw, 40px)`,
+                padding: '0 clamp(20px, 4vw, 40px)',
               }}
             >
               <button
                 type="button"
                 disabled={!hasAnswer || isChecking}
                 onPointerDown={() => hasAnswer && setCheckPressed(true)}
-                onPointerUp={async () => {
+                onPointerUp={() => setCheckPressed(false)}
+                onPointerLeave={() => setCheckPressed(false)}
+                onPointerCancel={() => setCheckPressed(false)}
+                onClick={async () => {
                   if (!hasAnswer || isChecking) return
-                  setCheckPressed(false)
                   await handleCheck()
                 }}
-                onPointerLeave={() => setCheckPressed(false)}
                 style={{
                   width: '100%', maxWidth: 480, height: 50, borderRadius: 28,
                   background: hasAnswer ? C.checkActive : C.checkInactive,
@@ -866,6 +873,7 @@ export function FlutterQuizScreen({
                   borderBottom: hasAnswer ? `${checkPressed ? 1 : 4}px solid #000` : 'none',
                   cursor: hasAnswer ? 'pointer' : 'default',
                   transition: 'border-bottom-width 0.1s, background 0.15s',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 {isChecking ? 'Checking…' : 'Check'}
@@ -885,7 +893,7 @@ export function FlutterQuizScreen({
               animate={{ opacity: 0.4 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowExplModal(false)}
-              style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 40 }}
+              style={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0, background: '#000', zIndex: 40 }}
             />
             <motion.div
               key="modal"
