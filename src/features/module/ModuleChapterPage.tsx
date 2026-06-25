@@ -76,14 +76,15 @@ export function ModuleChapterPage() {
   )
   const chapters = chaptersQ.data ?? []
 
-  const currentChapter = useMemo(() => {
-    return (
-      chapters.find((c) => c.isInProgress) ??
-      chapters.find((c) => c.isDue) ??
-      chapters.find((c) => c.isNotStarted) ??
-      null
-    )
-  }, [chapters])
+  // The "current" topic is the first one that isn't completed yet. Deriving the
+  // character position, the "Topic N" label, the progress bar and the Start CTA
+  // all from this single index keeps them consistent (previously they could
+  // disagree — e.g. character on topic 3, label "Topic 4", bar "2/8"). When every
+  // chapter is done, there is no current topic.
+  const currentChapter = useMemo(
+    () => chapters.find((c) => !c.isCompleted) ?? null,
+    [chapters],
+  )
 
   const completedCount = chapters.filter((c) => c.isCompleted).length
   const overallPct = chapters.length
@@ -254,7 +255,7 @@ function TopicPreviewCard({
   const topicNum = currentChapter
     ? (chapters.findIndex((c) => c.id === currentChapter.id) + 1)
     : 1
-  const overdueText = formatOverdue(currentChapter)
+  const dueInfo = formatDueLabel(currentChapter)
   const illustration = subjectLogo || subjectPngForCode(subjectCode)
 
   return (
@@ -359,13 +360,13 @@ function TopicPreviewCard({
             >
               {currentChapter.name}
             </span>
-            {overdueText && (
+            {dueInfo && (
               <span
                 className="flex items-center font-body"
-                style={{ gap: 6, fontSize: 14, fontWeight: 700, color: '#FF3131', lineHeight: '19px' }}
+                style={{ gap: 6, fontSize: 14, fontWeight: 700, color: dueInfo.overdue ? '#FF3131' : '#C05127', lineHeight: '19px' }}
               >
                 <AlertTriangle className="w-4 h-4" strokeWidth={2.5} />
-                {overdueText}
+                {dueInfo.text}
               </span>
             )}
           </div>
@@ -393,14 +394,19 @@ function TopicPreviewCard({
   )
 }
 
-function formatOverdue(c: ModuleChapter | null): string | null {
-  // ModuleChapter type doesn't expose due_date; backend will when ready.
-  // For now: in-progress chapters with status='due' would show this.
-  if (!c) return null
-  // Placeholder demo text mirroring the Figma "Overdue 1 May"
-  if (c.isInProgress) return null
-  if (c.status === 'not_started') return null
-  return null
+function formatDueLabel(c: ModuleChapter | null): { text: string; overdue: boolean } | null {
+  // Show a deadline chip only for chapters that actually carry one. "Due <date>"
+  // before the deadline passes, "Overdue <date>" once it has (matches the teacher
+  // dashboard wording).
+  if (!c || !c.dueDate || !c.isDue) return null
+  const when = formatDueDate(c.dueDate)
+  return c.isOverdue ? { text: `Overdue ${when}`, overdue: true } : { text: `Due ${when}`, overdue: false }
+}
+
+function formatDueDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
 

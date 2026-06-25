@@ -204,9 +204,10 @@ export function JourneyPath({
           const isLast = i === N - 1
           const isCurrent = c.id === currentChapterId
           const { src, w } = artFor(c, isFirst, isLast, isCurrent)
-          // Only in-progress and due chapters are tappable — completed chapters
-          // are not re-enterable, not-started chapters are locked.
-          const interactive = c.isInProgress || c.isDue
+          // Tappable: the current topic (always startable so the journey never
+          // gets stuck), plus any in-progress or due topic. Completed topics are
+          // NOT re-enterable; not-started/locked future topics stay locked.
+          const interactive = !c.isCompleted && (isCurrent || c.isInProgress || c.isDue)
           const lane = laneFor(i)
 
           return (

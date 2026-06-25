@@ -126,6 +126,10 @@ export type ModuleChapterDTO = {
   is_enabled?: boolean
   is_important?: boolean
   has_hots?: boolean
+  /** Deadline assigned by the teacher (date-only). Null when no due date. */
+  due_date?: string | null
+  /** Backend flag: this chapter is assigned with an active due date. */
+  is_due?: boolean
   current_question_id?: string | number | null
   created_at?: string
   updated_at?: string
@@ -147,6 +151,8 @@ export type ModuleChapter = {
   isImportant: boolean
   hasHots: boolean
   currentQuestionId: string | null
+  /** Deadline (date-only ISO) or null. */
+  dueDate: string | null
   createdAt: string
   updatedAt: string
   // Derived helpers
@@ -154,7 +160,10 @@ export type ModuleChapter = {
   isInProgress: boolean
   isCompleted: boolean
   isLocked: boolean
+  /** Assigned with an active due date and not yet completed. */
   isDue: boolean
+  /** Due date has already passed (and chapter isn't completed). */
+  isOverdue: boolean
 }
 
 const asChapterStatus = (v: unknown): ChapterStatusString => {
@@ -167,6 +176,18 @@ const asChapterStatus = (v: unknown): ChapterStatusString => {
 export function parseChapter(dto: ModuleChapterDTO, moduleId = ''): ModuleChapter {
   const now = new Date().toISOString()
   const status = asChapterStatus(dto.status)
+  const dueDate = dto.due_date ?? null
+  const isCompleted = status === 'completed'
+  // The backend sends a progress `status` (not_started | in_progress | completed)
+  // PLUS a separate `is_due` flag + `due_date` — it never sends status='due'.
+  // A chapter counts as "due" (assigned, actionable) when it has an active
+  // deadline and isn't completed yet.
+  const hasDeadline = dto.is_due === true || status === 'due' || dueDate != null
+  const isDue = hasDeadline && !isCompleted
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  const isOverdue =
+    isDue && dueDate != null && Date.parse(dueDate) < startOfToday.getTime()
   return {
     id: String(dto.id ?? ''),
     name: dto.title ?? '',
@@ -182,12 +203,14 @@ export function parseChapter(dto: ModuleChapterDTO, moduleId = ''): ModuleChapte
     hasHots: dto.has_hots ?? false,
     currentQuestionId:
       dto.current_question_id != null ? String(dto.current_question_id) : null,
+    dueDate,
     createdAt: dto.created_at ?? now,
     updatedAt: dto.updated_at ?? now,
     isNotStarted: status === 'not_started',
     isInProgress: status === 'in_progress',
-    isCompleted: status === 'completed',
+    isCompleted,
     isLocked: status === 'locked',
-    isDue: status === 'due',
+    isDue,
+    isOverdue,
   }
 }

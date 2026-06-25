@@ -13,7 +13,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
-  ArrowLeft, ArrowRight, AlertTriangle, BookOpen, Play,
+  ArrowLeft, ArrowRight, AlertTriangle, Play,
 } from 'lucide-react'
 
 import { TopBar } from '../../shell/TopBar'
@@ -49,6 +49,12 @@ export function ChapterTheoryPage() {
     () => chaptersQ.data?.find((c) => c.id === chapterId) ?? null,
     [chaptersQ.data, chapterId],
   )
+  // 1-based position in the visible journey, so the "Topic N" here matches the
+  // platform the student tapped (not the raw backend order).
+  const topicNum = useMemo(() => {
+    const i = chaptersQ.data?.findIndex((c) => c.id === chapterId) ?? -1
+    return i >= 0 ? i + 1 : (chapter?.order ?? 1)
+  }, [chaptersQ.data, chapterId, chapter])
 
   const onStartQuiz = () =>
     navigate(`/subjects/${subjectId}/modules/${moduleId}/chapters/${chapterId}/quiz`)
@@ -115,7 +121,7 @@ export function ChapterTheoryPage() {
                       letterSpacing: '0.06em', textTransform: 'uppercase',
                     }}
                   >
-                    Topic {chapter.order}
+                    Topic {topicNum}
                   </span>
                   {chapter.isImportant && (
                     <span
@@ -150,12 +156,6 @@ export function ChapterTheoryPage() {
                   </p>
                 )}
                 <div className="flex items-center" style={{ gap: 24 }}>
-                  <span className="flex items-center font-body" style={{ gap: 8, color: TXT_MID }}>
-                    <BookOpen className="w-4 h-4" strokeWidth={2.2} />
-                    <span style={{ fontSize: 14, fontWeight: 600 }}>
-                      {chapter.questionCount} {chapter.questionCount === 1 ? 'item' : 'items'} of content
-                    </span>
-                  </span>
                   {chapter.hasHots && (
                     <span
                       className="grid place-items-center"
@@ -251,7 +251,7 @@ export function ChapterTheoryPage() {
                 >
                   {chapter.isCompleted
                     ? `Review ${chapter.name}`
-                    : `Start the quiz for ${chapter.name}`}
+                    : `Start ${chapter.name}`}
                 </span>
               </div>
               <motion.button
@@ -268,7 +268,7 @@ export function ChapterTheoryPage() {
                 <span className="flex items-center" style={{ gap: 12 }}>
                   <Play className="w-5 h-5" strokeWidth={2.5} fill="#fff" />
                   <span style={{ fontSize: 18, fontWeight: 700, lineHeight: '25px' }}>
-                    {chapter.isCompleted ? 'Review' : 'Start Quiz'}
+                    {chapter.isCompleted ? 'Review' : 'Start'}
                   </span>
                   <ArrowRight className="w-5 h-5" strokeWidth={2.5} />
                 </span>
