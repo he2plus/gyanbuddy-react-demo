@@ -79,7 +79,8 @@ export function ModuleChapterPage() {
   const currentChapter = useMemo(() => {
     return (
       chapters.find((c) => c.isInProgress) ??
-      chapters.find((c) => !c.isCompleted) ??
+      chapters.find((c) => c.isDue) ??
+      chapters.find((c) => c.isNotStarted) ??
       null
     )
   }, [chapters])
@@ -248,8 +249,11 @@ function TopicPreviewCard({
     )
   }
 
-  // Topic 1 index — currentChapter's order is 1-based
-  const topicNum = currentChapter?.order ?? 1
+  // Use visible index (1-based) not raw backend order, so the number matches
+  // the platform position on the journey path.
+  const topicNum = currentChapter
+    ? (chapters.findIndex((c) => c.id === currentChapter.id) + 1)
+    : 1
   const overdueText = formatOverdue(currentChapter)
   const illustration = subjectLogo || subjectPngForCode(subjectCode)
 

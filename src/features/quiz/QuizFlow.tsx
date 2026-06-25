@@ -107,7 +107,8 @@ export function QuizFlow({ questions, onExit, onEmpty, onComplete, celebration }
 
   const question = questions[index]
   const total = questions.length
-  const progress = total ? ((index + 1) / total) * 100 : 0
+  // Progress bar starts at 0 and advances only when moving to the next question.
+  const progress = total ? (index / total) * 100 : 0
 
   // Reset per-question state + replay the slide-in entrance when the index
   // changes (mirrors the original's question whoosh / staggered entrance).
@@ -654,12 +655,17 @@ function OptionRow({
   feedback: 'none' | 'correct'
   onToggle: () => void
 }) {
+  // When the question is exhausted (2 wrong attempts), show the last picked
+  // option in red so the student can see what they chose vs the correct answer.
+  const wasLastPick = selected && eliminated
   const border =
     feedback === 'correct' ? '#22C55E' :
+    wasLastPick ? '#FF3131' :
     eliminated ? '#E7E7E7' :
     selected ? NAVY : '#E7E7E7'
   const bg =
     feedback === 'correct' ? '#DCFCE7' :
+    wasLastPick ? '#FFF1F1' :
     eliminated ? '#F4F4F5' :
     selected ? '#F0F4FF' : '#fff'
 
@@ -674,7 +680,7 @@ function OptionRow({
         style={{
           gap: 14, padding: '16px 20px', borderRadius: 18,
           border: `1.5px solid ${border}`, background: bg,
-          opacity: eliminated ? 0.6 : 1,
+          opacity: (eliminated && !wasLastPick) ? 0.5 : 1,
           transition: 'all 0.2s ease',
         }}
       >
@@ -685,16 +691,19 @@ function OptionRow({
             borderRadius: multiSelect ? 6 : 999,
             border: `2px solid ${
               feedback === 'correct' ? '#22C55E' :
+              wasLastPick ? '#FF3131' :
               eliminated ? '#C4C4CC' :
               selected ? NAVY : '#D4D4D8'
             }`,
             background:
               feedback === 'correct' ? '#22C55E' :
+              wasLastPick ? '#FF3131' :
               selected && !eliminated ? NAVY : '#fff',
             color: '#fff',
           }}
         >
           {feedback === 'correct' ? <Check className="w-4 h-4" strokeWidth={3} /> :
+           wasLastPick ? <Ban className="w-3.5 h-3.5" strokeWidth={2.5} /> :
            eliminated ? <Ban className="w-3.5 h-3.5" style={{ color: '#A1A1AA' }} strokeWidth={2.5} /> :
            selected
              ? (multiSelect

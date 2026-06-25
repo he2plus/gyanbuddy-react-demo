@@ -176,7 +176,7 @@ export function ChapterTheoryPage() {
 
             {/* Illustration zone — the real subject art (chapter logo if the
                 backend ships one, else the subject's icon). No dummy ball. */}
-            {(chapter.logo || subjectQ.data?.logo) && (
+            {chapter.logo && (
               <motion.section
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -189,7 +189,7 @@ export function ChapterTheoryPage() {
                 }}
               >
                 <motion.img
-                  src={chapter.logo || subjectQ.data?.logo || ''}
+                  src={chapter.logo}
                   alt=""
                   className="max-h-56 w-auto select-none"
                   style={{ objectFit: 'contain', filter: 'drop-shadow(0 14px 30px rgba(0,22,122,0.18))' }}

@@ -109,7 +109,7 @@ export function parseModule(dto: ModuleDTO): Module {
 // ModuleChapter
 // ---------------------------------------------------------------------------
 
-export const CHAPTER_STATUS = ['not_started', 'in_progress', 'completed', 'locked'] as const
+export const CHAPTER_STATUS = ['not_started', 'in_progress', 'completed', 'locked', 'due'] as const
 export type ChapterStatusString = (typeof CHAPTER_STATUS)[number]
 
 export type ModuleChapterDTO = {
@@ -154,6 +154,7 @@ export type ModuleChapter = {
   isInProgress: boolean
   isCompleted: boolean
   isLocked: boolean
+  isDue: boolean
 }
 
 const asChapterStatus = (v: unknown): ChapterStatusString => {
@@ -187,5 +188,6 @@ export function parseChapter(dto: ModuleChapterDTO, moduleId = ''): ModuleChapte
     isInProgress: status === 'in_progress',
     isCompleted: status === 'completed',
     isLocked: status === 'locked',
+    isDue: status === 'due',
   }
 }

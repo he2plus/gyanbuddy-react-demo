@@ -13,7 +13,7 @@
  *
  * Uses the original art copied to /images/journey/*.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { ModuleChapter } from '../../types/module'
 
@@ -52,8 +52,8 @@ function artFor(
   if (c.isCompleted) {
     return isFirst ? { src: 'green-start.png', w: 162 } : { src: 'green.png', w: 150 }
   }
-  // In-progress but not the one the boy is on → BLUE (not locked).
-  if (c.isInProgress) {
+  // In-progress or due but not the one the boy is on → BLUE (not locked).
+  if (c.isInProgress || c.isDue) {
     return { src: 'blue.png', w: 150 }
   }
   // not started / locked
@@ -106,20 +106,9 @@ export function JourneyPath({
   const color = hexColor(subjectColor)
   const N = chapters.length
 
-  // Order the ladder by PROGRESS, not raw chapter number, so the climb always
-  // reads passed → current → locked. The backend can hand back chapters whose
-  // statuses aren't monotonic with their order (e.g. early chapters still
-  // in_progress while later ones are completed); sorting by progress keeps a
-  // completed (green) podium from ever sitting *after* the current (blue) one.
-  // For normal forward progress this is identical to chapter order.
-  const ordered = useMemo(() => {
-    const rank = (c: ModuleChapter) =>
-      c.isCompleted ? 0 : (c.isInProgress || c.id === currentChapterId) ? 1 : 2
-    return chapters
-      .map((c, origIdx) => ({ c, origIdx }))
-      .sort((a, b) => rank(a.c) - rank(b.c) || a.origIdx - b.origIdx)
-      .map((x) => x.c)
-  }, [chapters, currentChapterId])
+  // Chapters render in their natural API order so the zig-zag lane positions
+  // always match the chapter sequence (chapter 1 = position 0, etc.).
+  const ordered = chapters
 
   const [paths, setPaths] = useState<string[]>([])
   const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
@@ -215,7 +204,9 @@ export function JourneyPath({
           const isLast = i === N - 1
           const isCurrent = c.id === currentChapterId
           const { src, w } = artFor(c, isFirst, isLast, isCurrent)
-          const interactive = c.isInProgress || c.isCompleted || i === 0
+          // Only in-progress and due chapters are tappable — completed chapters
+          // are not re-enterable, not-started chapters are locked.
+          const interactive = c.isInProgress || c.isDue
           const lane = laneFor(i)
 
           return (

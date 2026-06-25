@@ -81,10 +81,15 @@ type ChapterStatus = 'done' | 'overdue' | 'due' | 'locked'
 function chapterStatus(m: Module): ChapterStatus {
   if (m.status === 'completed' || m.userPercentage >= 100) return 'done'
   if (m.dueDate) {
-    const due = new Date(m.dueDate).getTime()
-    if (Number.isFinite(due) && due < Date.now()) return 'overdue'
+    const due = new Date(m.dueDate)
+    // Overdue only once the full due day has passed (end of that day, not the moment it was set)
+    due.setHours(23, 59, 59, 999)
+    if (Number.isFinite(due.getTime()) && due.getTime() < Date.now()) return 'overdue'
     return 'due'
   }
+  // userStatus === 'due' means teacher explicitly assigned it — show as due
+  if (m.userStatus === 'due') return 'due'
+  // in_progress without a due date is just active work, not teacher-assigned
   if (m.status === 'in_progress') return 'due'
   return 'locked'
 }

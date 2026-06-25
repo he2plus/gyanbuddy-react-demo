@@ -1,0 +1,92 @@
+name: gyan-buddy
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-gyaan_buddy}
+      POSTGRES_USER: ${POSTGRES_USER:-gyaan_buddy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gyaan_buddy_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gyaan_buddy} -d ${POSTGRES_DB:-gyaan_buddy}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8001
+    volumes:
+      - .:/app
+
+  celery:
+    build: .
+    command: celery -A gyaan_buddy worker -l info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      - AI_SERVICE_URL=http://ai-service:8001
+    volumes:
+      - .:/app
+
+  ai-service:
+    build: ../ai-service
+    ports:
+      - "8001:8001"
+    environment:
+      - GOOGLE_CLOUD_PROJECT=caramel-goal-473111-t3
+      - GOOGLE_CLOUD_LOCATION_CLAUDE=asia-southeast1
+      - GOOGLE_CLOUD_LOCATION_GEMINI=us-central1
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials.json
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+    volumes:
+      - ../ai-service:/app
+      - ./caramel-goal-473111-t3-2b868629102f.json:/app/credentials.json:ro
+    depends_on:
+      - qdrant
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:
