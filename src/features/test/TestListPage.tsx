@@ -36,22 +36,39 @@ const SURFACE_BG = '#FAFAFA'
 
 type TestTab = 'all' | 'upcoming' | 'skipped' | 'completed'
 
-type TestStatus = 'upcoming' | 'skipped' | 'completed' | 'in_progress'
+type TestStatus = 'upcoming' | 'active' | 'skipped' | 'completed' | 'in_progress'
 
 function statusOf(t: Test): TestStatus {
-  // UserTestProgress only knows not_started / in_progress / completed.
-  // "Skipped" is purely date-based: scheduled time has passed and the
-  // student never finished it.
+  // Single source of truth: the parsed `test.status` is window-aware
+  // (upcoming = before start, active = inside the attempt window, skipped =
+  // window passed and never finished, completed = done). Layer the user's
+  // in-progress state on top.
   if (t.progress?.status === 'completed') return 'completed'
   if (t.progress?.status === 'in_progress') return 'in_progress'
-  const at = new Date(t.testDatetime).getTime()
-  if (Number.isFinite(at) && at < Date.now()) return 'skipped'
+  return t.status
+}
+
+// Which top-level tab / counter chip a test belongs to. Active and in-progress
+// tests are still actionable, so they live under "Upcoming", NOT "Skipped".
+type TestBucket = 'upcoming' | 'skipped' | 'completed'
+function bucketOf(t: Test): TestBucket {
+  const s = statusOf(t)
+  if (s === 'completed') return 'completed'
+  if (s === 'skipped') return 'skipped'
   return 'upcoming'
+}
+
+// A test can be started/continued only while it's actionable. Once the window
+// has passed (skipped) or it's finished (completed), there's nothing to start.
+function canStart(t: Test): boolean {
+  const s = statusOf(t)
+  return s === 'upcoming' || s === 'active' || s === 'in_progress'
 }
 
 const STATUS_TONE: Record<TestStatus, { strokeColor: string; chipBg: string; chipFg: string; label: string }> = {
   skipped:     { strokeColor: '#FF914D', chipBg: '#FFE7D7', chipFg: '#FF3131', label: 'Skipped' },
   upcoming:    { strokeColor: CYAN,      chipBg: '#CFF1FF', chipFg: CYAN,      label: 'Upcoming' },
+  active:      { strokeColor: '#00BF63', chipBg: '#C9F1DE', chipFg: '#00BF63', label: 'Active' },
   completed:   { strokeColor: '#00BF63', chipBg: '#C9F1DE', chipFg: '#00BF63', label: 'Completed' },
   in_progress: { strokeColor: NAVY,      chipBg: '#E0E7FF', chipFg: NAVY,      label: 'In Progress' },
 }
@@ -65,24 +82,13 @@ export function TestListPage() {
 
   const counts = useMemo(() => {
     const c = { upcoming: 0, skipped: 0, completed: 0 }
-    for (const t of tests) {
-      const s = statusOf(t)
-      if (s === 'completed') c.completed++
-      else if (s === 'upcoming') c.upcoming++
-      else if (s === 'skipped' || s === 'in_progress') c.skipped++
-    }
+    for (const t of tests) c[bucketOf(t)]++
     return c
   }, [tests])
 
   const filtered = useMemo(() => {
     if (tab === 'all') return tests
-    return tests.filter((t) => {
-      const s = statusOf(t)
-      if (tab === 'upcoming') return s === 'upcoming'
-      if (tab === 'skipped')  return s === 'skipped' || s === 'in_progress'
-      if (tab === 'completed') return s === 'completed'
-      return true
-    })
+    return tests.filter((t) => bucketOf(t) === tab)
   }, [tests, tab])
 
   return (
@@ -344,7 +350,7 @@ function TestCard({
             {tone.label}
           </span>
         </div>
-        {status !== 'completed' && (
+        {canStart(test) && (
           <motion.button
             type="button"
             onClick={onStart}

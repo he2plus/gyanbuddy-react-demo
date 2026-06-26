@@ -21,7 +21,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronDown, ChevronUp, Lock, AlertTriangle,
+  ChevronDown, ChevronUp, Lock, AlertTriangle, Check,
   Atom, FlaskConical, Globe, Leaf, Layers, Dna, Castle, Scroll, BookOpen,
   type LucideIcon,
 } from 'lucide-react'
@@ -240,12 +240,14 @@ function SubjectRow({
   // figma art is a fallback for the few codes it covers.
   const subjectPng = subject.logo || subjectPngFor(subject)
 
-  // Fetch modules for the expanded row only — avoids loading every subject's
-  // chapter data when most rows are collapsed.
+  // Fetch modules for EVERY row (not just the expanded one) so the collapsed
+  // pill's chapter count and progress match what the expanded view shows. The
+  // customer saw Physics "20 chapters → 5" and Geo "0% → 9%" precisely because
+  // the collapsed row used the stale backend count until it was clicked.
   const modulesQ = useQuery<Module[]>({
     queryKey: ['subjects', subject.id, 'modules'],
     queryFn: () => getSubjectModules(subject.id),
-    enabled: expanded,
+    enabled: true,
     staleTime: 5 * 60_000,
   })
   const modules = modulesQ.data ?? []
@@ -276,8 +278,11 @@ function SubjectRow({
       .map((x) => x.m)
   }, [modules, filter])
 
-  // Collapsed row uses subject.moduleCount (no module fetch needed)
-  const moduleCount = modules.length || subject.moduleCount
+  // Count comes from the actual modules now that every row fetches them. While
+  // the fetch is in flight we show a placeholder rather than the backend's stale
+  // subject.moduleCount (which was the wrong "20").
+  const moduleCount = modules.length
+  const countReady = modulesQ.isSuccess
 
   return (
     <motion.section
@@ -359,7 +364,7 @@ function SubjectRow({
                 border: expanded ? 'none' : '1px solid #EAEAEA',
               }}
             >
-              {moduleCount} chapter{moduleCount === 1 ? '' : 's'}
+              {countReady ? `${moduleCount} chapter${moduleCount === 1 ? '' : 's'}` : '…'}
             </span>
           </div>
           <div className="flex items-center" style={{ gap: 14 }}>
@@ -389,7 +394,7 @@ function SubjectRow({
                 minWidth: 64, textAlign: 'right',
               }}
             >
-              {overallPct}%
+              {countReady ? `${overallPct}%` : '…'}
             </span>
           </div>
         </div>
@@ -414,26 +419,26 @@ function SubjectRow({
             style={{ overflow: 'hidden' }}
           >
             <div
-              className="grid"
+              className="flex flex-wrap justify-center"
               style={{
-                gridTemplateColumns: 'repeat(auto-fill, minmax(min(224px, 100%), 1fr))',
                 gap: 24,
                 marginTop: 44,
                 maxWidth: 5 * 224 + 4 * 24, // hard cap so we never exceed 5 per row
+                marginLeft: 'auto', marginRight: 'auto', // centre the whole block
               }}
             >
               {modulesQ.isLoading && Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
                   className="bg-white animate-pulse"
-                  style={{ height: 261, borderRadius: 34 }}
+                  style={{ width: 224, maxWidth: '100%', height: 261, borderRadius: 34 }}
                 />
               ))}
               {!modulesQ.isLoading && filtered.length === 0 && (
                 <div
                   className="grid place-items-center font-body"
                   style={{
-                    gridColumn: '1 / -1', height: 120, color: TXT_MUTED,
+                    width: '100%', height: 120, color: TXT_MUTED,
                     fontSize: 16, fontWeight: 400,
                   }}
                 >
@@ -495,6 +500,10 @@ function ChapterChip({
   const status = chapterStatus(m)
   const chip = STATUS_CHIP[status]
   const locked = status === 'locked'
+  const done = status === 'done'
+  // Completed and locked chapters can't be re-opened from the subject screen;
+  // only due / overdue / in-progress chapters are tappable.
+  const interactive = !locked && !done
   // The chapter's OWN icon: the backend per-chapter logo first (this is what the
   // original app showed for each chapter/module), then any chapter-specific
   // illustration. A neutral book glyph fills in if neither exists — we no longer
@@ -504,10 +513,11 @@ function ChapterChip({
   return (
     <motion.button
       type="button"
-      onClick={locked ? undefined : onClick}
-      disabled={locked}
+      onClick={interactive ? onClick : undefined}
+      disabled={!interactive}
       className="bg-white flex flex-col text-left relative overflow-hidden cursor-pointer disabled:cursor-default"
       style={{
+        width: 224, maxWidth: '100%',
         height: 261, borderRadius: 34, padding: 24, gap: 10,
         boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
         opacity: locked ? 0.85 : 1,
@@ -515,7 +525,7 @@ function ChapterChip({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: locked ? 0.85 : 1, y: 0 }}
       transition={{ delay, duration: 0.3 }}
-      whileHover={locked ? undefined : { y: -4, boxShadow: '0 12px 28px rgba(0,0,0,0.10)' }}
+      whileHover={interactive ? { y: -4, boxShadow: '0 12px 28px rgba(0,0,0,0.10)' } : undefined}
     >
       {/* Status chip top-left */}
       <div className="flex items-center justify-between">
@@ -538,6 +548,17 @@ function ChapterChip({
             }}
           >
             <Lock className="w-5 h-5" style={{ color: TXT_MID }} strokeWidth={2.2} />
+          </span>
+        )}
+        {done && (
+          <span
+            className="grid place-items-center"
+            style={{
+              width: 44, height: 44, borderRadius: 999,
+              background: '#22D3A0',
+            }}
+          >
+            <Check className="w-5 h-5" style={{ color: '#fff' }} strokeWidth={3} />
           </span>
         )}
       </div>
@@ -612,7 +633,7 @@ function ChapterChip({
                 initial={{ width: 0 }}
                 animate={{ width: `${m.userPercentage || 0}%` }}
                 transition={{ duration: 0.8, ease: 'easeOut' }}
-                style={{ height: '100%', borderRadius: 14, background: CYAN }}
+                style={{ height: '100%', borderRadius: 14, background: done ? '#22D3A0' : CYAN }}
               />
             </div>
             <span

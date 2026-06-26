@@ -43,10 +43,10 @@ import {
 import { useAuthStore } from '../../state/auth'
 import { useLeaderboard } from '../leaderboard/useLeaderboard'
 import { useSubjects } from '../subject/useSubjects'
-import { useSubjectModules, useModuleChapters } from '../module/useModuleChapters'
+import { useSubjectModules } from '../module/useModuleChapters'
 import { TopBar } from '../../shell/TopBar'
 import type { Subject } from '../../types/subject'
-import type { ModuleChapter } from '../../types/module'
+import type { Module } from '../../types/module'
 import type { User } from '../../types/user'
 
 // ---------------------------------------------------------------------------
@@ -119,11 +119,6 @@ export function HomePage() {
   }, [subjectsQ.data, pickedSubjectId, defaultSubject])
 
   const modulesQ = useSubjectModules(activeSubject?.id)
-  const activeModule = useMemo(() => {
-    const list = modulesQ.data ?? []
-    return list.find((m) => m.status === 'in_progress') ?? list[0] ?? null
-  }, [modulesQ.data])
-  const chaptersQ = useModuleChapters(activeModule?.id)
 
   // Real overall progress = chapters completed / total chapters across the
   // subjects the student has touched (from the backend's subject_progress).
@@ -184,14 +179,14 @@ export function HomePage() {
           <div className="flex flex-col min-w-0" style={{ gap: 'clamp(18px, 2vw, 28px)' }}>
             <ActiveSubjectCard
               subject={activeSubject}
-              moduleName={activeModule?.name ?? null}
-              chapters={chaptersQ.data ?? []}
+              modules={modulesQ.data ?? []}
               loading={subjectsQ.isLoading || modulesQ.isLoading}
               onStart={() => {
-                if (activeSubject && activeModule) {
-                  navigate(
-                    `/subjects/${activeSubject.id}/modules/${activeModule.id}/chapters`,
-                  )
+                // Per the bug report: Home's Start should land on the Subjects
+                // screen (with this subject expanded), not jump straight into the
+                // journey page.
+                if (activeSubject) {
+                  navigate(`/subjects?expand=${activeSubject.id}`)
                 }
               }}
             />
@@ -564,11 +559,10 @@ function LeaderRow({
 // Active subject card — Figma Frame 42 (920 x 726)
 // ---------------------------------------------------------------------------
 function ActiveSubjectCard({
-  subject, moduleName, chapters, loading, onStart,
+  subject, modules, loading, onStart,
 }: {
   subject: Subject | null
-  moduleName: string | null
-  chapters: ModuleChapter[]
+  modules: Module[]
   loading: boolean
   onStart: () => void
 }) {
@@ -602,7 +596,7 @@ function ActiveSubjectCard({
     )
   }
 
-  const visible = chapters.slice(0, 2)
+  const visible = modules.slice(0, 4)
 
   return (
     <section
@@ -621,14 +615,12 @@ function ActiveSubjectCard({
           >
             {subject.name}
           </span>
-          {moduleName && (
-            <span
-              className="font-body"
-              style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px' }}
-            >
-              {chapters.length} chapter{chapters.length === 1 ? '' : 's'}
-            </span>
-          )}
+          <span
+            className="font-body"
+            style={{ fontSize: 16, fontWeight: 400, color: TXT_MID, lineHeight: '22px' }}
+          >
+            {modules.length} chapter{modules.length === 1 ? '' : 's'}
+          </span>
         </div>
 
         {subject.hasDueModule && (
@@ -689,15 +681,15 @@ function ActiveSubjectCard({
       {/* Chapter preview — the first two chapters (name + progress) so the card
           isn't blank, plus a "+N more" count. */}
       <div className="flex flex-col" style={{ gap: 22, marginTop: 24 }}>
-        {visible.map((c, idx) => (
-          <ChapterRow key={c.id} chapter={c} index={idx} />
+        {visible.map((m) => (
+          <ModuleRow key={m.id} module={m} />
         ))}
-        {chapters.length > visible.length && (
+        {modules.length > visible.length && (
           <p
             className="font-body"
             style={{ fontSize: 14, fontWeight: 400, color: TXT_MUTED, lineHeight: '20px' }}
           >
-            +{chapters.length - visible.length} more chapters
+            +{modules.length - visible.length} more chapters
           </p>
         )}
       </div>
@@ -721,52 +713,63 @@ function ActiveSubjectCard({
 }
 
 
-function ChapterRow({ chapter, index }: { chapter: ModuleChapter; index: number }) {
-  // Status circle: completed → green check, locked → grey lock, else cyan dot.
-  const completed = chapter.isCompleted
-  const inProgress = chapter.isInProgress
-  const locked = !chapter.isInProgress && !chapter.isCompleted && !chapter.isNotStarted
+// Module row for the home active-subject card. The card lists the subject's
+// "chapters" (modules): completed → green tick, due/overdue → coloured dot +
+// label, locked → grey lock. (Previously it listed the active module's TOPICS,
+// which the bug report flagged as the wrong level.)
+function ModuleRow({ module: m }: { module: Module }) {
+  const completed = m.status === 'completed' || m.userPercentage >= 100
+  let overdue = false
+  if (!completed && m.dueDate) {
+    const d = new Date(m.dueDate)
+    d.setHours(23, 59, 59, 999)
+    overdue = Number.isFinite(d.getTime()) && d.getTime() < Date.now()
+  }
+  const due = !completed && !!m.dueDate
+  const inProgress = !completed && !due && m.status === 'in_progress'
+  const locked = !completed && !due && !inProgress
 
-  const stroke = completed ? '#07BE80' : '#989CA5'
-  const showBar = inProgress || (index === 0 && !completed && !locked)
-  const progress = inProgress ? 12 : 0  // chapters API doesn't ship a per-chapter pct yet
+  const stroke = completed ? '#07BE80'
+    : overdue ? '#FF3131'
+    : due ? '#F69B08'
+    : locked ? TXT_MUTED
+    : CYAN
 
   return (
-    <div className="flex items-start" style={{ gap: 14 }}>
+    <div className="flex items-center" style={{ gap: 14 }}>
       <div
         className="shrink-0 grid place-items-center"
-        style={{
-          width: 30, height: 30, borderRadius: 999,
-          border: `2px solid ${stroke}`,
-          marginTop: showBar ? 7 : 0,
-        }}
+        style={{ width: 30, height: 30, borderRadius: 999, border: `2px solid ${stroke}` }}
       >
         {completed ? (
           <Check className="w-3.5 h-3.5" style={{ color: '#07BE80' }} strokeWidth={3} />
         ) : locked ? (
           <Lock className="w-3.5 h-3.5" style={{ color: TXT_MUTED }} strokeWidth={2.5} />
         ) : (
-          <span style={{ width: 14, height: 14, borderRadius: 999, background: CYAN }} />
+          <span style={{ width: 12, height: 12, borderRadius: 999, background: stroke }} />
         )}
       </div>
 
-      <div className="flex flex-col flex-1" style={{ gap: 6 }}>
+      <div className="flex flex-col flex-1 min-w-0" style={{ gap: 2 }}>
         <span
           className="font-body"
           style={{ fontSize: 17, fontWeight: 600, color: TXT_DARK, lineHeight: '24px' }}
         >
-          {chapter.name}
+          {m.name}
         </span>
-        {showBar && (
-          <div style={{ height: 8, borderRadius: 14, background: TRACK_BG, overflow: 'hidden' }}>
-            <div style={{ height: '100%', borderRadius: 14, background: CYAN, width: `${progress}%` }} />
-          </div>
+        {(due || overdue) && (
+          <span
+            className="font-body"
+            style={{ fontSize: 13, fontWeight: 600, color: overdue ? '#FF3131' : '#C05127', lineHeight: '18px' }}
+          >
+            {overdue ? 'Overdue' : 'Due'}
+          </span>
         )}
       </div>
 
       <ChevronRight
         className="w-6 h-6 shrink-0"
-        style={{ color: '#919BA9', marginTop: showBar ? 8 : 3 }}
+        style={{ color: '#919BA9' }}
         strokeWidth={2.5}
       />
     </div>

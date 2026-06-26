@@ -396,8 +396,10 @@ export function FlutterQuizScreen({
   const isLocked = showSuccess || showIncorrect
   const subjectBg   = hexToRgba(subjectColor, 0.15)
   const subjectBdr  = hexToRgba(subjectColor, 0.3)
-  // Progress: completed / totalMain  (Flutter: _currentQuestionIndex / widget.questions.length)
-  const progress = totalMain > 0 ? completed / totalMain : 0
+  // Progress fills as the student engages: include the current question once an
+  // answer is selected, so the bar "loads" on selection rather than only after
+  // the question is completed.
+  const progress = totalMain > 0 ? Math.min(1, (completed + (hasAnswer ? 1 : 0)) / totalMain) : 0
 
   return (
     <div
@@ -532,11 +534,11 @@ export function FlutterQuizScreen({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 style={{
-                  position: 'absolute', top: 44, right: 4, zIndex: 20,
-                  maxWidth: '75%',
+                  position: 'absolute', top: 44, right: 'clamp(16px, 4vw, 40px)', zIndex: 20,
+                  maxWidth: 'min(320px, 80vw)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 6 }}>
                   <div style={{
                     width: 0, height: 0,
                     borderLeft: '8px solid transparent',
@@ -988,7 +990,10 @@ function McqOptions({
         const option          = options[actualIdx]
         const isSelected      = isMultiple ? selectedIndices.has(actualIdx) : selectedIndex === actualIdx
         const isCorrect       = correctIndices.includes(actualIdx)
-        const isDisabled      = disabledIndices.has(actualIdx) || (disabled && !isCorrect)
+        // Keep the student's OWN pick visible (blue "your answer") instead of
+        // greying it out — so on the incorrect state they can see what they chose
+        // alongside the green correct answer (bug report #19).
+        const isDisabled      = (disabledIndices.has(actualIdx) || (disabled && !isCorrect)) && !isSelected
         const highlightCorrect = showCorrect && isCorrect
 
         const border = isDisabled        ? C.optionDisabledBorder
